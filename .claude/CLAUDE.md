@@ -33,7 +33,7 @@ Mirror these specifically:
 
 - **Game area order**, top to bottom: dice container, my hand, then one row of every player's played column (mine first, then turn order).
 - Every player's played cards are visible (stacked vertically, overlapping so only the top strip with stars shows, as in the rules).
-- **Player boards** (BGA side panels) show the number of cards in hand, visible to everyone including spectators: with 6 cards or fewer, one small card-back div per card, overlapping, like my game Odin; with more than 6, a single card back followed by "x N". The Last Chance card sits to the right of the card backs (greyed once used). Also show round status (in / stopped / crashed) and the Start token.
+- **Player boards** (BGA side panels) show the number of cards in hand, visible to everyone including spectators: with 6 cards or fewer, one small card-back div per card, overlapping, like my game Odin; with more than 6, a single card back followed by "x N". The Last Chance card sits to the right of the card backs and disappears once used. Also show round status (in / stopped / crashed) and the Start token.
 - **Start token** is a single element that slides from player board to player board when it passes (animated like moving a card between containers).
 - **Dice container** in the game area: show current roll, reserved dice (card 2) with the owner's color, golden die when active, and dice modified by card 9. No roll animation needed yet; a simple fade/scale on change is enough.
 
@@ -52,7 +52,7 @@ Mirror these specifically:
 - **Card ids reveal identity**: cards are inserted in a fixed order, so a `card_id` tells its color and value. Never send ids of cards a player isn't allowed to see; send counts instead.
 - **Color order**: the `color` ENUM is declared in sprite order (red, green, purple, blue, orange), so `ORDER BY color, value` sorts like the sprite. Keep `CARD_COLORS` (PHP) and `$card-colors` (SCSS) in that same order.
 - **Removed color**: in 2 to 4 player games its cards stay in `cards` at location `returned_to_box` and its die stays in `dice` with `die_location = 'returned_to_box'`. "Colors in use" is read from `dice`.
-- **State ids**: RoundSetup 5, RollDice 10, ModifyDie 15, PlayCard 20, BonusPlay 25, ResolvePowers 30, SwapCards 35, PassStartToken 40, StopOrMore 50, EndRound 60, EndScore 98.
+- **State ids**: RoundSetup 5, RollDice 10, ModifyDie 15, PlayCard 20, RevealCards 22, BonusPlay 25, ResolvePowers 30, SwapCards 35, PassStartToken 40, StopOrMore 50, RevealStopOrMore 55, EndRound 60, EndScore 98.
 - **Framework typing differs from Fugu's**: Riviera's `bga-framework.d.ts` is newer. `Player` has no `color_back` and `playerorder` is `number[]`. Ported helpers (`divYou`, `divColoredPlayer`) drop `color_back`.
 - **No `gameui.isInterfaceLocked()`** in this framework version: use `Game.isInterfaceLocked()`, which reads the `lockedInterface` body class.
 - **Globals** go through `$this->bga->globals` (`startPlayerId`, `roundNumber`); Fugu has none. Throw `\Bga\GameFramework\SystemException`, not the deprecated `\BgaSystemException`.

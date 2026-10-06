@@ -63,6 +63,7 @@ Activating a power is always optional. When several players trigger powers in th
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
    Dice reserved by another player are unavailable to you.
    - **[BGA]** The server computes valid cards and only offers those. If none is valid, the only buttons are "Use Last Chance" (when available) and "Crash".
+   - **[BGA]** Choosing is two clicks: select a playable card, then "Play this card". "Crash" has no confirm dialog; Change my mind is the safety net.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.
    - Crash: eliminated from the round, all played cards and hand are discarded, 0 points this round.
    - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Change my mind" mechanism as Stop or More (step 8). The chosen card stays visibly set aside in their hand, and pressing "Change my mind" returns it and re-activates them.
@@ -96,7 +97,7 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 
 - At round end, each player who stopped adds their stars to their running score (`player_score`). Crashed players add 0.
 - If anyone has 40+ points after a round: highest score wins; ties share the win (equal `player_score`, no tiebreaker).
-- Grand Slam ends the game immediately with a sudden-death win for that player. How to make BGA rank them first (score override, `player_score_aux`, etc.) is to be discussed before implementing.
+- Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked after every reveal (and after card 1 bonus plays in M3). The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Log: "<name> plays all 10 cards: Grand Slam!".
 - Otherwise start a new round. The Start token keeps passing in turn order.
 
 ## Hidden information
@@ -109,7 +110,7 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 ### Player board display
 
 - Hand count: 6 cards or fewer, one small card back per card; more than 6, one card back followed by "x N". Visible to everyone, spectators included.
-- Last Chance card to the right of the card backs (greyed once used).
+- Last Chance card to the right of the card backs; it disappears once used.
 - Round status (in / stopped / crashed) and the Start token. The token is a single element that slides from board to board when it passes.
 
 ## BGA states (suggestion, refine with Fugu's patterns)
@@ -118,10 +119,12 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 - `RollDice` (game)
 - `ModifyDie` (active player, loops clockwise over card-9 owners)
 - `PlayCard` (multiple active, with change-mind)
+- `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check)
 - `BonusPlay` (multiple active, card 1 owners, loops while chains continue)
 - `ResolvePowers` (game, dispatches to a `SwapCards` active-player state for card 10; 2 and 11 can be a simple confirm/skip in the same active state)
 - `PassStartToken` (game)
 - `StopOrMore` (multiple active, with change-mind)
+- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, More → RollDice, else EndRound)
 - `EndRound` (game: scoring, check 40)
 - `EndScore`
 
@@ -140,6 +143,6 @@ Table: rounds, turns.
      - Differs from the plan: no custom score `ebg.counter` (BGA's default score display is used; scores don't change until M2).
      - Deferred: new-round deal notification, roll, card play (M2); `ModalBoxHandler`, `PrefHandler`, `TooltipHandler`, `EndGameScoringHandler` (when first needed); mobile card spacing (M4).
      - Known limits: dice show blank faces until M2 rolls them; `debug_redeal` and `debug_playRandomCards` need F5 to show their result.
-2. **Core loop**: roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end. Playable without powers.
+2. **Core loop**: roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
 3. **Powers**: 1, 2, 11, 9, 10 in that order.
-4. **Polish**: Fugu-style logs with card icons, tooltips for powers, Grand Slam, statistics, end-game scoring display, zombie mode, game progression, preferences.
+4. **Polish**: Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences.
