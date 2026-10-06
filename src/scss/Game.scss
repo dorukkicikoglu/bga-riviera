@@ -14,7 +14,7 @@
 :root{
     //capped so cards stop growing past a comfortable size on very large/ultra-wide screens
     --card-width: min(6vw, 110px);
-    --die-size: min(3.6vw, 52px);
+    --die-size: min(2.8vw, 40px);
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 
     --die-color-red: #c8322b;
@@ -22,9 +22,22 @@
     --die-color-purple: #5f2d8c;
     --die-color-blue: #1c4f72;
     --die-color-orange: #e8862b;
+
+    //one background per log type, each a pale take on a card color or the coast, light enough for the default dark log text
+    --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
+    --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
+    --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
+    --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
+    --bg-log-crash: linear-gradient(135deg, #fbe6e3, #f1c2bc);
+    --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
+    --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
+    --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
+    --bg-log-stars-banked: linear-gradient(135deg, #fff0e0, #f6d2a8);
 }
 
-.mobile_version{ --card-width: min(9vw, 90px); --die-size: min(8vw, 44px); }
+.mobile_version{ --card-width: min(9vw, 90px); --die-size: min(7vw, 34px); }
+
+body{ background: linear-gradient(180deg, #3d8fc6 0%, #1f5f94 100%) fixed; background-color: #1f5f94; } //Riviera sea blue
 
 @mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
 @mixin non-selectable() { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
@@ -61,33 +74,49 @@ $card-aspect: math.div(625, 424); //height / width of one frame
 	&.cloned-card{ position: absolute; z-index: 100; pointer-events: none; }
 }
 
-//dice
-#dice-container{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: calc(var(--die-size) * 0.4); padding: 14px 0px 6px 0px; min-height: var(--die-size);
-    .a-die{ position: relative; box-sizing: border-box; width: var(--die-size); height: var(--die-size); padding: 13%; border-radius: 18%; background: var(--die-color); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); --pip-color: #ffffff; transition: opacity 0.3s ease;
-        @each $color in $card-colors {
-            &[data-color="#{$color}"]{ --die-color: var(--die-color-#{$color}); }
-        }
-        &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00;
-            &[data-in-use-by-power11="false"]{ display: none; }
-        }
+//the copy that flies between containers in Game.animateSlide
+body .sliding-clone{ position: absolute; z-index: 1000; margin: 0; pointer-events: none; }
 
-        .pip{ width: 72%; height: 72%; place-self: center; border-radius: 50%; background: var(--pip-color); visibility: hidden; }
-
-        //pips are numbered 1-9 row-major in the 3x3 grid
-        $pips-by-value: (1: (5), 2: (1, 9), 3: (1, 5, 9), 4: (1, 3, 7, 9), 5: (1, 3, 5, 7, 9), 6: (1, 3, 4, 6, 7, 9));
-        @each $value, $pips in $pips-by-value {
-            @each $pip in $pips {
-                &[data-value="#{$value}"] .pip:nth-child(#{$pip}){ visibility: visible; }
-            }
-        }
-        &[data-value=""]{ opacity: 0.55; } //not rolled yet: blank face
-
-        &:not([data-reserved-by-power2=""]){ outline: 3px solid var(--reserver-color); outline-offset: 2px; }
-        &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
-
-        &.die-changed{ animation: die-changed 300ms ease; }
-    }
+.minimised-card-icon{ display: inline-block; vertical-align: middle; line-height: 0;
+    .a-card{ --my-card-width: 24px; border-radius: 3px; box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6); }
 }
+
+.status-card-icon{ display: inline-flex; box-sizing: border-box; width: 36px; height: 36px; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 4px solid; border-radius: 50%; background: #07151a; color: #e6a82e; font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: bold; line-height: 1; }
+@each $color in $card-colors {
+    .status-card-icon[data-color="#{$color}"]{ border-color: var(--die-color-#{$color}); }
+}
+
+#more-button{ display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 33px; line-height: 1.2; white-space: normal; text-align: center; padding: 0 18px; }
+
+//dice
+//.a-die lives outside #dice-container so logs can show small dice too
+//padding is a share of --die-size: a % padding would be a share of the parent's width and blow the die up
+.a-die{ position: relative; box-sizing: border-box; width: var(--die-size); height: var(--die-size); padding: calc(var(--die-size) * 0.08); border-radius: 18%; background: var(--die-color); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); --pip-color: #ffffff; transition: opacity 0.3s ease;
+    @each $color in $card-colors {
+        &[data-color="#{$color}"]{ --die-color: var(--die-color-#{$color}); }
+    }
+    &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00;
+        &[data-in-use-by-power11="false"]{ display: none; }
+    }
+
+    .pip{ width: 72%; height: 72%; place-self: center; border-radius: 50%; background: var(--pip-color); visibility: hidden; }
+
+    //pips are numbered 1-9 row-major in the 3x3 grid
+    $pips-by-value: (1: (5), 2: (1, 9), 3: (1, 5, 9), 4: (1, 3, 7, 9), 5: (1, 3, 5, 7, 9), 6: (1, 3, 4, 6, 7, 9));
+    @each $value, $pips in $pips-by-value {
+        @each $pip in $pips {
+            &[data-value="#{$value}"] .pip:nth-child(#{$pip}){ visibility: visible; }
+        }
+    }
+    &[data-value=""]{ opacity: 0.55; } //not rolled yet: blank face
+
+    &:not([data-reserved-by-power2=""]){ outline: 3px solid var(--reserver-color); outline-offset: 2px; }
+    &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
+
+    &.die-changed{ animation: die-changed 300ms ease; }
+}
+
+#dice-container{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px 0px 6px 0px; min-height: var(--die-size); }
 //end dice
 
 .my-hand-title, .played-column-title{ position: absolute; top: 0px; left: 18px; transform: translateY(-50%); font-family: "Roboto", sans-serif; font-size: 18px; white-space: nowrap; @include text-shade(#f0f0f0, 2px); @include non-selectable(); }
@@ -98,16 +127,31 @@ $card-aspect: math.div(625, 424); //height / width of one frame
     .my-hand-title{ color: var(--hand-owner-color); }
 
     .cards-container{ display: flex; justify-content: center;
-        .a-card{ margin-left: calc(var(--my-card-width) * -0.1);
+        .a-card{ margin-left: calc(var(--my-card-width) * -0.1); transition: transform 0.2s ease, filter 0.2s ease;
             &:first-child{ margin-left: 0px; }
+
+            &.selected-hand-card{ transform: translateY(-14px); outline: 3px solid #e8862b; outline-offset: -1px; z-index: 1; }
+            //set aside until the reveal: raised, with a check badge
+            &.chosen-card{ transform: translateY(-18px); outline: 3px solid #2e8b2e; outline-offset: -1px; z-index: 1; overflow: visible;
+                &::after{ content: "✓"; position: absolute; top: -10px; right: -10px; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #2e8b2e; color: #ffffff; font-size: 15px; font-weight: bold; text-align: center; box-shadow: 1px 1px 3px #000000; }
+            }
         }
+        &.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: translateY(20px); }
+        &.cards-fading-in .a-card{ animation: card-fade-in 0.5s ease; }
     }
+}
+
+body.current_player_is_active:not(.lockedInterface){
+    #my-hand-container .cards-container .a-card.playable-card{ cursor: pointer; animation: selectable-card-glow-pulse 3s ease-in-out infinite; }
+    &.mobile_version #my-hand-container .cards-container .a-card.playable-card{ animation: mobile-selectable-card-glow-pulse 3s ease-in-out infinite; }
 }
 
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
     .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
-        .played-column-title{ left: 10px; color: var(--column-owner-color); font-size: 16px; max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis;
-            .played-column-stars{ margin-left: 4px; color: #b8860b; }
+        //name docked top-left (shrinks with an ellipsis), stars docked top-right (never shrink)
+        .played-column-title{ left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--column-owner-color); font-size: 16px;
+            .played-column-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px; margin: -2px; } //padding keeps the text shade from being clipped
+            .played-column-stars{ flex-shrink: 0; color: #b8860b; }
         }
 
         //only the star strip at the top of each covered card stays visible, as in the rules
@@ -115,27 +159,28 @@ $card-aspect: math.div(625, 424); //height / width of one frame
             .a-card + .a-card{ margin-top: calc(var(--my-card-width) * #{$card-aspect} * -0.75); }
         }
 
+        .cards-column.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: scale(0.85); }
+
         &[data-is-myself="true"]{ border-width: 2px; box-shadow: 0 0 8px var(--column-owner-color); }
-        &[data-round-status="crashed"]{ opacity: 0.45; }
+        &[data-round-status="crashed"]{ opacity: 0.45; transition: opacity 0.4s ease; }
+        &.grand-slam-column{ box-shadow: 0 0 14px 4px #e9c45a; border-color: #e0b228; }
     }
 }
 
 //player board
 .riviera-player-board{ margin-top: 6px;
-    .player-board-cards-row{ display: flex; align-items: center; gap: 10px; min-height: 34px;
+    .player-board-cards-row{ display: flex; align-items: center; justify-content: space-between; min-height: 34px;
         .hand-count-backs{ display: flex; align-items: center;
             .a-card.mini-card-back{ --my-card-width: 16px; box-shadow: 1px 1px 2px #000000;
                 & + .a-card.mini-card-back{ margin-left: -9px; }
             }
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
+        //a used Last Chance card disappears; live, it shrinks and fades out first (PlayerHandler.setLastChanceUsed)
         .last-chance-indicator{ position: relative; display: flex; align-items: center;
-            .a-card.mini-card{ --my-card-width: 22px; box-shadow: 1px 1px 2px #000000; transition: filter 0.3s ease, opacity 0.3s ease; }
-            .last-chance-used-icon{ display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d00000; font-size: 20px; @include text-shade(#ffffff, 1px); }
-            &[data-used="true"]{
-                .a-card.mini-card{ filter: grayscale(1); opacity: 0.45; }
-                .last-chance-used-icon{ display: block; }
-            }
+            .a-card.mini-card{ --my-card-width: 22px; box-shadow: 1px 1px 2px #000000; transition: transform 0.4s ease, opacity 0.4s ease; }
+            &.last-chance-fading .a-card.mini-card{ transform: scale(0); opacity: 0; }
+            &[data-used="true"]{ display: none; }
         }
     }
     .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px; min-height: 30px;
@@ -148,17 +193,66 @@ $card-aspect: math.div(625, 424); //height / width of one frame
     }
 }
 
+.riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
+
 //no art yet: a black square with a red border
 .start-token{ box-sizing: border-box; width: 30px; height: 30px; background: #000000; border: 2px solid #ff0000;
-    &.cloned-start-token{ position: absolute; z-index: 1000; margin: 0; pointer-events: none; }
+    &.mini-start-token{ display: inline-block; vertical-align: middle; width: 14px; height: 14px; border-width: 1px; }
 }
 //end player board
 
 //logs
+//plain logs keep a neutral background; each log type (LogMutationObserver.createLog*) overrides it with its own
+.log .roundedbox, .gamelogreview{ background: var(--bg-log-default); }
+
+$log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked";
 .log, .gamelogreview{
-    &.a-game-log{ position: relative; }
+    &.a-game-log{ position: relative;
+        .roundedbox{ padding-bottom: 5px; }
+    }
+    @each $log-type in $log-types {
+        &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
+    }
+
+    .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row, .stars-banked-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
+    .new-round-row{ font-weight: bold; font-size: 16px; }
+    .grand-slam-row{ font-weight: bold; }
+    .player-crashed-row .fa-bomb{ color: #a00000; }
+
+    .dice-rolled-row{ display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 5px; margin-bottom: -7px;
+        .a-die{ --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
+    }
+    .cards-revealed-row{ display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 5px; margin-bottom: -7px;
+        .reveal-entry{ display: inline-flex; align-items: center; gap: 5px; }
+    }
+    .stop-or-more-row{ color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
+        .fa-flag-checkered{ color: #1c4f72; }
+        .fa-play{ color: #2e8b2e; }
+    }
+    .log-arrow{ color: #240e52; @include text-shade(#c7d7d0, 1px); }
+}
+//the log backgrounds are pale, so light player colors get a dark outline to stay readable
+@each $light-player-color in "ffa500", "72c3b1", "bdd002", "ffffff" {
+    .a-game-log .playername[player-color="#{$light-player-color}"]{ @include text-shade(#27271cBF, 1px); }
 }
 //end logs
+
+@keyframes selectable-card-glow-pulse {
+  0% { box-shadow: 0 0 5px 5px #FFD700; }
+  50% { box-shadow: 0 0 11px 11px #ffd483; }
+  100% { box-shadow: 0 0 5px 5px #FFD700; }
+}
+
+@keyframes mobile-selectable-card-glow-pulse {
+  0% { box-shadow: 0 0 4px 4px #FFD700; }
+  50% { box-shadow: 0 0 8px 8px #ffd483; }
+  100% { box-shadow: 0 0 4px 4px #FFD700; }
+}
+
+@keyframes card-fade-in {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
 
 @keyframes die-changed {
     0% { transform: scale(0.6); opacity: 0.2; }

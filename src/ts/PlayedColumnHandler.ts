@@ -2,6 +2,9 @@ import { Game } from "./Game";
 import { PlayerHandler } from "./PlayerHandler";
 
 export class PlayedColumnHandler{
+    private static readonly SLIDE_ANIM_TIME = 600;
+    private static readonly CLEAR_ANIM_TIME = 400;
+
     private columnContainer: HTMLDivElement;
     private cardsColumn: HTMLDivElement;
     private starsText: HTMLSpanElement;
@@ -23,6 +26,7 @@ export class PlayedColumnHandler{
                 <div class="cards-column"></div>
             `;
             this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName();
+            this.columnContainer.querySelector('.played-column-name').setAttribute('title', this.owner.getPlayerName()); //full name on hover when it's cut
 
             parent.appendChild(this.columnContainer);
         }
@@ -56,9 +60,38 @@ export class PlayedColumnHandler{
         this.updateStarsTotal();
     }
 
+    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board).
+    //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
+    public async animateCardIn(cardData: PlayedCard, fromElement: HTMLDivElement): Promise<void>{
+        this.playedCardsData.push(cardData);
+
+        let aCard = this.game.createCardDiv(cardData);
+        aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
+
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, PlayedColumnHandler.SLIDE_ANIM_TIME);
+        this.updateStarsTotal();
+    }
+
+    //a crash or a new round empties the column
+    public async clear(): Promise<void>{
+        this.playedCardsData = [];
+
+        if(this.cardsColumn.children.length > 0){
+            this.cardsColumn.classList.add('cards-fading-out');
+            await this.game.bga.gameui.wait(PlayedColumnHandler.CLEAR_ANIM_TIME);
+            this.cardsColumn.classList.remove('cards-fading-out');
+        }
+
+        this.cardsColumn.innerHTML = '';
+        this.updateStarsTotal();
+    }
+
+    public getStarsTotal(): number{
+        return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
+    }
+
     private updateStarsTotal(): void{
-        const starsTotal = this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
-        this.starsText.textContent = `★ ${starsTotal}`;
+        this.starsText.textContent = `★ ${this.getStarsTotal()}`;
     }
 
     public setMyColumn(isMyColumn: boolean): void{

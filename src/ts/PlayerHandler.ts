@@ -3,6 +3,7 @@ import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
 export class PlayerHandler{
     private static readonly MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
+    private static readonly LAST_CHANCE_FADE_ANIM_TIME = 400;
 
     private playerBoardContainer: HTMLDivElement;
     private handCountBacks: HTMLDivElement;
@@ -28,9 +29,7 @@ export class PlayerHandler{
         this.playerBoardContainer.innerHTML = `
             <div class="player-board-cards-row">
                 <div class="hand-count-backs"></div>
-                <div class="last-chance-indicator">
-                    <i class="last-chance-used-icon fa6 fa-times"></i>
-                </div>
+                <div class="last-chance-indicator"></div>
             </div>
             <div class="player-board-status-row">
                 <div class="round-status-indicator"></div>
@@ -66,9 +65,22 @@ export class PlayerHandler{
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
 
-    public setLastChanceUsed(lastChanceUsed: boolean): void {
+    //a used Last Chance card disappears from the board; live, it shrinks and fades out first
+    public async setLastChanceUsed(lastChanceUsed: boolean, animate: boolean = false): Promise<void> {
         this.lastChanceUsed = lastChanceUsed;
+
+        if(lastChanceUsed && animate){
+            this.lastChanceIndicator.classList.add('last-chance-fading');
+            await this.game.bga.gameui.wait(PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME);
+            this.lastChanceIndicator.classList.remove('last-chance-fading');
+        }
+
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
+    }
+
+    public setGrandSlam(): void {
+        this.playerBoardContainer.classList.add('grand-slam-player-board');
+        this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
 
     public setRoundStatus(roundStatus: RoundStatus): void {
@@ -92,4 +104,5 @@ export class PlayerHandler{
     public getHandCount(): number { return this.handCount; }
     public getPlayedColumn(): PlayedColumnHandler { return this.playedColumn; }
     public getStartTokenSlot(): HTMLDivElement { return this.startTokenSlot; }
+    public getHandCountElement(): HTMLDivElement { return this.handCountBacks; }
 }

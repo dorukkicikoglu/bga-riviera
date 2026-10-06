@@ -13,7 +13,8 @@ export class DiceHandler{
             this.diceContainer.appendChild(this.createDieDiv(dieData));
     }
 
-    private createDieDiv(dieData: RivieraDie): HTMLDivElement {
+    //also used for the mini dice in logs
+    public createDieDiv(dieData: RivieraDie): HTMLDivElement {
         const aDie = document.createElement('div');
         aDie.className = 'a-die';
         aDie.setAttribute('data-color', dieData.color);

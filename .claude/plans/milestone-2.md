@@ -1,4 +1,4 @@
-> Status: approved 2026-10-06. Doc diffs (end of this file) applied to SPEC.md and CLAUDE.md; code not started.
+> Status: implemented 2026-10-06, awaiting Studio test. Doc diffs (end of this file) applied to SPEC.md and CLAUDE.md.
 
 # Riviera: Milestone 2 (Core loop) plan, revision 2
 

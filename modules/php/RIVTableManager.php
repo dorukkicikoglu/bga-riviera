@@ -134,11 +134,134 @@ class RIVTableManager{
         $nextStartPlayerID = $this->game->getPlayerAfter($currentStartPlayerID);
         $this->game->bga->globals->set('startPlayerId', $nextStartPlayerID);
 
-        $this->game->bga->notify->all('startTokenPassed', clienttranslate('${player_name} receives the Start token'), [
+        $startTokenLogStr = $this->game->getPlayerNameById($nextStartPlayerID).' receives the Start token';
+        $this->game->bga->notify->all('startTokenPassed', '${START_TOKEN_LOG_STR}', [
+            'preserve' => ['player_id'],
             'player_id' => $nextStartPlayerID,
+            'START_TOKEN_LOG_STR' => $startTokenLogStr,
         ]);
 
         return $nextStartPlayerID;
+    }
+
+    /**
+     * Rolls every colored die in play, plus the golden die when a card 11 put it in use.
+     */
+    function rollDice(): void{
+        $diceDB = $this->game->getObjectListFromDB("SELECT `die_color`, `in_use_by_POWER11` FROM `dice` WHERE `die_location` = 'in_play'");
+
+        foreach($diceDB as $dieDB){
+            $isRolled = ($dieDB['die_color'] !== 'gold') || ($dieDB['in_use_by_POWER11'] === 'yes');
+            $dieValue = $isRolled ? bga_rand(1, DIE_FACES) : 'NULL';
+            $this->game->DbQuery("UPDATE `dice` SET `die_value` = $dieValue, `modified_by_POWER9` = 'no' WHERE `die_color` = '".$dieDB['die_color']."'");
+        }
+    }
+
+    /**
+     * Rolled dice $playerID may use: gold only while in use, and never a die another player reserved with a card 2.
+     */
+    function getAvailableDice(int $playerID): array{
+        $diceDB = $this->game->getObjectListFromDB(
+            "SELECT `die_color`, `die_value` FROM `dice`
+             WHERE `die_location` = 'in_play' AND `die_value` IS NOT NULL
+             AND (`die_color` <> 'gold' OR `in_use_by_POWER11` = 'yes')
+             AND (`reserved_by_POWER2` IS NULL OR `reserved_by_POWER2` = $playerID)
+             ORDER BY `die_color` ASC"
+        );
+
+        $availableDice = [];
+        foreach($diceDB as $dieDB)
+            $availableDice[] = ['color' => $dieDB['die_color'], 'value' => (int) $dieDB['die_value']];
+
+        return $availableDice;
+    }
+
+    /**
+     * Hand cards of $playerID that match one available die (color and value), or the sum of two available dice
+     * under the color of either of them. The golden die adds to a sum but never gives a color.
+     */
+    function getPlayableCardIDs(int $playerID): array{
+        $availableDice = $this->getAvailableDice($playerID);
+
+        $playableColorValues = []; //"color:value" => true
+        foreach($availableDice as $die){
+            if($die['color'] !== 'gold')
+                $playableColorValues[$die['color'].':'.$die['value']] = true;
+        }
+
+        for($i = 0; $i < count($availableDice); $i++){
+            for($j = $i + 1; $j < count($availableDice); $j++){
+                $sum = $availableDice[$i]['value'] + $availableDice[$j]['value'];
+                foreach([$availableDice[$i], $availableDice[$j]] as $die){
+                    if($die['color'] !== 'gold')
+                        $playableColorValues[$die['color'].':'.$sum] = true;
+                }
+            }
+        }
+
+        $handCardsDB = $this->game->getObjectListFromDB("SELECT `card_id`, `color`, `value` FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY `color` ASC, `value` ASC");
+
+        $playableCardIDs = [];
+        foreach($handCardsDB as $cardDB){
+            if(isset($playableColorValues[$cardDB['color'].':'.$cardDB['value']]))
+                $playableCardIDs[] = (int) $cardDB['card_id'];
+        }
+
+        return $playableCardIDs;
+    }
+
+    function getHandCards(int $playerID): array{
+        $handCardsDB = $this->game->getObjectListFromDB("SELECT * FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY `color` ASC, `value` ASC");
+        return array_map(fn(array $cardDB) => $this->formatCard($cardDB), $handCardsDB);
+    }
+
+    /**
+     * Hand count of every player, 0 included. Public information.
+     */
+    function getHandCounts(): array{
+        $handCountsDB = $this->game->getCollectionFromDB(
+            "SELECT `player`.`player_id`, COUNT(`cards`.`card_id`) FROM `player`
+             LEFT JOIN `cards` ON `cards`.`card_location` = 'hand' AND `cards`.`card_location_arg` = `player`.`player_id`
+             GROUP BY `player`.`player_id`", true
+        );
+
+        $handCounts = [];
+        foreach($handCountsDB as $playerID => $handCount)
+            $handCounts[(int) $playerID] = (int) $handCount;
+
+        return $handCounts;
+    }
+
+    function getStarsInColumn(int $playerID): int{
+        $playedValues = $this->game->getObjectListFromDB("SELECT `value` FROM `cards` WHERE `card_location` = 'played' AND `card_location_arg` = $playerID", true);
+        return array_sum(array_map(fn($value) => STARS_BY_VALUE[(int) $value], $playedValues));
+    }
+
+    function getNextLocationInColumn(int $playerID): int{
+        return (int) $this->game->getUniqueValueFromDB("SELECT COALESCE(MAX(`location_in_column`), 0) FROM `cards` WHERE `card_location` = 'played' AND `card_location_arg` = $playerID") + 1;
+    }
+
+    /**
+     * Every player id in turn order (clockwise), starting with $firstPlayerID.
+     */
+    function getPlayerIDsInTurnOrderFrom(int $firstPlayerID): array{
+        $nextPlayerTable = $this->game->getNextPlayerTable();
+        $playerIDs = [];
+        $playerID = $firstPlayerID;
+
+        do {
+            $playerIDs[] = $playerID;
+            $playerID = (int) $nextPlayerTable[$playerID];
+        } while($playerID !== $firstPlayerID);
+
+        return $playerIDs;
+    }
+
+    /**
+     * A crash discards the player's hand and played column.
+     */
+    function discardPlayerCards(int $playerID): void{
+        $this->game->DbQuery("UPDATE `cards` SET `card_location` = 'discard', `location_in_column` = NULL WHERE `card_location` IN ('hand', 'played') AND `card_location_arg` = $playerID");
     }
 }
 

@@ -29,6 +29,8 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("MAX_REDEAL_ATTEMPTS", 1000); //safety cap for the silent redeal loop, never expected to be reached
     define("MAX_PLAYERS_WITH_ONE_COLOR_REMOVED", 4); //2 to 4 players play without one random color (its 12 cards and its die)
     define("WINNING_SCORE", 40);
+    define("GRAND_SLAM_MIN_SCORE", 100); //a Grand Slam score is max(this, highest other score + 1) so BGA ranks that player first
+    define("DIE_FACES", 6);
 
     define("CARD_COLOR_NAMES", [
         'red' => clienttranslate('red'),

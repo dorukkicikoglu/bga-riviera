@@ -3,18 +3,113 @@
  * onEnteringState, onLeavingState and onPlayerActivationChange are predefined names that will be called by the framework.
  * When executing code in this state, you can access the args using this.args
  *
- * Milestone 1 stub: the game rests here after the deal. Card play arrives in Milestone 2.
+ * Everyone still in the round secretly chooses a card (select, then confirm), or, only when no card is
+ * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
+ * "Change my mind" takes it back.
  */
 class PlayCard {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
+        this.playCardButton = null;
+        this.pendingChoice = null;
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
-        this.bga.statusBar.setTitle(_('Card play is not available yet'));
+        this.setPendingChoice(args?._private?.pendingPlayChoice ?? null); //restores a set-aside card after F5
+        this.onPlayerActivationChange(args, isCurrentPlayerActive);
+    }
+    /**
+     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
+     * The chosen card keeps its set-aside look: notif_cardsRevealed comes after the state change and moves it.
+     */
+    onLeavingState(args, isCurrentPlayerActive) {
+        this.game.handHandler?.clearPlayableCards();
+        this.playCardButton = null;
+    }
+    /**
+     * This method is called each time the current player becomes active or inactive in a MULTIPLE_ACTIVE_PLAYER state. You can use this method to perform some user interface changes at this moment.
+     * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
+     */
+    onPlayerActivationChange(args, isCurrentPlayerActive) {
+        this.bga.statusBar.removeActionButtons();
+        this.game.handHandler?.clearPlayableCards();
+        this.playCardButton = null;
+        const privateArgs = args?._private;
+        if (isCurrentPlayerActive && privateArgs) {
+            if (privateArgs.playableCardIDs.length > 0) {
+                this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
+                this.game.handHandler?.setPlayableCards(privateArgs.playableCardIDs);
+                //hidden until a card is selected, like Fugu's swap button
+                this.playCardButton = this.bga.statusBar.addActionButton(_('confirm'), () => this.playCardClicked(), { id: 'play-card-button' });
+                this.selectionChanged();
+            }
+            else {
+                this.bga.statusBar.setTitle(_('${you} cannot play any card'));
+                if (privateArgs.canUseLastChance)
+                    this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), { id: 'last-chance-button' });
+                //no confirm dialog: Change my mind is the safety net until the last player has chosen
+                this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), { id: 'crash-button', color: 'alert' });
+            }
+        }
+        else if (this.pendingChoice) {
+            const pendingChoiceTitles = {
+                card: _('${you} chose a card. Waiting for other players'),
+                last_chance: _('${you} chose your Last Chance. Waiting for other players'),
+                crash: _('${you} chose to crash. Waiting for other players'),
+            };
+            this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
+            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+        }
+        else {
+            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+        }
+    }
+    //called by HandHandler when a playable card is selected or unselected
+    selectionChanged() {
+        if (!this.playCardButton)
+            return;
+        const selectedCard = this.game.handHandler?.getSelectedCardData();
+        this.playCardButton.style.display = selectedCard ? null : 'none';
+        if (selectedCard) {
+            const cardIcon = `<span class="status-card-icon" data-color="${selectedCard.color}" aria-label="${selectedCard.value} ${selectedCard.color}">${selectedCard.value}</span>`;
+            this.bga.statusBar.setTitle(_('Play ${card}?').replace('${card}', cardIcon));
+        }
+        else {
+            this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
+        }
+    }
+    playCardClicked() {
+        const selectedCardID = this.game.handHandler?.getSelectedCardID();
+        if (!selectedCardID)
+            return;
+        this.bga.actions.performAction('actPlayCard', { cardID: selectedCardID });
+    }
+    //pendingPlayChoice from the args on entry and F5, then playChoiceConfirmed / playChoiceReverted; the status bar follows through onPlayerActivationChange
+    setPendingChoice(pendingChoice) {
+        this.pendingChoice = pendingChoice;
+        this.game.handHandler?.setChosenCard((pendingChoice && pendingChoice.choice === 'card') ? pendingChoice.card_id : null);
+    }
+}
+
+/**
+ * [BGA] Simultaneous Stop or More: everyone still in the round chooses at the same time. The choice stays
+ * pending until the last player has chosen, and "Change my mind" takes it back.
+ */
+class StopOrMore {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+        this.pendingChoice = null;
+    }
+    /**
+     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onEnteringState(args, isCurrentPlayerActive) {
+        this.pendingChoice = args?._private?.pendingStopOrMoreChoice ?? null; //restores the choice after F5
+        this.onPlayerActivationChange(args, isCurrentPlayerActive);
     }
     /**
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
@@ -26,6 +121,28 @@ class PlayCard {
      * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
      */
     onPlayerActivationChange(args, isCurrentPlayerActive) {
+        this.bga.statusBar.removeActionButtons();
+        if (isCurrentPlayerActive && this.game.myself) {
+            this.bga.statusBar.setTitle(_('${you} must choose: Stop or More'));
+            const starsTotal = this.game.myself.getPlayedColumn().getStarsTotal();
+            this.bga.statusBar.addActionButton(_('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()), () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
+            this.bga.statusBar.addActionButton(_('More'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
+        }
+        else if (this.pendingChoice) {
+            const pendingChoiceTitles = {
+                stop: _('${you} chose to stop. Waiting for other players'),
+                more: _('${you} chose to continue. Waiting for other players'),
+            };
+            this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice]);
+            this.game.changeMindHandler.addChangeMindButton('actChangeMindStopOrMore');
+        }
+        else {
+            this.bga.statusBar.setTitle(_('Other players must choose: Stop or More'));
+        }
+    }
+    //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange
+    setPendingChoice(pendingChoice) {
+        this.pendingChoice = pendingChoice;
     }
 }
 
@@ -49,6 +166,7 @@ class PlayedColumnHandler {
                 <div class="cards-column"></div>
             `;
             this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName();
+            this.columnContainer.querySelector('.played-column-name').setAttribute('title', this.owner.getPlayerName()); //full name on hover when it's cut
             parent.appendChild(this.columnContainer);
         }
         this.cardsColumn = this.columnContainer.querySelector('.cards-column');
@@ -73,9 +191,31 @@ class PlayedColumnHandler {
         this.insertCardToColumn(cardData);
         this.updateStarsTotal();
     }
+    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board).
+    //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
+    async animateCardIn(cardData, fromElement) {
+        this.playedCardsData.push(cardData);
+        let aCard = this.game.createCardDiv(cardData);
+        aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, PlayedColumnHandler.SLIDE_ANIM_TIME);
+        this.updateStarsTotal();
+    }
+    //a crash or a new round empties the column
+    async clear() {
+        this.playedCardsData = [];
+        if (this.cardsColumn.children.length > 0) {
+            this.cardsColumn.classList.add('cards-fading-out');
+            await this.game.bga.gameui.wait(PlayedColumnHandler.CLEAR_ANIM_TIME);
+            this.cardsColumn.classList.remove('cards-fading-out');
+        }
+        this.cardsColumn.innerHTML = '';
+        this.updateStarsTotal();
+    }
+    getStarsTotal() {
+        return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
+    }
     updateStarsTotal() {
-        const starsTotal = this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
-        this.starsText.textContent = `★ ${starsTotal}`;
+        this.starsText.textContent = `★ ${this.getStarsTotal()}`;
     }
     setMyColumn(isMyColumn) {
         this.columnContainer.setAttribute('data-is-myself', isMyColumn ? 'true' : 'false');
@@ -85,6 +225,8 @@ class PlayedColumnHandler {
     setRoundStatus(roundStatus) { this.columnContainer.setAttribute('data-round-status', roundStatus); }
     getColumnContainer() { return this.columnContainer; }
 }
+PlayedColumnHandler.SLIDE_ANIM_TIME = 600;
+PlayedColumnHandler.CLEAR_ANIM_TIME = 400;
 
 class PlayerHandler {
     constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData) {
@@ -110,9 +252,7 @@ class PlayerHandler {
         this.playerBoardContainer.innerHTML = `
             <div class="player-board-cards-row">
                 <div class="hand-count-backs"></div>
-                <div class="last-chance-indicator">
-                    <i class="last-chance-used-icon fa6 fa-times"></i>
-                </div>
+                <div class="last-chance-indicator"></div>
             </div>
             <div class="player-board-status-row">
                 <div class="round-status-indicator"></div>
@@ -141,9 +281,19 @@ class PlayerHandler {
         if (handCount > PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS)
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
-    setLastChanceUsed(lastChanceUsed) {
+    //a used Last Chance card disappears from the board; live, it shrinks and fades out first
+    async setLastChanceUsed(lastChanceUsed, animate = false) {
         this.lastChanceUsed = lastChanceUsed;
+        if (lastChanceUsed && animate) {
+            this.lastChanceIndicator.classList.add('last-chance-fading');
+            await this.game.bga.gameui.wait(PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME);
+            this.lastChanceIndicator.classList.remove('last-chance-fading');
+        }
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
+    }
+    setGrandSlam() {
+        this.playerBoardContainer.classList.add('grand-slam-player-board');
+        this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
     setRoundStatus(roundStatus) {
         this.roundStatus = roundStatus;
@@ -163,8 +313,10 @@ class PlayerHandler {
     getHandCount() { return this.handCount; }
     getPlayedColumn() { return this.playedColumn; }
     getStartTokenSlot() { return this.startTokenSlot; }
+    getHandCountElement() { return this.handCountBacks; }
 }
 PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
+PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME = 400;
 
 class HandHandler {
     constructor(game, handData) {
@@ -205,16 +357,81 @@ class HandHandler {
             return;
         if (this.game.isInterfaceLocked())
             return;
-        if (!event.target.classList.contains('a-card'))
+        if (!event.target.classList.contains(HandHandler.PLAYABLE_CARD_CLASS))
             return;
         this.handCardClicked(event.target);
     }
+    //selecting a playable card only raises it; the status-bar confirmation sends it
     handCardClicked(cardDiv) {
-        //card play arrives in Milestone 2
+        const cardWasAlreadySelected = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
+        this.clearSelection();
+        if (!cardWasAlreadySelected)
+            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+        this.game.playCard.selectionChanged();
     }
+    clearSelection() {
+        this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
+    }
+    getSelectedCardID() {
+        const selectedCard = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS);
+        return selectedCard ? parseInt(selectedCard.getAttribute('data-card-id')) : null;
+    }
+    getSelectedCardData() {
+        const selectedCardID = this.getSelectedCardID();
+        return selectedCardID === null ? null : this.handData.find(card => card.card_id === selectedCardID) ?? null;
+    }
+    //playable cards glow, the others keep their normal look
+    setPlayableCards(playableCardIDs) {
+        for (let card of this.getCardDivs())
+            card.classList.toggle(HandHandler.PLAYABLE_CARD_CLASS, playableCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
+    }
+    clearPlayableCards() {
+        this.clearSelection();
+        for (let card of this.getCardDivs())
+            card.classList.remove(HandHandler.PLAYABLE_CARD_CLASS);
+    }
+    //the card chosen this turn stays set aside in the hand until the reveal, or until "Change my mind"
+    setChosenCard(cardID) {
+        for (let card of this.getCardDivs())
+            card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardID !== null && parseInt(card.getAttribute('data-card-id')) === cardID);
+    }
+    //the card leaves the hand at once while a copy of it slides into the played column
+    async animateCardToColumn(cardData, column) {
+        this.handData = this.handData.filter(handCard => handCard.card_id !== cardData.card_id);
+        const handCard = this.getCardDiv(cardData.card_id);
+        if (!handCard) {
+            column.addCard(cardData);
+            return;
+        }
+        const slidePromise = column.animateCardIn(cardData, handCard); //places the sliding copy on handCard before its first await,
+        handCard.remove(); //so the hand card can go right away
+        await slidePromise;
+    }
+    //a crash discards the whole hand
+    async discardAll() {
+        this.handData = [];
+        this.cardsContainer.classList.add('cards-fading-out');
+        await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
+        this.cardsContainer.innerHTML = '';
+        this.cardsContainer.classList.remove('cards-fading-out');
+    }
+    //a new round's hand
+    setHand(handData) {
+        this.handData = handData;
+        this.displayHand();
+        this.cardsContainer.classList.remove('cards-fading-in');
+        void this.cardsContainer.offsetWidth; //restart the animation if it's already running
+        this.cardsContainer.classList.add('cards-fading-in');
+    }
+    getCardDivs() { return Array.from(this.cardsContainer.querySelectorAll('.a-card')); }
+    getCardDiv(cardID) { return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
     getCardCount() { return this.cardsContainer.querySelectorAll('.a-card').length; }
     getHandContainer() { return this.handContainer; }
 }
+HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
+HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
+HandHandler.PLAYABLE_CARD_CLASS = 'playable-card';
+HandHandler.FADE_ANIM_TIME = 400;
 
 class DiceHandler {
     constructor(game, diceData) {
@@ -224,6 +441,7 @@ class DiceHandler {
         for (let dieData of this.diceData)
             this.diceContainer.appendChild(this.createDieDiv(dieData));
     }
+    //also used for the mini dice in logs
     createDieDiv(dieData) {
         const aDie = document.createElement('div');
         aDie.className = 'a-die';
@@ -278,8 +496,7 @@ class StartTokenHandler {
         if (startTokenSlot)
             startTokenSlot.appendChild(this.startToken);
     }
-    //slides the token from its current player board to playerID's, the same way Fugu moves cards between containers:
-    //a clone flies over the page while the real token waits hidden in its new slot
+    //slides the token from its current player board to playerID's, the same way cards move between containers
     async moveTo(playerID) {
         const targetSlot = this.game.players[playerID]?.getStartTokenSlot();
         if (!targetSlot)
@@ -291,24 +508,7 @@ class StartTokenHandler {
             targetSlot.appendChild(this.startToken);
             return;
         }
-        const tokenClone = this.startToken.cloneNode(true);
-        tokenClone.removeAttribute('id');
-        tokenClone.classList.add('cloned-start-token');
-        document.body.appendChild(tokenClone);
-        this.game.placeOnObject(tokenClone, this.startToken, true);
-        this.startToken.style.visibility = 'hidden';
-        targetSlot.appendChild(this.startToken);
-        const tokenRect = this.startToken.getBoundingClientRect();
-        const cloneRect = tokenClone.getBoundingClientRect();
-        const targetLeft = parseFloat(tokenClone.style.left || '0') + (tokenRect.left - cloneRect.left);
-        const targetTop = parseFloat(tokenClone.style.top || '0') + (tokenRect.top - cloneRect.top);
-        await this.game.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
-        tokenClone.style.transition = `left ${StartTokenHandler.SLIDE_ANIM_TIME}ms ease-in-out, top ${StartTokenHandler.SLIDE_ANIM_TIME}ms ease-in-out`;
-        tokenClone.style.left = targetLeft + 'px';
-        tokenClone.style.top = targetTop + 'px';
-        await this.game.bga.gameui.wait(StartTokenHandler.SLIDE_ANIM_TIME);
-        this.startToken.style.visibility = null;
-        tokenClone.remove();
+        await this.game.animateSlide(this.startToken, this.startToken, targetSlot, StartTokenHandler.SLIDE_ANIM_TIME);
     }
     getStartPlayerID() { return this.startPlayerID; }
 }
@@ -390,6 +590,116 @@ class LogMutationObserver {
         }
     }
     addLogClassTag(logHTML, logClass) { return { log_html: logHTML + `<div log-class-tag="${logClass}"></div>`, log_class: logClass }; }
+    //create specific log types
+    createLogNewRound(roundNumber) {
+        let logHTML = `
+            <div class="new-round-row">
+                ${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'new-round-log');
+    }
+    createLogDiceRolled(dice) {
+        const diceHTML = dice.filter(dieData => dieData.value !== null).map(dieData => this.game.diceHandler.createDieDiv(dieData).outerHTML).join('');
+        let logHTML = `
+            <div class="dice-rolled-row">
+                ${diceHTML}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'dice-rolled-log');
+    }
+    createLogCardsRevealed(reveals) {
+        const revealsHTML = reveals.map(reveal => {
+            const cardDiv = (reveal.choice === 'card' && reveal.card) ? this.game.createCardDiv(reveal.card) : this.game.createLastChanceDiv();
+            return `
+                <div class="reveal-entry">
+                    ${this.game.divColoredPlayer(reveal.player_id, { class: 'playername' })}
+                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>
+                </div>`;
+        }).join('');
+        let logHTML = `
+            <div class="cards-revealed-row">
+                ${revealsHTML}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'cards-revealed-log');
+    }
+    createLogPlayerCrashed(player_id) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const crashText = player_id === this.game.getMyPlayerID()
+            ? _('${you} crash').replace('${you}', playerNameHTML)
+            : _('${playerName} crashes').replace('${playerName}', playerNameHTML);
+        let logHTML = `
+            <div class="player-crashed-row">
+                <i class="fa6 fa-bomb"></i>&nbsp;${crashText}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'crash-log');
+    }
+    createLogGrandSlam(player_id) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const grandSlamText = player_id === this.game.getMyPlayerID()
+            ? _('${you} play all 10 cards: Grand Slam!').replace('${you}', playerNameHTML)
+            : _('${playerName} plays all 10 cards: Grand Slam!').replace('${playerName}', playerNameHTML);
+        let logHTML = `
+            <div class="grand-slam-row">
+                ${grandSlamText}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'grand-slam-log');
+    }
+    createLogStartTokenPassed(player_id) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const startTokenText = player_id === this.game.getMyPlayerID()
+            ? _('${you} receive the Start token').replace('${you}', playerNameHTML)
+            : _('${playerName} receives the Start token').replace('${playerName}', playerNameHTML);
+        let logHTML = `
+            <div class="start-token-row">
+                <div class="start-token mini-start-token"></div>&nbsp;${startTokenText}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'start-token-log');
+    }
+    createLogStopOrMoreRevealed(choices) {
+        const namesByChoice = { stop: [], more: [] };
+        for (const player_id in choices)
+            namesByChoice[choices[player_id]].push(this.game.divColoredPlayer(player_id, { class: 'playername' }));
+        let choiceLinesHTML = '';
+        if (namesByChoice.stop.length > 0)
+            choiceLinesHTML += `<div class="stop-or-more-line"><i class="fa6 fa-flag-checkered"></i>&nbsp;${_('Stop:')} ${namesByChoice.stop.join(', ')}</div>`;
+        if (namesByChoice.more.length > 0)
+            choiceLinesHTML += `<div class="stop-or-more-line"><i class="fa6 fa-play"></i>&nbsp;${_('More:')} ${namesByChoice.more.join(', ')}</div>`;
+        let logHTML = `
+            <div class="stop-or-more-row">
+                ${choiceLinesHTML}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'stop-or-more-log');
+    }
+    createLogStarsBanked(player_id, stars) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const starsBankedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} bank ${stars} ★').replace('${you}', playerNameHTML)
+            : _('${playerName} banks ${stars} ★').replace('${playerName}', playerNameHTML);
+        let logHTML = `
+            <div class="stars-banked-row">
+                ${starsBankedText.replace('${stars}', `<b>${stars}</b>`)}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'stars-banked-log');
+    }
+}
+
+//"Change my mind", shared by every multiactive state where a choice stays pending until the last player has chosen.
+//The player is inactive by then, so the action skips the active-player check (checkAction: false) and the
+//server checks the state itself (#[CheckAction(false)] + checkPossibleAction)
+class ChangeMindHandler {
+    constructor(game) {
+        this.game = game;
+    }
+    addChangeMindButton(actionName) {
+        return this.game.bga.statusBar.addActionButton(_('Change my mind'), () => this.changeMindClicked(actionName), {
+            id: 'change-mind-button',
+            color: 'secondary',
+        });
+    }
+    changeMindClicked(actionName) {
+        if (!this.game.bga.actions.checkPossibleActions(actionName))
+            return;
+        this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
+    }
 }
 
 class Game {
@@ -401,6 +711,8 @@ class Game {
         // Declare the State classes
         this.playCard = new PlayCard(this, bga);
         this.bga.states.register('PlayCard', this.playCard);
+        this.stopOrMore = new StopOrMore(this, bga);
+        this.bga.states.register('StopOrMore', this.stopOrMore);
         // Uncomment the next line to show debug informations about state changes in the console. Remove before going to production!
         // this.bga.states.logger = console.log;
     }
@@ -445,6 +757,7 @@ class Game {
         }
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
         this.logMutationObserver = new LogMutationObserver(this);
+        this.changeMindHandler = new ChangeMindHandler(this);
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();
         console.log("Ending game setup");
@@ -462,10 +775,26 @@ class Game {
             log = _(log);
             if (log && args && !args.processed) {
                 args.processed = true;
-                // list of special keys we want to replace with images, filled in from Milestone 2
-                const keys = [];
+                // list of special keys we want to replace with images
+                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR'];
                 for (let key of keys) {
                     if (key in args) {
+                        if (key == 'NEW_ROUND_LOG_STR')
+                            log = this.logMutationObserver.createLogNewRound(args['round_number']).log_html;
+                        else if (key == 'DICE_ROLLED_LOG_STR')
+                            log = this.logMutationObserver.createLogDiceRolled(args['dice']).log_html;
+                        else if (key == 'REVEAL_LOG_STR')
+                            log = this.logMutationObserver.createLogCardsRevealed(args['reveals']).log_html;
+                        else if (key == 'CRASH_LOG_STR')
+                            log = this.logMutationObserver.createLogPlayerCrashed(args['player_id']).log_html;
+                        else if (key == 'GRAND_SLAM_LOG_STR')
+                            log = this.logMutationObserver.createLogGrandSlam(args['player_id']).log_html;
+                        else if (key == 'START_TOKEN_LOG_STR')
+                            log = this.logMutationObserver.createLogStartTokenPassed(args['player_id']).log_html;
+                        else if (key == 'STOP_OR_MORE_LOG_STR')
+                            log = this.logMutationObserver.createLogStopOrMoreRevealed(args['choices']).log_html;
+                        else if (key == 'STARS_BANKED_LOG_STR')
+                            log = this.logMutationObserver.createLogStarsBanked(args['player_id'], args['stars']).log_html;
                     }
                 }
             }
@@ -540,6 +869,29 @@ class Game {
         mobileObj.style.left = (currentLeft + deltaX) + 'px';
         mobileObj.style.top = (currentTop + deltaY) + 'px';
     }
+    //slides element into the container `to`, starting from where `from` is now (from may be element itself).
+    //A copy flies over the page while the real element waits hidden in `to`, like Fugu moves cards between containers.
+    //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
+    async animateSlide(element, from, to, durationMs) {
+        const slidingClone = element.cloneNode(true);
+        slidingClone.removeAttribute('id');
+        slidingClone.classList.add('sliding-clone');
+        document.body.appendChild(slidingClone);
+        this.placeOnObject(slidingClone, from, true);
+        element.style.visibility = 'hidden';
+        to.appendChild(element);
+        const elementRect = element.getBoundingClientRect();
+        const cloneRect = slidingClone.getBoundingClientRect();
+        const targetLeft = parseFloat(slidingClone.style.left || '0') + (elementRect.left - cloneRect.left);
+        const targetTop = parseFloat(slidingClone.style.top || '0') + (elementRect.top - cloneRect.top);
+        await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
+        slidingClone.style.transition = `left ${durationMs}ms ease-in-out, top ${durationMs}ms ease-in-out`;
+        slidingClone.style.left = targetLeft + 'px';
+        slidingClone.style.top = targetTop + 'px';
+        await this.bga.gameui.wait(durationMs);
+        element.style.visibility = null;
+        slidingClone.remove();
+    }
     rgbToHex(rgb) {
         const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
         if (!match) {
@@ -593,8 +945,80 @@ class Game {
         });
     }
     // Add the notification handlers
+    async notif_newRound(args) {
+        const columnsCleared = [];
+        for (let player_id in this.players) {
+            const player = this.players[player_id];
+            columnsCleared.push(player.getPlayedColumn().clear());
+            player.setRoundStatus('in');
+            player.setHandCount(args.hand_counts[player_id] ?? 0);
+        }
+        this.diceHandler.updateDice(args.dice);
+        await Promise.all(columnsCleared);
+    }
+    async notif_newHand(args) {
+        this.handHandler?.setHand(args.cards);
+    }
+    async notif_diceRolled(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+    async notif_playChoiceConfirmed(args) {
+        this.playCard.setPendingChoice({ choice: args.choice, card_id: args.card_id });
+    }
+    async notif_playChoiceReverted(args) {
+        this.playCard.setPendingChoice(null);
+    }
+    //every revealed card slides at once: mine from my hand, the others from their player board's hand count
+    async notif_cardsRevealed(args) {
+        await Promise.all(args.reveals.map(reveal => this.animateReveal(reveal)));
+        for (let player_id in args.hand_counts)
+            this.players[player_id]?.setHandCount(args.hand_counts[player_id]);
+    }
+    async animateReveal(reveal) {
+        const player = this.players[reveal.player_id];
+        if (!player)
+            return;
+        if (reveal.choice === 'last_chance') {
+            await player.setLastChanceUsed(true, true);
+            return;
+        }
+        if (reveal.player_id === this.myPlayerID && this.handHandler)
+            await this.handHandler.animateCardToColumn(reveal.card, player.getPlayedColumn());
+        else
+            await player.getPlayedColumn().animateCardIn(reveal.card, player.getHandCountElement());
+    }
+    async notif_playerCrashed(args) {
+        const player = this.players[args.player_id];
+        if (!player)
+            return;
+        const discards = [player.getPlayedColumn().clear()];
+        if (args.player_id === this.myPlayerID && this.handHandler)
+            discards.push(this.handHandler.discardAll());
+        await Promise.all(discards);
+        player.setHandCount(0);
+        player.setRoundStatus('crashed');
+    }
+    async notif_grandSlam(args) {
+        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+        this.players[args.player_id]?.setGrandSlam();
+    }
     async notif_startTokenPassed(args) {
         await this.startTokenHandler.moveTo(args.player_id);
+    }
+    async notif_stopOrMoreChoiceConfirmed(args) {
+        this.stopOrMore.setPendingChoice(args.choice);
+    }
+    async notif_stopOrMoreChoiceReverted(args) {
+        this.stopOrMore.setPendingChoice(null);
+    }
+    async notif_stopOrMoreRevealed(args) {
+        for (let player_id in args.choices) {
+            if (args.choices[player_id] === 'stop')
+                this.players[player_id]?.setRoundStatus('stopped');
+        }
+    }
+    async notif_starsBanked(args) {
+        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
     }
 }
 

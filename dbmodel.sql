@@ -43,3 +43,10 @@ CREATE TABLE IF NOT EXISTS `dice` (
 
 ALTER TABLE `player` ADD `round_status` ENUM('in', 'stopped', 'crashed') NOT NULL DEFAULT 'in' AFTER `player_state`;
 ALTER TABLE `player` ADD `last_chance_used` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `round_status`;
+-- pending choices of the multiactive states, cleared by Change my mind. The chosen card stays in 'hand' until RevealCards
+-- made_choice_this_state: extra time only on the first choice of a state
+-- keep comments on their own lines and without semicolons: BGA splits this file into statements itself
+ALTER TABLE `player` ADD `play_choice` ENUM('card', 'last_chance', 'crash') NULL AFTER `last_chance_used`;
+ALTER TABLE `player` ADD `play_choice_card_id` INT UNSIGNED NULL AFTER `play_choice`;
+ALTER TABLE `player` ADD `stop_or_more_choice` ENUM('stop', 'more') NULL AFTER `play_choice_card_id`;
+ALTER TABLE `player` ADD `made_choice_this_state` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `stop_or_more_choice`;

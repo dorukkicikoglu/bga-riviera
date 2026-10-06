@@ -31,6 +31,8 @@ Mirror these specifically:
 
 ## Layout (client)
 
+- **Background**: sea blue gradient on `body` (Fugu sets its background on `body` too).
+- **Playable cards** glow; unplayable cards keep their normal look (no grey-out).
 - **Game area order**, top to bottom: dice container, my hand, then one row of every player's played column (mine first, then turn order).
 - Every player's played cards are visible (stacked vertically, overlapping so only the top strip with stars shows, as in the rules).
 - **Player boards** (BGA side panels) show the number of cards in hand, visible to everyone including spectators: with 6 cards or fewer, one small card-back div per card, overlapping, like my game Odin; with more than 6, a single card back followed by "x N". The Last Chance card sits to the right of the card backs and disappears once used. Also show round status (in / stopped / crashed) and the Start token.
@@ -57,6 +59,12 @@ Mirror these specifically:
 - **No `gameui.isInterfaceLocked()`** in this framework version: use `Game.isInterfaceLocked()`, which reads the `lockedInterface` body class.
 - **Globals** go through `$this->bga->globals` (`startPlayerId`, `roundNumber`); Fugu has none. Throw `\Bga\GameFramework\SystemException`, not the deprecated `\BgaSystemException`.
 - **Score display**: use BGA's default score counter (`bga.playerPanels.getScoreCounter(id)` when it changes), not a second `ebg.counter` like Fugu's `PlayerHandler`.
+- **Simultaneous choices**: a multiactive state stores each choice as pending `player` columns and never applies it there. The last chooser's `setPlayerNonMultiactive` moves to a GAME "reveal" state (`RevealCards`, `RevealStopOrMore`) that applies every choice and sends one notification. Change my mind goes through `RIVChangeMindManager` (`resetChoices` / `recordChoice` / `changeMind`) and the client `ChangeMindHandler`; the revert action carries `#[PossibleAction]` + `#[CheckAction(false)]`.
+- **Private state args**: per-player data goes in `getArgs()` as `['_private' => [playerId => [...]]]`; the client reads `args._private`. Act methods take the magic `int $currentPlayerId` (multiactive) parameter.
+- **Logs**: every log type has a `${X_LOG_STR}` server placeholder (plain fallback text as its value, plus `preserve` for the args the row needs), one `LogMutationObserver.createLog*()` method, one `*-log` class, and one `--bg-log-*` variable in `:root` (listed in `$log-types` in `Game.scss`).
+- **Slide animations**: use `Game.animateSlide(element, from, to, ms)` for anything moving between containers.
+- **`dbmodel.sql` comments**: put them on their own `--` lines, never after a `;` and never containing a `;`. BGA splits the file into statements itself and silently dropped an `ALTER` that had a trailing comment.
+- **Deleting or renaming PHP files**: SFTP runs with `autoDelete: false`, so a file removed locally stays on Studio, and the framework still loads every class in `modules/php/States/`. Delete it on the server by hand too, or a stale state class can collide on its state id (the template's `PlayerTurn.php` took id 10 and broke game creation once `RollDice` used 10).
 
 ## Keeping the docs current
 

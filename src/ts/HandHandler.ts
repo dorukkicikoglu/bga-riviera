@@ -1,6 +1,12 @@
 import { Game } from "./Game";
+import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
 export class HandHandler{
+    private static readonly SELECTED_CARD_CLASS = 'selected-hand-card';
+    private static readonly CHOSEN_CARD_CLASS = 'chosen-card';
+    private static readonly PLAYABLE_CARD_CLASS = 'playable-card';
+    private static readonly FADE_ANIM_TIME = 400;
+
     private handContainer: HTMLDivElement;
     private cardsContainer: HTMLDivElement;
 
@@ -51,15 +57,92 @@ export class HandHandler{
         if(this.game.isInterfaceLocked())
             return;
 
-        if(!(event.target as HTMLElement).classList.contains('a-card'))
+        if(!(event.target as HTMLElement).classList.contains(HandHandler.PLAYABLE_CARD_CLASS))
             return;
 
         this.handCardClicked(event.target as HTMLDivElement);
     }
 
+    //selecting a playable card only raises it; the status-bar confirmation sends it
     private handCardClicked(cardDiv: HTMLDivElement){
-        //card play arrives in Milestone 2
+        const cardWasAlreadySelected: boolean = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
+        this.clearSelection();
+
+        if(!cardWasAlreadySelected)
+            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+
+        this.game.playCard.selectionChanged();
     }
+
+    private clearSelection(): void{
+        this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
+    }
+
+    public getSelectedCardID(): number | null{
+        const selectedCard = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS);
+        return selectedCard ? parseInt(selectedCard.getAttribute('data-card-id')) : null;
+    }
+
+    public getSelectedCardData(): RivieraCard | null{
+        const selectedCardID = this.getSelectedCardID();
+        return selectedCardID === null ? null : this.handData.find(card => card.card_id === selectedCardID) ?? null;
+    }
+
+    //playable cards glow, the others keep their normal look
+    public setPlayableCards(playableCardIDs: number[]): void{
+        for(let card of this.getCardDivs())
+            card.classList.toggle(HandHandler.PLAYABLE_CARD_CLASS, playableCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
+    }
+
+    public clearPlayableCards(): void{
+        this.clearSelection();
+        for(let card of this.getCardDivs())
+            card.classList.remove(HandHandler.PLAYABLE_CARD_CLASS);
+    }
+
+    //the card chosen this turn stays set aside in the hand until the reveal, or until "Change my mind"
+    public setChosenCard(cardID: number | null): void{
+        for(let card of this.getCardDivs())
+            card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardID !== null && parseInt(card.getAttribute('data-card-id')) === cardID);
+    }
+
+    //the card leaves the hand at once while a copy of it slides into the played column
+    public async animateCardToColumn(cardData: PlayedCard, column: PlayedColumnHandler): Promise<void>{
+        this.handData = this.handData.filter(handCard => handCard.card_id !== cardData.card_id);
+
+        const handCard = this.getCardDiv(cardData.card_id);
+        if(!handCard){
+            column.addCard(cardData);
+            return;
+        }
+
+        const slidePromise = column.animateCardIn(cardData, handCard); //places the sliding copy on handCard before its first await,
+        handCard.remove();                                              //so the hand card can go right away
+        await slidePromise;
+    }
+
+    //a crash discards the whole hand
+    public async discardAll(): Promise<void>{
+        this.handData = [];
+        this.cardsContainer.classList.add('cards-fading-out');
+        await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
+
+        this.cardsContainer.innerHTML = '';
+        this.cardsContainer.classList.remove('cards-fading-out');
+    }
+
+    //a new round's hand
+    public setHand(handData: RivieraCard[]): void{
+        this.handData = handData;
+        this.displayHand();
+
+        this.cardsContainer.classList.remove('cards-fading-in');
+        void this.cardsContainer.offsetWidth; //restart the animation if it's already running
+        this.cardsContainer.classList.add('cards-fading-in');
+    }
+
+    private getCardDivs(): HTMLDivElement[]{ return Array.from(this.cardsContainer.querySelectorAll('.a-card')) as HTMLDivElement[]; }
+    private getCardDiv(cardID: number): HTMLDivElement{ return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
 
     public getCardCount(): number{ return this.cardsContainer.querySelectorAll('.a-card').length; }
     public getHandContainer(): HTMLDivElement{ return this.handContainer; }

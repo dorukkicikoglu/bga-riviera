@@ -15,8 +15,7 @@ export class StartTokenHandler{
             startTokenSlot.appendChild(this.startToken);
 	}
 
-    //slides the token from its current player board to playerID's, the same way Fugu moves cards between containers:
-    //a clone flies over the page while the real token waits hidden in its new slot
+    //slides the token from its current player board to playerID's, the same way cards move between containers
     public async moveTo(playerID: number){
         const targetSlot = this.game.players[playerID]?.getStartTokenSlot();
         if(!targetSlot)
@@ -32,30 +31,7 @@ export class StartTokenHandler{
             return;
         }
 
-        const tokenClone = this.startToken.cloneNode(true) as HTMLDivElement;
-        tokenClone.removeAttribute('id');
-        tokenClone.classList.add('cloned-start-token');
-        document.body.appendChild(tokenClone);
-        this.game.placeOnObject(tokenClone, this.startToken, true);
-
-        this.startToken.style.visibility = 'hidden';
-        targetSlot.appendChild(this.startToken);
-
-        const tokenRect = this.startToken.getBoundingClientRect();
-        const cloneRect = tokenClone.getBoundingClientRect();
-        const targetLeft = parseFloat(tokenClone.style.left || '0') + (tokenRect.left - cloneRect.left);
-        const targetTop = parseFloat(tokenClone.style.top || '0') + (tokenRect.top - cloneRect.top);
-
-        await this.game.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
-
-        tokenClone.style.transition = `left ${StartTokenHandler.SLIDE_ANIM_TIME}ms ease-in-out, top ${StartTokenHandler.SLIDE_ANIM_TIME}ms ease-in-out`;
-        tokenClone.style.left = targetLeft + 'px';
-        tokenClone.style.top = targetTop + 'px';
-
-        await this.game.bga.gameui.wait(StartTokenHandler.SLIDE_ANIM_TIME);
-
-        this.startToken.style.visibility = null;
-        tokenClone.remove();
+        await this.game.animateSlide(this.startToken, this.startToken, targetSlot, StartTokenHandler.SLIDE_ANIM_TIME);
     }
 
     public getStartPlayerID(): number { return this.startPlayerID; }

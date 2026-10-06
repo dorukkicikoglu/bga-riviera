@@ -143,6 +143,15 @@ Table: rounds, turns.
      - Differs from the plan: no custom score `ebg.counter` (BGA's default score display is used; scores don't change until M2).
      - Deferred: new-round deal notification, roll, card play (M2); `ModalBoxHandler`, `PrefHandler`, `TooltipHandler`, `EndGameScoringHandler` (when first needed); mobile card spacing (M4).
      - Known limits: dice show blank faces until M2 rolls them; `debug_redeal` and `debug_playRandomCards` need F5 to show their result.
-2. **Core loop**: roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
+2. **Core loop** (done, awaiting Studio test): roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
+   - Notes:
+     - Built: states `RollDice` (10), `PlayCard` (20), `RevealCards` (22), `PassStartToken` (40), `StopOrMore` (50), `RevealStopOrMore` (55), `EndRound` (60); `RoundSetup` now notifies `newRound` + a private `newHand`. Pending choices are `player` columns (`play_choice`, `play_choice_card_id`, `stop_or_more_choice`, `made_choice_this_state`); the chosen card stays in `hand` until `RevealCards`.
+     - Change my mind: `RIVChangeMindManager` (server) and `ChangeMindHandler.ts` (client), shared by `PlayCard` and `StopOrMore`.
+     - Valid cards: `RIVTableManager::getPlayableCardIDs()` already honors `reserved_by_POWER2` and `in_use_by_POWER11`, so M3 only has to set those columns.
+     - Client: `Game.animateSlide()` is the one slide animation (cards and Start token). Eight `createLog*` rows, each with its own `--bg-log-*` background.
+     - Debug: `debug_setDice('2,3,5,6')`, `debug_setScores(38)`, `debug_trimHands(1)`; `debug_redeal()` now goes through `RoundSetup` notifications.
+     - Zombies: random playable card, else Last Chance, else crash; Stop in Stop or More. M4 refines.
+     - Unverified until Studio: `#[CheckAction(false)]` on a state-class method, and `getArgs()` `_private` reaching the client as `args._private`.
+     - Known limits: the Grand Slam board highlight is not restored after F5 (the game is over by then); log rows are formatted on the client, so the server fallback text only shows if the client fails.
 3. **Powers**: 1, 2, 11, 9, 10 in that order.
 4. **Polish**: Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences.

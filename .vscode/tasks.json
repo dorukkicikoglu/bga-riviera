@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "sass:watch",
+      "type": "shell",
+      "command": "npm run watch:scss",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "sass",
+        "severity": "info",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        }
+      }
+    }
+  ]
+}

@@ -21,12 +21,14 @@ namespace Bga\Games\Riviera;
 use Bga\Games\Riviera\States\RoundSetup;
 use Bga\GameFramework\Components\Deck;
 use Bga\Games\Riviera\RIVTableManager;
+use Bga\Games\Riviera\RIVChangeMindManager;
 use Bga\GameFramework\Actions\Debug;
 
 class Game extends \Bga\GameFramework\Table
 {
     public Deck $cardsDeck;
     public RIVTableManager $tableManager;
+    public RIVChangeMindManager $changeMindManager;
 
     /**
      * Your global variables labels:
@@ -52,6 +54,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->cardsDeck = $this->deckFactory->createDeck("cards");
         $this->tableManager = new RIVTableManager($this);
+        $this->changeMindManager = new RIVChangeMindManager($this);
     }
 
     public function getGameProgression()
@@ -197,6 +200,34 @@ class Game extends \Bga\GameFramework\Table
         return array_map('intval', $this->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'in'", true));
     }
 
+    //plain text for a card in the server-side fallback of a log string; the client always replaces it with a card icon
+    public function getCardLogHTML(array $cardData){
+        $color = $cardData['color'];
+        $value = $cardData['value'];
+        return "<span><span>{$color}</span> <span>{$value}</span></span>";
+    }
+
+    /**
+     * [BGA] Grand Slam: these players emptied their hand and win at once. Their score becomes
+     * max(GRAND_SLAM_MIN_SCORE, highest other score + 1) so BGA ranks them first; several of them share the win.
+     */
+    public function applyGrandSlam(array $playerIDs): void {
+        $playerIDList = implode(',', array_map('intval', $playerIDs));
+        $highestOtherScore = (int) $this->getUniqueValueFromDB("SELECT COALESCE(MAX(`player_score`), 0) FROM `player` WHERE `player_id` NOT IN ($playerIDList)");
+        $grandSlamScore = max(GRAND_SLAM_MIN_SCORE, $highestOtherScore + 1);
+
+        foreach($playerIDs as $playerID){
+            $this->bga->playerScore->set((int) $playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
+
+            $this->bga->notify->all('grandSlam', '${GRAND_SLAM_LOG_STR}', [
+                'preserve' => ['player_id', 'score'],
+                'player_id' => (int) $playerID,
+                'score' => $grandSlamScore,
+                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById((int) $playerID).' plays all 10 cards: Grand Slam!',
+            ]);
+        }
+    }
+
     //end utility functions
 
     /**
@@ -209,7 +240,7 @@ class Game extends \Bga\GameFramework\Table
         $this->gamestate->jumpToState($state);
     }
 
-    // shuffles and deals new hands without any log line; refresh (F5) to see them
+    // starts a new round: new hands, cleared columns, a new roll
     #[Debug(reload: true)]
     public function debug_redeal() {
         $this->gamestate->jumpToState(5); //RoundSetup
@@ -234,6 +265,43 @@ class Game extends \Bga\GameFramework\Table
     // passes the Start token to the next player with its animation and log line
     public function debug_passStartToken() {
         $this->tableManager->passStartToken();
+    }
+
+    // sets the dice in play (colored dice in color order, comma separated), then re-enters PlayCard so the playable cards are recomputed
+    #[Debug(reload: true)]
+    public function debug_setDice(string $values = '1,2,3,4,5') {
+        $dieValues = array_map('intval', explode(',', $values));
+        $colorsInUse = $this->tableManager->getColorsInUse();
+
+        foreach($colorsInUse as $index => $color){
+            if(!isset($dieValues[$index]))
+                break;
+
+            $dieValue = max(1, min(DIE_FACES, $dieValues[$index]));
+            self::DbQuery("UPDATE `dice` SET `die_value` = $dieValue WHERE `die_color` = '$color'");
+        }
+
+        $this->gamestate->jumpToState(20); //PlayCard
+    }
+
+    // sets every player's score
+    #[Debug(reload: true)]
+    public function debug_setScores(int $score = 38) {
+        self::DbQuery("UPDATE `player` SET `player_score` = $score");
+    }
+
+    // each player keeps $count random hand cards, the rest are discarded (to test Grand Slam)
+    #[Debug(reload: true)]
+    public function debug_trimHands(int $count = 1) {
+        $playerIDs = $this->getObjectListFromDB("SELECT `player_id` FROM `player`", true);
+
+        foreach($playerIDs as $playerID){
+            $keptCardIDs = $this->getObjectListFromDB("SELECT `card_id` FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY RAND() LIMIT $count", true);
+            $keptCardsCondition = empty($keptCardIDs) ? "" : " AND `card_id` NOT IN (".implode(',', $keptCardIDs).")";
+            self::DbQuery("UPDATE `cards` SET `card_location` = 'discard' WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID".$keptCardsCondition);
+        }
+
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
     }
 
     public function message($txt, $desc = '', $color = 'blue') {

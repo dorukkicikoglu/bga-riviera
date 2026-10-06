@@ -45,10 +45,29 @@ interface RivieraDie {
     in_use_by_POWER11: boolean;
 }
 
+type PlayChoice = 'card' | 'last_chance' | 'crash';
+type StopOrMoreChoice = 'stop' | 'more';
+
+interface PendingPlayChoice {
+    choice: PlayChoice;
+    card_id: number | null;
+}
+
 /*
  * Describe here the types for your state args
  */
 interface PlayCardArgs {
+    _private?: {
+        playableCardIDs: number[];
+        canUseLastChance: boolean;
+        pendingPlayChoice: PendingPlayChoice | null;
+    };
+}
+
+interface StopOrMoreArgs {
+    _private?: {
+        pendingStopOrMoreChoice: StopOrMoreChoice | null;
+    };
 }
 
 /*
@@ -56,4 +75,47 @@ interface PlayCardArgs {
  */
 interface StartTokenPassedArgs {
     player_id: number;
+}
+
+interface CardReveal {
+    player_id: number;
+    choice: 'card' | 'last_chance';
+    card: PlayedCard | null;
+}
+
+interface CardsRevealedArgs {
+    reveals: CardReveal[];
+    hand_counts: Record<number, number>;
+}
+
+interface PlayerCrashedArgs {
+    player_id: number;
+}
+
+interface DiceRolledArgs {
+    dice: RivieraDie[];
+}
+
+interface StopOrMoreChoiceArgs {
+    choice: StopOrMoreChoice;
+}
+
+interface StopOrMoreRevealedArgs {
+    choices: Record<number, StopOrMoreChoice>;
+}
+
+interface NewRoundArgs {
+    round_number: number;
+    hand_counts: Record<number, number>;
+    dice: RivieraDie[];
+}
+
+interface NewHandArgs {
+    cards: RivieraCard[];
+}
+
+interface ScoreChangedArgs {
+    player_id: number;
+    stars?: number;
+    score: number;
 }
