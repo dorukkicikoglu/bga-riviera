@@ -1,0 +1,166 @@
+@use "sass:math";
+@use "sass:list";
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+
+:root{
+    //capped so cards stop growing past a comfortable size on very large/ultra-wide screens
+    --card-width: min(6vw, 110px);
+    --die-size: min(3.6vw, 52px);
+	--image-source-riviera-cards: url(img/riviera_cards.webp);
+
+    --die-color-red: #c8322b;
+    --die-color-green: #4f9a2a;
+    --die-color-purple: #5f2d8c;
+    --die-color-blue: #1c4f72;
+    --die-color-orange: #e8862b;
+}
+
+.mobile_version{ --card-width: min(9vw, 90px); --die-size: min(8vw, 44px); }
+
+@mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
+@mixin non-selectable() { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+
+//sprite: img/riviera_cards.webp is a 10 x 7 grid of 424x625 frames, row-major:
+//[red 1..12] [green 1..12] [purple 1..12] [blue 1..12] [orange 1..12] [Last Chance] [card back]
+$card-colors: "red", "green", "purple", "blue", "orange"; //same order as CARD_COLORS in material.inc.php and the color ENUM in dbmodel.sql
+$values-per-color: 12;
+$sprite-columns: 10;
+$sprite-rows: 7;
+$sprite-index-last-chance: 60;
+$sprite-index-back: 61;
+$card-aspect: math.div(625, 424); //height / width of one frame
+
+//exact percentage formula: x% moves the image so that x% of the image aligns with x% of the box, hence the (count - 1) divisor
+@mixin sprite-frame($index){
+    $col: $index % $sprite-columns;
+    $row: math.floor(math.div($index, $sprite-columns));
+    background-position: math.div($col * 100%, $sprite-columns - 1) math.div($row * 100%, $sprite-rows - 1);
+}
+
+.a-card{ position: relative; overflow: hidden; flex-shrink: 0; --my-card-width: var(--card-width); width: var(--my-card-width); height: calc(var(--my-card-width) * #{$card-aspect}); border-radius: calc(var(--my-card-width) * 0.07); box-shadow: 1px 1px 4px #000000;
+    background-image: var(--image-source-riviera-cards); background-size: #{$sprite-columns * 100%} #{$sprite-rows * 100%}; background-repeat: no-repeat; background-color: #2b2b2b;
+
+    @each $color in $card-colors {
+        $color-index: list.index($card-colors, $color);
+        @for $value from 1 through $values-per-color {
+            &[data-color="#{$color}"][data-value="#{$value}"]{ @include sprite-frame(($color-index - 1) * $values-per-color + ($value - 1)); }
+        }
+    }
+    &[data-card-kind="last-chance"]{ @include sprite-frame($sprite-index-last-chance); }
+    &[data-card-kind="back"]{ @include sprite-frame($sprite-index-back); }
+
+	&.cloned-card{ position: absolute; z-index: 100; pointer-events: none; }
+}
+
+//dice
+#dice-container{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: calc(var(--die-size) * 0.4); padding: 14px 0px 6px 0px; min-height: var(--die-size);
+    .a-die{ position: relative; box-sizing: border-box; width: var(--die-size); height: var(--die-size); padding: 13%; border-radius: 18%; background: var(--die-color); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); --pip-color: #ffffff; transition: opacity 0.3s ease;
+        @each $color in $card-colors {
+            &[data-color="#{$color}"]{ --die-color: var(--die-color-#{$color}); }
+        }
+        &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00;
+            &[data-in-use-by-power11="false"]{ display: none; }
+        }
+
+        .pip{ width: 72%; height: 72%; place-self: center; border-radius: 50%; background: var(--pip-color); visibility: hidden; }
+
+        //pips are numbered 1-9 row-major in the 3x3 grid
+        $pips-by-value: (1: (5), 2: (1, 9), 3: (1, 5, 9), 4: (1, 3, 7, 9), 5: (1, 3, 5, 7, 9), 6: (1, 3, 4, 6, 7, 9));
+        @each $value, $pips in $pips-by-value {
+            @each $pip in $pips {
+                &[data-value="#{$value}"] .pip:nth-child(#{$pip}){ visibility: visible; }
+            }
+        }
+        &[data-value=""]{ opacity: 0.55; } //not rolled yet: blank face
+
+        &:not([data-reserved-by-power2=""]){ outline: 3px solid var(--reserver-color); outline-offset: 2px; }
+        &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
+
+        &.die-changed{ animation: die-changed 300ms ease; }
+    }
+}
+//end dice
+
+.my-hand-title, .played-column-title{ position: absolute; top: 0px; left: 18px; transform: translateY(-50%); font-family: "Roboto", sans-serif; font-size: 18px; white-space: nowrap; @include text-shade(#f0f0f0, 2px); @include non-selectable(); }
+
+#my-hand-container{
+    &:empty{ display: none; } //spectators have no hand
+    position: relative; text-align: center; border: 1px solid var(--hand-owner-color); border-radius: 10px; margin-top: 30px; padding: 26px 10px 14px 10px;
+    .my-hand-title{ color: var(--hand-owner-color); }
+
+    .cards-container{ display: flex; justify-content: center;
+        .a-card{ margin-left: calc(var(--my-card-width) * -0.1);
+            &:first-child{ margin-left: 0px; }
+        }
+    }
+}
+
+#played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
+    .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
+        .played-column-title{ left: 10px; color: var(--column-owner-color); font-size: 16px; max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis;
+            .played-column-stars{ margin-left: 4px; color: #b8860b; }
+        }
+
+        //only the star strip at the top of each covered card stays visible, as in the rules
+        .cards-column{ display: flex; flex-direction: column; align-items: center;
+            .a-card + .a-card{ margin-top: calc(var(--my-card-width) * #{$card-aspect} * -0.75); }
+        }
+
+        &[data-is-myself="true"]{ border-width: 2px; box-shadow: 0 0 8px var(--column-owner-color); }
+        &[data-round-status="crashed"]{ opacity: 0.45; }
+    }
+}
+
+//player board
+.riviera-player-board{ margin-top: 6px;
+    .player-board-cards-row{ display: flex; align-items: center; gap: 10px; min-height: 34px;
+        .hand-count-backs{ display: flex; align-items: center;
+            .a-card.mini-card-back{ --my-card-width: 16px; box-shadow: 1px 1px 2px #000000;
+                & + .a-card.mini-card-back{ margin-left: -9px; }
+            }
+            .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
+        }
+        .last-chance-indicator{ position: relative; display: flex; align-items: center;
+            .a-card.mini-card{ --my-card-width: 22px; box-shadow: 1px 1px 2px #000000; transition: filter 0.3s ease, opacity 0.3s ease; }
+            .last-chance-used-icon{ display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d00000; font-size: 20px; @include text-shade(#ffffff, 1px); }
+            &[data-used="true"]{
+                .a-card.mini-card{ filter: grayscale(1); opacity: 0.45; }
+                .last-chance-used-icon{ display: block; }
+            }
+        }
+    }
+    .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px; min-height: 30px;
+        .round-status-indicator{ font-size: 13px; white-space: nowrap;
+            &[data-round-status="in"] i{ color: #2e8b2e; }
+            &[data-round-status="stopped"] i{ color: #1c4f72; }
+            &[data-round-status="crashed"]{ color: #a00000; }
+        }
+        .start-token-slot{ width: 30px; height: 30px; flex-shrink: 0; }
+    }
+}
+
+//no art yet: a black square with a red border
+.start-token{ box-sizing: border-box; width: 30px; height: 30px; background: #000000; border: 2px solid #ff0000;
+    &.cloned-start-token{ position: absolute; z-index: 1000; margin: 0; pointer-events: none; }
+}
+//end player board
+
+//logs
+.log, .gamelogreview{
+    &.a-game-log{ position: relative; }
+}
+//end logs
+
+@keyframes die-changed {
+    0% { transform: scale(0.6); opacity: 0.2; }
+    100% { transform: scale(1); opacity: 1; }
+}

@@ -132,7 +132,14 @@ Table: rounds, turns.
 
 ## Milestones
 
-1. **Skeleton**: rename template to Fugu structure, build pipeline working, material (cards, stars, colors), DB, setup + deal (with the silent redeal), `getAllDatas`, client renders my hand, played columns, hand-count card backs on player boards, dice container. Nothing playable yet.
+1. **Skeleton** (done, awaiting Studio test): rename template to Fugu structure, build pipeline working, material (cards, stars, colors), DB, setup + deal (with the silent redeal), `getAllDatas`, client renders my hand, played columns, hand-count card backs on player boards, dice container. Nothing playable yet.
+   - Notes:
+     - Built: Fugu folder layout and build (`npm run build` clean); `cards` (all 60, removed color in `returned_to_box`) and `dice` tables; `RIVTableManager` with the silent redeal; `RoundSetup` (id 5) then a stub `PlayCard` (id 20, multiactive, no actions) where the game rests.
+     - Client: `DiceHandler`, `HandHandler` (my hand, sorted by color then value), `PlayedColumnHandler` (stacked columns with star totals), `PlayerHandler` (hand count, Last Chance, round status), `StartTokenHandler` (slide animation), `LogMutationObserver` core.
+     - Debug functions for testing without gameplay: `debug_redeal()`, `debug_playRandomCards($count)`, `debug_passStartToken()`.
+     - Differs from the plan: no custom score `ebg.counter` (BGA's default score display is used; scores don't change until M2).
+     - Deferred: new-round deal notification, roll, card play (M2); `ModalBoxHandler`, `PrefHandler`, `TooltipHandler`, `EndGameScoringHandler` (when first needed); mobile card spacing (M4).
+     - Known limits: dice show blank faces until M2 rolls them; `debug_redeal` and `debug_playRandomCards` need F5 to show their result.
 2. **Core loop**: roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end. Playable without powers.
 3. **Powers**: 1, 2, 11, 9, 10 in that order.
 4. **Polish**: Fugu-style logs with card icons, tooltips for powers, Grand Slam, statistics, end-game scoring display, zombie mode, game progression, preferences.

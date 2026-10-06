@@ -2,7 +2,7 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * Riviera implementation : © <Your name here> <Your email address here>
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
@@ -18,70 +18,48 @@ declare(strict_types=1);
 
 namespace Bga\Games\Riviera;
 
-use Bga\Games\Riviera\States\PlayerTurn;
-use Bga\GameFramework\Components\Counters\PlayerCounter;
+use Bga\Games\Riviera\States\RoundSetup;
+use Bga\GameFramework\Components\Deck;
+use Bga\Games\Riviera\RIVTableManager;
+use Bga\GameFramework\Actions\Debug;
 
 class Game extends \Bga\GameFramework\Table
 {
-    public static array $CARD_TYPES;
-
-    public PlayerCounter $playerEnergy;
+    public Deck $cardsDeck;
+    public RIVTableManager $tableManager;
 
     /**
      * Your global variables labels:
      *
-     * Here, you can assign labels to global variables you are using for this game. You can use any number of global
-     * variables with IDs between 10 and 99. If you want to store any type instead of int, use $this->globals instead.
-     *
-     * NOTE: afterward, you can get/set the global variables with `getGameStateValue`, `setGameStateInitialValue` or
-     * `setGameStateValue` functions.
+     * Riviera stores its globals with $this->bga->globals:
+     * - startPlayerId: player holding the Start token
+     * - roundNumber: current round, starting at 1
      */
     public function __construct()
     {
         parent::__construct();
 
-        $this->playerEnergy = $this->bga->counterFactory->createPlayerCounter('energy');
+        require_once 'material.inc.php';
 
-        self::$CARD_TYPES = [
-            1 => [
-                "card_name" => clienttranslate('Troll'), // ...
-            ],
-            2 => [
-                "card_name" => clienttranslate('Goblin'), // ...
-            ],
-            // ...
-        ];
-
-        /* example of notification decorator.
         // automatically complete notification args when needed
         $this->bga->notify->addDecorator(function(string $message, array $args) {
             if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
                 $args['player_name'] = $this->getPlayerNameById($args['player_id']);
             }
-        
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = ['card_name'];
-            }
-            
+
             return $args;
-        });*/
+        });
+
+        $this->cardsDeck = $this->deckFactory->createDeck("cards");
+        $this->tableManager = new RIVTableManager($this);
     }
 
-    /**
-     * Compute and return the current game progression.
-     *
-     * The number returned must be an integer between 0 and 100.
-     *
-     * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
-     *
-     * @return int
-     */
     public function getGameProgression()
     {
-        // TODO: compute and return the game progression
+        $maxScore = (int) $this->getUniqueValueFromDB("SELECT MAX(`player_score`) FROM `player`");
+        $progress = (int) floor(100 * $maxScore / WINNING_SCORE);
 
-        return 0;
+        return min(100, max(0, $progress));
     }
 
     /**
@@ -123,18 +101,27 @@ class Game extends \Bga\GameFramework\Table
      * - when a player refreshes the game page (F5)
      */
     protected function getAllDatas(int $currentPlayerId): array
-    {
+    {   
         $result = [];
         // WARNING: We must only return information visible by the current player (using $currentPlayerId).
 
+        $cardsOnTable = $this->tableManager->getCardsOnTable($currentPlayerId);
+
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
-        $result["players"] = $this->getCollectionFromDb(
-            "SELECT `player_id` AS `id`, `player_score` AS `score` FROM `player`"
-        );
-        $this->playerEnergy->fillResult($result);
+        $result["players"] = $this->getCollectionFromDb("SELECT `player_id`, `player_no`, `player_score` score, `round_status`, `last_chance_used` FROM `player`");
+        foreach($result["players"] as $player_id => $row){
+            $result["players"][$player_id]['last_chance_used'] = ($row['last_chance_used'] == 'yes') ? true : false;
+            $result["players"][$player_id]['hand_count'] = $cardsOnTable['handCounts'][$player_id] ?? 0; //hand counts are public, spectators get them too
+        }
 
-        // TODO: Gather all information about current game situation (visible by player $currentPlayerId).
+        $result['cardsInMyHand'] = $cardsOnTable['myHand'];
+        $result['cardsPlayed'] = $cardsOnTable['played'];
+        $result['dice'] = $this->tableManager->getDice();
+        $result['startPlayerId'] = (int) $this->bga->globals->get('startPlayerId');
+        $result['roundNumber'] = (int) $this->bga->globals->get('roundNumber');
+        $result['cardColors'] = CARD_COLORS;
+        $result['starsByValue'] = STARS_BY_VALUE;
 
         return $result;
     }
@@ -145,8 +132,6 @@ class Game extends \Bga\GameFramework\Table
      */
     protected function setupNewGame($players, $options = [])
     {
-        $this->playerEnergy->initDb(array_keys($players), initialValue: 2);
-
         // Set the colors of the players with HTML color code. The default below is red/green/blue/orange/brown. The
         // number of colors defined here must correspond to the maximum number of players allowed for the gams.
         $gameinfos = $this->getGameinfos();
@@ -175,40 +160,93 @@ class Game extends \Bga\GameFramework\Table
         $this->reattributeColorsBasedOnPreferences($players, $gameinfos["player_colors"]);
         $this->reloadPlayersBasicInfos();
 
+        //Setup the initial game situation
+        //all 60 cards are created; a removed color stays in the DB as 'returned_to_box'
+        $cardRows = array();
+        $cardID = 1;
+        foreach(CARD_COLORS as $color){
+            for($value = 1; $value <= VALUES_PER_COLOR; $value++){
+                $cardRows[] = "('$cardID', 'number', '0', 'deck', '$cardID', '$color', '$value')";
+                $cardID++;
+            }
+        }
+        self::DbQuery("INSERT INTO `cards` (`card_id`, `card_type`, `card_type_arg`, `card_location`, `card_location_arg`, `color`, `value`) VALUES ".implode(',', $cardRows));
+
+        $diceRows = array();
+        foreach([...CARD_COLORS, 'gold'] as $dieColor)
+            $diceRows[] = "('$dieColor')";
+        self::DbQuery("INSERT INTO `dice` (`die_color`) VALUES ".implode(',', $diceRows));
+
+        if(count($players) <= MAX_PLAYERS_WITH_ONE_COLOR_REMOVED){
+            $removedColor = CARD_COLORS[bga_rand(1, count(CARD_COLORS))];
+            self::DbQuery("UPDATE `cards` SET `card_location` = 'returned_to_box', `card_location_arg` = 0 WHERE `color` = '$removedColor'");
+            self::DbQuery("UPDATE `dice` SET `die_location` = 'returned_to_box' WHERE `die_color` = '$removedColor'");
+        }
+
         // Init global values with their initial values.
+        $playerIDs = array_keys($players);
+        $this->bga->globals->set('startPlayerId', (int) $playerIDs[bga_rand(0, count($playerIDs) - 1)]);
+        $this->bga->globals->set('roundNumber', 0); //RoundSetup increments it to 1
 
-        // Init game statistics.
-        //
-        // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
-
-        // Dummy content.
-        // $this->tableStats->init('table_teststat1', 0);
-        // $this->playerStats->init('player_teststat1', 0);
-
-        // TODO: Setup the initial game situation here.
-
-        // Activate first player once everything has been initialized and ready.
-        $this->activeNextPlayer();
-
-        return PlayerTurn::class;
+        return RoundSetup::class;
     }
+
+    //utility functions
+
+    public function getPlayerIDsInRound(): array {
+        return array_map('intval', $this->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'in'", true));
+    }
+
+    //end utility functions
 
     /**
      * Example of debug function.
      * Here, jump to a state you want to test (by default, jump to next player state)
      * You can trigger it on Studio using the Debug button on the right of the top bar.
      */
-    public function debug_goToState(int $state = 3) {
+    #[Debug(reload: true)]
+    public function debug_goToState(int $state = 5) {
         $this->gamestate->jumpToState($state);
     }
 
-    /*
-    Another example of debug function, to easily create situations you want to test.
-    Here, put a card you want to test in your hand (assuming you use the Deck component).
-
-    public function debug_setCardInHand(int $cardType, int $playerId) {
-        $card = array_values($this->cards->getCardsOfType($cardType))[0];
-        $this->cards->moveCard($card['id'], 'hand', $playerId);
+    // shuffles and deals new hands without any log line; refresh (F5) to see them
+    #[Debug(reload: true)]
+    public function debug_redeal() {
+        $this->gamestate->jumpToState(5); //RoundSetup
     }
-    */
+
+    // moves $count random hand cards per player to their played column; refresh (F5) to see them
+    #[Debug(reload: true)]
+    public function debug_playRandomCards(int $count = 3) {
+        $playerIDs = $this->getObjectListFromDB("SELECT `player_id` FROM `player`", true);
+
+        foreach($playerIDs as $playerID){
+            $nextLocationInColumn = (int) $this->getUniqueValueFromDB("SELECT COALESCE(MAX(`location_in_column`), 0) FROM `cards` WHERE `card_location` = 'played' AND `card_location_arg` = $playerID") + 1;
+            $cardIDs = $this->getObjectListFromDB("SELECT `card_id` FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY RAND() LIMIT $count", true);
+
+            foreach($cardIDs as $cardID){
+                self::DbQuery("UPDATE `cards` SET `card_location` = 'played', `location_in_column` = $nextLocationInColumn WHERE `card_id` = $cardID");
+                $nextLocationInColumn++;
+            }
+        }
+    }
+
+    // passes the Start token to the next player with its animation and log line
+    public function debug_passStartToken() {
+        $this->tableManager->passStartToken();
+    }
+
+    public function message($txt, $desc = '', $color = 'blue') {
+        if ($this->getBgaEnvironment() != "studio")
+            return;
+
+        if (is_array($txt))
+            $txt = json_encode($txt);
+
+        if($desc != '')
+            $txt .= "   ".json_encode($desc);
+
+        self::trace("Logging: <span style='color: $color;'>$txt</span>");
+        self::notifyAllPlayers('plop',"<textarea style='height: 104px; width: 230px;color:$color'>$txt</textarea>",array());
+    }
 }

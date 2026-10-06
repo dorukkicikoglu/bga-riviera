@@ -1,4 +1,4 @@
-> Status: approved plan, saved 2026-10-06. Step 0 (docs move to .claude/) is done; code not started.
+> Status: built 2026-10-06, awaiting BGA Studio test (see .claude/TESTING.md). Deviation: no custom score ebg.counter; BGA's default score display is used.
 
 # Riviera: Milestone 1 (Skeleton) plan, revision 2
 

@@ -54,6 +54,9 @@ Mirror these specifically:
 - **Removed color**: in 2 to 4 player games its cards stay in `cards` at location `returned_to_box` and its die stays in `dice` with `die_location = 'returned_to_box'`. "Colors in use" is read from `dice`.
 - **State ids**: RoundSetup 5, RollDice 10, ModifyDie 15, PlayCard 20, BonusPlay 25, ResolvePowers 30, SwapCards 35, PassStartToken 40, StopOrMore 50, EndRound 60, EndScore 98.
 - **Framework typing differs from Fugu's**: Riviera's `bga-framework.d.ts` is newer. `Player` has no `color_back` and `playerorder` is `number[]`. Ported helpers (`divYou`, `divColoredPlayer`) drop `color_back`.
+- **No `gameui.isInterfaceLocked()`** in this framework version: use `Game.isInterfaceLocked()`, which reads the `lockedInterface` body class.
+- **Globals** go through `$this->bga->globals` (`startPlayerId`, `roundNumber`); Fugu has none. Throw `\Bga\GameFramework\SystemException`, not the deprecated `\BgaSystemException`.
+- **Score display**: use BGA's default score counter (`bga.playerPanels.getScoreCounter(id)` when it changes), not a second `ebg.counter` like Fugu's `PlayerHandler`.
 
 ## Keeping the docs current
 
