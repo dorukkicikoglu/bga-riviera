@@ -85,7 +85,11 @@ export class HandHandler{
 
     public getSelectedCardData(): RivieraCard | null{
         const selectedCardID = this.getSelectedCardID();
-        return selectedCardID === null ? null : this.handData.find(card => card.card_id === selectedCardID) ?? null;
+        return selectedCardID === null ? null : this.getCardData(selectedCardID);
+    }
+
+    public getCardData(cardID: number): RivieraCard | null{
+        return this.handData.find(card => card.card_id === cardID) ?? null;
     }
 
     //playable cards glow, the others keep their normal look

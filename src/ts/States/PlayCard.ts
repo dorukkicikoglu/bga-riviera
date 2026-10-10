@@ -62,8 +62,17 @@ export class PlayCard {
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), {id: 'crash-button', color: 'alert'});
             }
         } else if(this.pendingChoice){
-            const pendingChoiceTitles: Record<PlayChoice, string> = {
-                card: _('${you} chose a card. Waiting for other players'),
+            if(this.pendingChoice.choice === 'card'){
+                const card = this.pendingChoice.card_id === null ? null : this.game.handHandler?.getCardData(this.pendingChoice.card_id);
+                const cardIcon = card
+                    ? `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`
+                    : _('a card');
+                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardIcon));
+                this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+                return;
+            }
+
+            const pendingChoiceTitles: Record<Exclude<PlayChoice, 'card'>, string> = {
                 last_chance: _('${you} chose your Last Chance. Waiting for other players'),
                 crash: _('${you} chose to crash. Waiting for other players'),
             };

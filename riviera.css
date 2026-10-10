@@ -508,26 +508,9 @@ body .sliding-clone {
 }
 #my-hand-container .cards-container .a-card.chosen-card {
   transform: translateY(-18px);
-  outline: 3px solid #2e8b2e;
+  outline: 5px solid #2e8b2e;
   outline-offset: -1px;
   z-index: 1;
-  overflow: visible;
-}
-#my-hand-container .cards-container .a-card.chosen-card::after {
-  content: "✓";
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 22px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 50%;
-  background: #2e8b2e;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: bold;
-  text-align: center;
-  box-shadow: 1px 1px 3px #000000;
 }
 #my-hand-container .cards-container.cards-fading-out .a-card {
   transition: opacity 0.4s ease, transform 0.4s ease;
@@ -849,5 +832,3 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */
