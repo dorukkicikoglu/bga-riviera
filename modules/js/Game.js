@@ -43,7 +43,7 @@ class PlayCard {
                 this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
                 this.game.handHandler?.setPlayableCards(privateArgs.playableCardIDs);
                 //hidden until a card is selected, like Fugu's swap button
-                this.playCardButton = this.bga.statusBar.addActionButton(_('confirm'), () => this.playCardClicked(), { id: 'play-card-button' });
+                this.playCardButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.playCardClicked(), { id: 'confirm-selected-card-button' });
                 this.selectionChanged();
             }
             else {
@@ -55,8 +55,16 @@ class PlayCard {
             }
         }
         else if (this.pendingChoice) {
+            if (this.pendingChoice.choice === 'card') {
+                const card = this.pendingChoice.card_id === null ? null : this.game.handHandler?.getCardData(this.pendingChoice.card_id);
+                const cardIcon = card
+                    ? `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`
+                    : _('a card');
+                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardIcon));
+                this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+                return;
+            }
             const pendingChoiceTitles = {
-                card: _('${you} chose a card. Waiting for other players'),
                 last_chance: _('${you} chose your Last Chance. Waiting for other players'),
                 crash: _('${you} chose to crash. Waiting for other players'),
             };
@@ -378,7 +386,10 @@ class HandHandler {
     }
     getSelectedCardData() {
         const selectedCardID = this.getSelectedCardID();
-        return selectedCardID === null ? null : this.handData.find(card => card.card_id === selectedCardID) ?? null;
+        return selectedCardID === null ? null : this.getCardData(selectedCardID);
+    }
+    getCardData(cardID) {
+        return this.handData.find(card => card.card_id === cardID) ?? null;
     }
     //playable cards glow, the others keep their normal look
     setPlayableCards(playableCardIDs) {
@@ -417,9 +428,9 @@ class HandHandler {
     }
     //a new round's hand
     setHand(handData) {
+        this.cardsContainer.classList.remove('cards-fading-in');
         this.handData = handData;
         this.displayHand();
-        this.cardsContainer.classList.remove('cards-fading-in');
         void this.cardsContainer.offsetWidth; //restart the animation if it's already running
         this.cardsContainer.classList.add('cards-fading-in');
     }

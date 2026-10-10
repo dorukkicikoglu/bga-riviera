@@ -85,7 +85,11 @@ export class HandHandler{
 
     public getSelectedCardData(): RivieraCard | null{
         const selectedCardID = this.getSelectedCardID();
-        return selectedCardID === null ? null : this.handData.find(card => card.card_id === selectedCardID) ?? null;
+        return selectedCardID === null ? null : this.getCardData(selectedCardID);
+    }
+
+    public getCardData(cardID: number): RivieraCard | null{
+        return this.handData.find(card => card.card_id === cardID) ?? null;
     }
 
     //playable cards glow, the others keep their normal look
@@ -133,10 +137,10 @@ export class HandHandler{
 
     //a new round's hand
     public setHand(handData: RivieraCard[]): void{
+        this.cardsContainer.classList.remove('cards-fading-in');
         this.handData = handData;
         this.displayHand();
 
-        this.cardsContainer.classList.remove('cards-fading-in');
         void this.cardsContainer.offsetWidth; //restart the animation if it's already running
         this.cardsContainer.classList.add('cards-fading-in');
     }

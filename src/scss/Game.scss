@@ -131,10 +131,8 @@ body .sliding-clone{ position: absolute; z-index: 1000; margin: 0; pointer-event
             &:first-child{ margin-left: 0px; }
 
             &.selected-hand-card{ transform: translateY(-14px); outline: 3px solid #e8862b; outline-offset: -1px; z-index: 1; }
-            //set aside until the reveal: raised, with a check badge
-            &.chosen-card{ transform: translateY(-18px); outline: 3px solid #2e8b2e; outline-offset: -1px; z-index: 1; overflow: visible;
-                &::after{ content: "✓"; position: absolute; top: -10px; right: -10px; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #2e8b2e; color: #ffffff; font-size: 15px; font-weight: bold; text-align: center; box-shadow: 1px 1px 3px #000000; }
-            }
+            //set aside until the reveal
+            &.chosen-card{ transform: translateY(-18px); outline: 5px solid #2e8b2e; outline-offset: -1px; z-index: 1; }
         }
         &.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: translateY(20px); }
         &.cards-fading-in .a-card{ animation: card-fade-in 0.5s ease; }
