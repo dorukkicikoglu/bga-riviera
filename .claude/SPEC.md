@@ -33,13 +33,14 @@ Same for every color. Put this table in `material.inc.php`.
 
 | Value | Timing | Effect |
 |---|---|---|
-| 1 | Immediately after playing it | Play one extra card from hand, using the same roll. Must be a valid play. The extra card can trigger its own power (a second 1 chains). |
-| 2 | Before the next roll | On the next roll, the die of this card's color is reserved for you; opponents can't use it (alone or in a sum). |
-| 10 | Before the next roll | Choose 2 cards from your hand and an opponent still in the round; swap them for 2 random cards from that opponent's hand. If no other player is left in the round: discard 2 cards from hand and draw 2 from the draw pile. **Open question:** with 6 players all 60 cards are dealt, so the draw pile is empty; decide the fallback in Milestone 3. |
-| 11 | Before the next roll | The golden die is added to the next roll for everyone. It has no color: it can only be used summed with a colored die, and the card must match that colored die's color. Removed at end of that turn. |
-| 9 | After the next roll, before playing | Turn one die of your choice +1 or -1 (6 wraps to 1, 1 wraps to 6). Applies to everyone. A die already modified this turn can't be modified again. |
+| 1 | Immediately after playing it | Play one extra card from hand, using the same roll. Must be a valid play. The extra card can trigger its own power (a second 1 chains). **[BGA]** The chain is part of the player's secret choice in step 3: after confirming a 1, they add another valid card or finish, again after each extra 1. Everything is revealed together. **[UNCONFIRMED with publisher: whether simultaneous reveal stays.]** |
+| 2 | Before the next roll | On the next roll, the die of this card's color is reserved for you; opponents can't use it (alone or in a sum). **[BGA]** Not optional: reserved automatically after the reveal. The owner can still use it. A reserved die can't be reserved again. The reservation stays if the owner then stops. |
+| 10 | Before the next roll | Choose 2 cards from your hand and an opponent still in the round (`round_status` 'in'); swap them for 2 random cards from that opponent's hand. **[BGA]** If the opponent has fewer than 2 cards, swap what you can after a confirm explaining it; 0 cards counts as not used. The victim is passive. If no other player is left in the round: discard and draw from the draw pile, only as many as can be drawn (hand size never changes). Reshuffle the discard pile (not the cards being discarded) into a short draw pile. With 0 cards to draw, the power is skipped. |
+| 11 | Before the next roll | The golden die is added to the next roll for everyone. It has no color: it can only be used summed with a colored die, and the card must match that colored die's color. Removed at end of that turn. **[BGA]** If another 11 is activated that turn, it stays and is rolled again on the next roll. |
+| 9 | After the next roll, before playing | Turn one die of your choice +1 or -1 (6 wraps to 1, 1 wraps to 6). Applies to everyone. A die already modified this turn can't be modified again. **[BGA]** The golden die is a valid target **[UNCONFIRMED with publisher]**. An owner who stopped before that roll loses the power. |
 
-Activating a power is always optional. When several players trigger powers in the same step, resolve them clockwise starting from the Start token holder.
+Activating a power is always optional (**[BGA]** except card 2). When several players trigger powers in the same step, resolve them clockwise starting from the Start token holder. Each player has at most one non-1 power per turn (a chain only continues on 1s), so powers resolve player by player.
+**[BGA]** Effect lifetime: a card-2 reservation and the golden die apply only to the turn after the power is used, and are cleared after that turn's reveal (unless a new 11 is activated).
 
 ## Setup
 
@@ -63,14 +64,15 @@ Activating a power is always optional. When several players trigger powers in th
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
    Dice reserved by another player are unavailable to you.
    - **[BGA]** The server computes valid cards and only offers those. If none is valid, the only buttons are "Use Last Chance" (when available) and "Crash".
-   - **[BGA]** Choosing is two clicks: select a playable card, then "Play this card". "Crash" has no confirm dialog; Change my mind is the safety net.
+   - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm". "Crash" has no confirm dialog; Change my mind is the safety net.
+   - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Finish", again after each extra 1. If nothing more is playable, the chain finishes on its own. Change my mind rolls back the whole chain.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.
    - Crash: eliminated from the round, all played cards and hand are discarded, 0 points this round.
    - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Change my mind" mechanism as Stop or More (step 8). The chosen card stays visibly set aside in their hand, and pressing "Change my mind" returns it and re-activates them.
    - Once everyone has chosen, all cards are revealed together.
-4. **Card 1 powers**: players who just played a 1 may play one extra valid card (same dice, same availability). Chains if the extra is a 1. Simultaneous among those players.
-5. **Pre-roll powers** (cards 2, 10, 11 just played): resolved clockwise from the Start token holder. Card 2 and 11 need only confirm/skip; card 10 needs a choice (2 own cards, 1 opponent).
-6. **Grand Slam check**: anyone whose hand is now empty (all 10 cards played this round) wins instantly; game ends. Check this after steps 4 and 5 too, since card 1 can empty a hand.
+4. **Grand Slam check** **[BGA: once, after the reveal]**: anyone whose hand is now empty (all 10 cards played this round, card-1 chains included) wins instantly; the game ends before any card 2/9/10/11 power.
+5. **Pre-roll powers** (cards 2, 10, 11 just played): resolved player by player, clockwise from the Start token holder. Card 2 is automatic, card 11 is add/skip, card 10 needs a choice (own cards and one opponent, or the discard/draw fallback). Card 9 waits for step 2 of the next turn.
+6. (merged into step 4)
 7. **Pass the Start token** to the next player in turn order, regardless of their round status. Use the framework's player order helpers (`getPlayerAfter()` / `getNextPlayerTable()`, check what Fugu and `_ide_helper.php` provide) rather than reading `player_no` by hand; fall back to `player_no` only if no helper fits.
 8. **Stop or More** **[BGA: simultaneous, differs from the rules]**: every player still in the round chooses Stop or More at the same time (multiactive state).
    - Choices stay hidden until everyone has chosen; then all are revealed in one notification.
@@ -97,7 +99,7 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 
 - At round end, each player who stopped adds their stars to their running score (`player_score`). Crashed players add 0.
 - If anyone has 40+ points after a round: highest score wins; ties share the win (equal `player_score`, no tiebreaker).
-- Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked after every reveal (and after card 1 bonus plays in M3). The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Log: "<name> plays all 10 cards: Grand Slam!".
+- Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked once, after every reveal (card-1 chains included), before any power. The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Log: "<name> plays all 10 cards: Grand Slam!".
 - Otherwise start a new round. The Start token keeps passing in turn order.
 
 ## Hidden information
@@ -105,7 +107,7 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 - Hands are private. Others only see hand **counts** (card backs on player boards).
 - The card each player chooses in step 3 stays hidden until all have chosen (reveal in one notification).
 - Stop/More choices stay hidden until all have chosen.
-- Card 10: the swapper sees which cards they received; the victim sees what they lost and got. Others only see that 2 cards were swapped.
+- Card 10: the swapper sees which cards they received; the victim sees what they lost and got. Others only see that 2 cards were swapped. **[BGA]** Everyone gets exactly one swap log row: the owner and victim see the real cards, everyone else (spectators too) sees one card back per card moved.
 
 ### Player board display
 
@@ -117,11 +119,11 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 
 - `RoundSetup` (game)
 - `RollDice` (game)
-- `ModifyDie` (active player, loops clockwise over card-9 owners)
+- `ModifyDie` (active player, 15, loops clockwise over card-9 owners still in the round)
 - `PlayCard` (multiple active, with change-mind)
 - `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check)
-- `BonusPlay` (multiple active, card 1 owners, loops while chains continue)
-- `ResolvePowers` (game, dispatches to a `SwapCards` active-player state for card 10; 2 and 11 can be a simple confirm/skip in the same active state)
+- `ResolvePowers` (active player, 30: card-11 add/skip; card 2 is applied while walking owners, card 10 goes to `SwapCards`)
+- `SwapCards` (active player, 35: card 10 swap or discard/draw fallback)
 - `PassStartToken` (game)
 - `StopOrMore` (multiple active, with change-mind)
 - `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, More → RollDice, else EndRound)
@@ -143,7 +145,7 @@ Table: rounds, turns.
      - Differs from the plan: no custom score `ebg.counter` (BGA's default score display is used; scores don't change until M2).
      - Deferred: new-round deal notification, roll, card play (M2); `ModalBoxHandler`, `PrefHandler`, `TooltipHandler`, `EndGameScoringHandler` (when first needed); mobile card spacing (M4).
      - Known limits: dice show blank faces until M2 rolls them; `debug_redeal` and `debug_playRandomCards` need F5 to show their result.
-2. **Core loop** (done, awaiting Studio test): roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
+2. **Core loop** (done, tested in Studio): roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
    - Notes:
      - Built: states `RollDice` (10), `PlayCard` (20), `RevealCards` (22), `PassStartToken` (40), `StopOrMore` (50), `RevealStopOrMore` (55), `EndRound` (60); `RoundSetup` now notifies `newRound` + a private `newHand`. Pending choices are `player` columns (`play_choice`, `play_choice_card_id`, `stop_or_more_choice`, `made_choice_this_state`); the chosen card stays in `hand` until `RevealCards`.
      - Change my mind: `RIVChangeMindManager` (server) and `ChangeMindHandler.ts` (client), shared by `PlayCard` and `StopOrMore`.
@@ -151,7 +153,7 @@ Table: rounds, turns.
      - Client: `Game.animateSlide()` is the one slide animation (cards and Start token). Eight `createLog*` rows, each with its own `--bg-log-*` background.
      - Debug: `debug_setDice('2,3,5,6')`, `debug_setScores(38)`, `debug_trimHands(1)`; `debug_redeal()` now goes through `RoundSetup` notifications.
      - Zombies: random playable card, else Last Chance, else crash; Stop in Stop or More. M4 refines.
-     - Unverified until Studio: `#[CheckAction(false)]` on a state-class method, and `getArgs()` `_private` reaching the client as `args._private`.
+     - Verified in Studio: `#[CheckAction(false)]` on a state-class method (Change my mind from an inactive player), and `getArgs()` `_private` reaching the client as `args._private`.
      - Known limits: the Grand Slam board highlight is not restored after F5 (the game is over by then); log rows are formatted on the client, so the server fallback text only shows if the client fails.
 3. **Powers**: 1, 2, 11, 9, 10 in that order.
 4. **Polish**: Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences.

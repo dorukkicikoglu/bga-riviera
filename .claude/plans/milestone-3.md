@@ -1,132 +1,362 @@
-# Riviera: Milestone 3 (Powers) plan, revision 1
+> Status: plan, awaiting approval.
+
+# Riviera: Milestone 3 (Powers) plan, revision 2
 
 ## Context
 
-M1 and M2 are complete per the current user direction. M1 established the Fugu-shaped project, card/dice data, and `_POWER<n>` naming convention. M2 implemented the playable core loop, private simultaneous choices with Change my mind, reveal states, logging, and the debug setup tools. The current milestone adds cards **1, 2, 11, 9, and 10 in that order**, following `.claude/SPEC.md` for their timing and optional activation.
+M1 set up the Fugu-shaped project and M2 the playable core loop. That covers private simultaneous choices with Change my mind, the reveal states, client-built logs with one background per log type, and debug setup functions. M3 adds the powers of cards **1, 2, 11, 9 and 10**, in **one build** (no M3a/b/c split).
 
-Fugu remains the reference for the structure and framework patterns of every corresponding file; it does not implement Riviera's powers. Relevant examples include Fugu `modules/php/States/PlayerTurn.php` and `NextPlayer.php`, `modules/php/FUGUTableManager.php`, `modules/php/Game.php`, `src/ts/Game.ts`, `src/ts/States/PlayerTurn.ts`, `src/ts/HandHandler.ts`, `src/ts/ModalBoxHandler.ts`, `src/ts/LogMutationObserver.ts`, and `src/scss/Game.scss`. Riviera's own M2 patterns take precedence where they have already adapted those conventions, especially state transitions, action validation, private notification payloads, and client-generated log rows.
+Fugu (`reference/fugu/`) stays the structural model, especially for the active-player pattern:
+- `NextPlayer.php` calls `changeActivePlayer()` and then returns `PlayerTurn::class`.
+- `PlayerTurn.php`/`.ts` is the action state.
 
-**Build-size recommendation:** split implementation into three approval/build increments while preserving the requested power order:
+Where Riviera's M2 patterns already adapt Fugu, they take precedence: `RIVChangeMindManager`, the reveal states, `_private` args, `${X_LOG_STR}` + `createLog*()`, and `Game.animateSlide()`.
 
-1. **M3a: card 1, then cards 2 and 11.** Adds the BonusPlay chain and the initial pre-roll-power resolver, plus its notifications and tests.
-2. **M3b: card 9.** Adds the post-roll, pre-play ModifyDie phase and tests.
-3. **M3c: card 10.** Adds card exchange, hidden-information notifications, empty/short-pile handling, and tests.
+**Decisions (this session):**
+- **Card 1: the chain happens inside `PlayCard`, before the reveal. There is no BonusPlay state.** When I confirm a 1, I'm asked at once to add another valid card (same roll) or to finish. If that card is also a 1, I'm asked again. The whole chain is my one private choice for the turn. All cards, chains included, are revealed together in the single `RevealCards`. Change my mind rolls back the whole chain, back to choosing the first card. **[UNCONFIRMED with publisher: whether simultaneous reveal stays at all. Built as described for now.]**
+- **Grand Slam** is checked once, after the reveal. Everyone who empties their hand on that reveal shares it, and the game ends before any card 2/9/10/11 power.
+- **Card 2 is not optional [BGA].** The die is reserved automatically after the reveal, with no button. The owner can still use it. A die that is already reserved can't be reserved again; this shouldn't happen (one 2 per color), but it is guarded. **If the owner stops, the reservation still blocks opponents** for that roll.
+- **Card 11 stays optional.** If another 11 is activated on the following turn, the golden die stays and is rolled again with the others on the next roll.
+- **Card 9:** the golden die is a valid target **[UNCONFIRMED with publisher]**. **An owner who stopped before the next roll loses the power.** Owners act clockwise from the current Start token holder, the player who received it at the end of the previous turn (SPEC step 2).
+- **Card 10:**
+  - **Targets:** only opponents still in the round (`round_status = 'in'`).
+  - **Fallback when no opponent is in:**
+    - The player discards and draws, drawing what they can, and **only discards as many cards as they can draw**, so the hand size never changes.
+    - If the draw pile runs short, the discard pile (without the cards being discarded now) is reshuffled into it.
+    - With 0 cards to draw, the power is skipped.
+  - **Short target hand:** if the target has fewer than 2 cards, the owner swaps what they can after a confirm dialog that explains it. If 0 cards would move, it counts as not used.
+  - The swap uses the cards left in hand after the reveal.
+  - **The victim is passive.**
+  - **Logs:** everyone gets exactly one swap row. The owner and victim see the real cards. Everyone else, spectators included, sees card backs, one per card moved. No private card ever reaches anyone else.
+- **Order:** each player has at most one non-1 power per turn, because a chain only continues on 1s. Powers resolve player by player, clockwise from the Start token holder.
+- **Effect lifetime:** a card-2 reservation and the golden die apply only to the turn after the power is used. They are cleared after that turn's reveal, unless a new 11 is activated.
+- **State approach:** active-player states, with the "next owner" lookup shared by the GAME state that starts the walk and by the action that ends each owner's turn. Fugu does the same: `changeActivePlayer()` and then a transition.
+- **Activating a power is optional** except card 2. Cards 9, 10 and 11 each have a "Skip" button.
 
-These still form one M3 feature milestone, but card 10 has enough additional private-data and deck-edge-case behavior to validate separately. Do not start implementation or change other docs until this plan and the open rules below are approved.
+- **Card 1 chain:** after a 1, if no card is playable any more, the chain finishes on its own (no "Finish" click).
+- **Card 11:** a second 11 in the same turn, when the golden die is already set for the next roll, is skipped silently.
+- **Skipping a power** gets its own log row.
+- **Play button:** it reads "Confirm" (capitalized). The current `_('confirm')` is fixed in `PlayCard.ts`.
 
-Decisions required before implementation:
-- The SPEC says to resolve powers clockwise from the Start token holder. Apply that order to all eligible owners; keep each choice/action optional.
-- A card-1 bonus choice is simultaneous and therefore uses the existing Change-my-mind pattern. Card 9 and pre-roll powers are specified as clockwise sequential decisions, not simultaneous choices.
-- Each public power effect gets a distinct notification/log class and its own SCSS background variable. Private choice/result notifications must not expose choices or cards to other players.
-- Any new DB field, state, action, notification, DOM class, or log class introduced solely for a power uses `_POWER<n>` in its name.
+**Changes since revision 1:**
+- BonusPlay (25) is removed and the card-1 chain now lives in `PlayCard`.
+- Card 2 is automatic.
+- Card 10's targets, fallback, short-hand and log rules are settled.
+- Effect lifetime is settled.
+- One build instead of three.
+- Log class names follow the `*-log` convention.
+- All 14 open questions are answered.
+
+---
 
 ## State flow
 
 ```text
-RoundSetup(5) → RollDice(10)
-  → ModifyDie(15)                  only for card-9 powers from the preceding turn
-  → PlayCard(20, multi) → RevealCards(22)
-      → BonusPlay(25, multi)        while a card-1 owner chooses another valid card or passes
-      → Grand Slam check            after the card-1 chain
-      → ResolvePowers(30, active)   clockwise card-2 / card-11 / card-10 owners
-          → SwapCards(35, active)   for a card-10 owner
-      → Grand Slam check            after the pre-roll powers
-      → PassStartToken(40) → StopOrMore(50, multi) → RevealStopOrMore(55)
-          → RollDice(10)            if anyone chose More
-          → EndRound(60)             otherwise
+RoundSetup(5) → RollDice(10) ─┬→ ModifyDie(15, active) ⟲ next card-9 owner still in → … → PlayCard
+                              └→ PlayCard(20, multi; card-1 chain inside the player's choice)
+PlayCard → RevealCards(22) ─┬→ EndScore(98)                       Grand Slam (no power resolves)
+                            └→ expire last turn's POWER2/POWER11 effects, mark this turn's powers,
+                               then walk owners clockwise from the Start token holder:
+                                 card 2  → reserved on the spot, walk continues
+                                 card 9  → stays pending for ModifyDie after the next roll
+                                 card 11 → ResolvePowers(30, active) ⟲
+                                 card 10 → SwapCards(35, active) ⟲
+                                 none left → PassStartToken(40) → StopOrMore(50) → RevealStopOrMore(55) → RollDice | EndRound(60)
 ```
+- **The walk** lives in `RIVPowerManager::goToNextPreRollPower()`.
+  1. It starts at the Start token holder and finds the first player with a pending 2, 10 or 11.
+  2. Card 2 is applied inline and the loop continues.
+  3. For card 10 or 11 it calls `gamestate->changeActivePlayer($id)` and returns that state's class.
+  4. When nobody is left, it returns `PassStartToken::class`.
 
-- `ModifyDie` happens after the next roll and before `PlayCard`, matching card 9's timing.
-- `BonusPlay` repeats its simultaneous choice window when one or more bonus cards are also 1s. A player who passes or plays a non-1 has no further card-1 choice in that chain.
-- Card-1 bonuses use the same roll and same available dice as the immediately preceding play; they do not consume dice.
-- `ResolvePowers` processes eligible players clockwise from the Start token holder. It lets the current player activate or skip a card-2/card-11 effect and dispatches card 10 to `SwapCards`.
-- Grand Slam is checked after the card-1 chain and after pre-roll power resolution, as SPEC step 6 requires. A Grand Slam ends the game before Start-token passing or Stop/More.
-- Preserve existing state IDs: `ModifyDie` 15, `BonusPlay` 25, `ResolvePowers` 30, and `SwapCards` 35. Their suggested state types and transitions need confirmation against the framework and the questions below.
+  `RevealCards` calls it at the end of `onEnteringState`, and every `ResolvePowers` / `SwapCards` action calls it as its return value. The `_ide_helper.php` note on `changeActivePlayer` says "you must transition to a state in the action triggering this call", and this does exactly that.
+- **`goToNextPOWER9Owner()`** works the same way, from `RollDice` and from the `ModifyDie` actions. It clears the pending card 9 of owners who are no longer `in`.
+- **State id 25 is freed** (BonusPlay is gone).
 
 ## File-by-file
 
-Legend: **NEW** = no Riviera equivalent · **EDIT** = existing Riviera file changed · **KEEP** = unchanged. For each file, Fugu is the structural reference; the content described here is Riviera-specific.
+Legend: **NEW** = no Riviera equivalent · **EDIT** = existing Riviera file changed · **KEEP** = unchanged.
 
 ### PHP
 
 | File | Kind | Mirrors | Content |
 |---|---|---|---|
-| `dbmodel.sql` | EDIT | Fugu `dbmodel.sql`; Riviera's existing power-aware `dice` schema | Add only the minimal persistent, `_POWER<n>`-named state needed to survive state transitions/reloads. Candidate player columns: pending/eligible markers for `POWER1`, `POWER2`, `POWER9`, `POWER10`, and `POWER11`; separate pending choice and selected card fields for card 1 if they cannot safely reuse the M2 pending-choice columns. Keep existing `reserved_by_POWER2`, `modified_by_POWER9`, and `in_use_by_POWER11`; do not duplicate them. Resolve whether pending markers can be derived reliably from just-played cards before adding columns. |
-| `modules/php/material.inc.php` | EDIT | Fugu `material.inc.php` | Add only power-specific constants that simplify real shared rules (for example the gold die's name if agreed). Preserve existing `CARD_COLORS`, `STARS_BY_VALUE`, and M2 constants; use `_POWER<n>` names for power-only constants. |
-| `modules/php/Game.php` | EDIT | Fugu `Game.php` | Register/own any small shared power manager if needed, add debug setup actions for each power, and expose no private card identities through `getAllDatas()`. Grand Slam continues through `applyGrandSlam()` after the new bonus and pre-roll checkpoints. Debug setup helpers should use the real card/deck state and framework `#[Debug(reload: true)]` convention. |
-| `modules/php/RIVTableManager.php` | EDIT | Fugu `FUGUTableManager.php` | Add focused methods for retrieving newly played powers, marking/clearing pending power markers, selecting random cards from a target hand or draw pile, performing an atomic card-10 exchange, and reporting updated hand counts/dice. Reuse `getPlayableCardIDs()` for card-1 validity; it already accounts for POWER2 reservations and POWER11's gold die. Preserve card visibility rules and validate every requested card/target against current state. |
-| `modules/php/States/RevealCards.php` | EDIT | Fugu `States/NextPlayer.php`; current M2 reveal-state pattern | Identify newly played cards that trigger powers, record their pending markers (including card 9 for the next turn), and dispatch to `BonusPlay` when card 1 is pending, otherwise to the next applicable phase. Move the Grand Slam checkpoint to after the card-1 chain rather than ending before it. Keep current turn-order reveal, hidden-choice handling, crash notifications, and M2 behavior intact. |
-| `modules/php/States/BonusPlay.php` | NEW | Fugu `States/PlayerTurn.php`; Riviera `PlayCard.php` and `RIVChangeMindManager.php` | MULTIPLE_ACTIVE_PLAYER, id 25. Card-1 owners simultaneously choose one currently valid extra card or pass. Validate the card server-side with `getPlayableCardIDs()`. Persist pending choice privately, support Change my mind until the last eligible player decides, then reveal and apply all bonus plays together. If a chosen card is 1, retain that player for the next chain; otherwise clear their eligibility. Send a public bonus-card reveal notification and hand-count updates. |
-| `modules/php/States/ModifyDie.php` | NEW | Fugu `modules/php/States/PlayerTurn.php`; Riviera `RollDice.php` and `DiceHandler.ts` patterns | ACTIVE_PLAYER, id 15. Walk card-9 owners clockwise from the Start token holder, allowing each to modify one eligible die by +1, -1, or pass. Wrap 1↔6, update `modified_by_POWER9`, notify the table, and advance to the next owner or `PlayCard`. Do not let a die be modified twice during the same roll. Clear/consume each pending POWER9 marker. |
-| `modules/php/States/ResolvePowers.php` | NEW | Fugu `modules/php/States/NextPlayer.php`; Riviera `PassStartToken.php` and active-state actions | ACTIVE_PLAYER (proposed), id 30. Resolve pending cards 2, 11, and 10 in clockwise player order. Card 2 and 11 each offer activate/skip. Activation reserves the matching colored die for that owner or enables the golden die, respectively. A card-10 owner transitions to `SwapCards`. Clear effects from the previous roll only after all BonusPlay choices have finished and before applying newly selected effects. When the queue is empty, check Grand Slam and continue to `PassStartToken` or `EndScore`. |
-| `modules/php/States/SwapCards.php` | NEW | Fugu `modules/php/States/PlayerTurn.php` action validation; Riviera `PlayCard.php` validation pattern | ACTIVE_PLAYER, id 35. For card 10, validate two distinct selected cards in the current player's hand and an eligible opponent still in the round. If no other player is eligible, follow the approved discard/draw fallback. Select the opponent's cards randomly on the server, update card ownership atomically, and do not reveal opponent-hand IDs to uninvolved players. Return to `ResolvePowers` for the next owner. |
-| `modules/php/States/RollDice.php` | EDIT | Fugu `modules/php/States/NextPlayer.php` | Preserve existing roll and notification. Apply active card-2 reservations to later validity checks and roll the golden die only when enabled by POWER11. Keep its POWER11 state available through the entire ensuing card-play/BonusPlay turn, then expire it before new card-11 activations. |
-| `modules/php/States/PlayCard.php` | EDIT | Fugu `modules/php/States/PlayerTurn.php`; current M2 multiactive state | Preserve M2 choice and Change-my-mind behavior. No power should make a card playable if the existing server validity calculation rejects it. Ensure valid-card arguments are recomputed from the current reservation/golden-die state after ModifyDie. |
-| `modules/php/States/PassStartToken.php` | EDIT or KEEP | Fugu `modules/php/States/NextPlayer.php` | Prefer no change if the new flow transitions into the existing state only after all power resolution. Keep turn-order and notification behavior unchanged. |
-| `modules/php/States/RoundSetup.php` | EDIT | Fugu `modules/php/States/NextPlayer.php` | Reset all newly added per-turn pending markers and expire POWER2/POWER11/POWER9 state at the correct round boundary. Do not clear a lasting card-2/11 effect before its scheduled next roll. |
-| `modules/php/RIVChangeMindManager.php` | EDIT if required | Fugu `modules/php/FUGUTableManager.php` shape; existing Riviera shared manager | Reuse its current API for BonusPlay only if the power-specific columns and private notifications fit without weakening M2 validation or privacy. Otherwise extend it narrowly with typed POWER1 choice support. Do not add Change my mind to the clockwise sequential states. |
-| `modules/php/States/RevealStopOrMore.php`, `EndRound.php`, `EndScore.php` | KEEP | Fugu `modules/php/States/NextPlayer.php` / `EndScore.php` | No power rules occur here after the new pre-roll phases; retain existing transitions and scoring. Only change if tests show an unavoidable stale pending marker or effect lifetime crossing a round boundary. |
+| `dbmodel.sql` | EDIT | Fugu `dbmodel.sql` | Schema below. |
+| `modules/php/material.inc.php` | EDIT | Fugu | `POWER_CARD_VALUES = [2, 9, 10, 11]` (non-1 powers that leave a pending marker), `CARDS_SWAPPED_BY_POWER10 = 2`. |
+| `modules/php/RIVPowerManager.php` | NEW | `FUGUTableManager.php` / `RIVChangeMindManager.php` shape, owned by `Game` like `$changeMindManager` | Below. |
+| `modules/php/RIVChangeMindManager.php` | EDIT | itself | `recordChoice()` is split. A new `savePendingChoice($playerID, $choiceValues, $notifName, $notifArgs)` does the extra time on the first choice, the UPDATE and the private notify. `recordChoice()` now calls it and then `setPlayerNonMultiactive`. The card-1 chain uses `savePendingChoice()` to save a step without deactivating the player. `changeMind()` is unchanged. Calling it from a player who is still active (mid-chain) is harmless, because `setPlayersMultiactive([$id], '', false)` on an active player changes nothing. |
+| `modules/php/RIVTableManager.php` | EDIT | `FUGUTableManager.php` | `getChainCardIDsPOWER1($playerID)` returns the extras in order. `clearChainPOWER1(?int $playerID = null)`. `shuffleAndDealCards()` also NULLs `chain_position_POWER1`. `getRandomHandCards($playerID, $count)` uses `bga_rand`. `getDrawableCountPOWER10()` = deck + discard. `drawCardsPOWER10($playerID, $count)`: if the deck is short, `moveAllCardsInLocation('discard', 'deck')` + `shuffle('deck')`, then `pickCards`. `getModifiableDicePOWER9()` = rolled dice (gold included) with `modified_by_POWER9 = 'no'`. `getPlayableCardIDs()` is reused unchanged. |
+| `modules/php/Game.php` | EDIT | Fugu `Game.php` | `public RIVPowerManager $powerManager`. The debug functions below. `#[Debug]` added to `debug_passStartToken`. `getAllDatas` gains nothing private: pending markers stay server-side. |
+| `States/RoundSetup.php` | EDIT | `NextPlayer.php` | Also resets `pending_POWER2/9/10/11 = 'no'`. `resetDice()` already clears the dice effects. |
+| `States/RollDice.php` | EDIT | `NextPlayer.php` | `return $this->game->powerManager->goToNextPOWER9Owner();` instead of `PlayCard::class`. The roll is unchanged: it already rolls gold when `in_use_by_POWER11` and resets `modified_by_POWER9`. |
+| `States/ModifyDie.php` | NEW | Fugu `PlayerTurn.php` | ACTIVE_PLAYER 15. Below. |
+| `States/PlayCard.php` | EDIT | Fugu `PlayerTurn.php`, M2 | The card-1 chain. Below. |
+| `States/RevealCards.php` | EDIT | `NextPlayer.php`, M2 | Reveals the chains, then hands over to the powers. Below. |
+| `States/ResolvePowers.php` | NEW | Fugu `PlayerTurn.php` | ACTIVE_PLAYER 30: the card-11 prompt (card 2 needs no state). Below. |
+| `States/SwapCards.php` | NEW | Fugu `PlayerTurn.php` (`actSwapCards` validation, `getRandomFaceDownCard` randomness) | ACTIVE_PLAYER 35: card 10. Below. |
+| `States/PassStartToken.php`, `StopOrMore.php`, `RevealStopOrMore.php`, `EndRound.php`, `EndScore.php` | KEEP | — | A stopped owner's reservation simply lives until the next reveal, and card 9 is filtered in `goToNextPOWER9Owner()`. |
 
-### TypeScript
+#### dbmodel.sql
+```sql
+-- inside CREATE TABLE `cards`, after location_in_column:
+--   chain_position_POWER1: order of a hand card added to a card-1 chain (1 = first extra), pending until RevealCards like play_choice_card_id
+  `chain_position_POWER1` TINYINT UNSIGNED NULL,
+
+-- a non-1 power revealed this turn, waiting to resolve: 2, 10, 11 before the next roll, 9 after it
+ALTER TABLE `player` ADD `pending_POWER2` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `made_choice_this_state`;
+ALTER TABLE `player` ADD `pending_POWER9` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER2`;
+ALTER TABLE `player` ADD `pending_POWER10` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER9`;
+ALTER TABLE `player` ADD `pending_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER10`;
+```
+- Comments go on their own lines (CLAUDE.md rule).
+- The first card of a chain stays in M2's `play_choice_card_id`. The extras are marked on the cards, so Change my mind is two UPDATEs and F5 needs nothing new.
+- **"Mid-chain"** is derived, not stored: the player has `play_choice = 'card'` and is still in `gamestate->getActivePlayerList()`.
+- The existing dice columns `reserved_by_POWER2`, `modified_by_POWER9` and `in_use_by_POWER11` are reused as they are.
+
+#### RIVPowerManager
+```php
+class RIVPowerManager{
+    function markPendingPowers(array $lastCardValueByPlayer): void   // RevealCards: pending_POWERn = 'yes' when the player's last revealed card (a chain's last card) is 2, 9, 10 or 11
+    function expireDiceEffects(): void                               // RevealCards, after the Grand Slam check: reserved_by_POWER2 = NULL; gold in_use_by_POWER11 = 'no', die_value = NULL;
+                                                                     //   notify->all('diceUpdated', '', ['dice' => ...]) only if something changed (no log row)
+    function goToNextPreRollPower(): string                          // the walk above
+    function goToNextPOWER9Owner(): string                           // same for card 9; clears pending_POWER9 of players not 'in'; ModifyDie::class or PlayCard::class
+    function skipPower(int $playerID, int $value, string $logReason = ''): void  // pending_POWERn = 'no' + notify->all('powerSkipped', '${POWER_SKIPPED_LOG_STR}', ...)
+    private function applyReservationPOWER2(int $playerID): void     // UPDATE dice SET reserved_by_POWER2 = id WHERE die_color = <the 2's color> AND reserved_by_POWER2 IS NULL;
+                                                                     //   DbAffectedRow() == 0 → guard, nothing; else notify->all('dieReserved_POWER2', ...)
+}
+```
+- Card 2's color is the color of that player's last `played` card, which is the 2 just revealed.
+- Card 11 is skipped without asking when `in_use_by_POWER11 = 'yes'` already.
+- Card 10 goes straight to `skipPower` (with a "nothing to draw" reason) when no opponent is in and `getDrawableCountPOWER10() == 0`.
+
+#### PlayCard (20): the card-1 chain
+- **`onEnteringState`:** M2, plus `clearChainPOWER1()`.
+- **`getArgs()` `_private`:**
+  - M2 fields, plus `chainCardIDs_POWER1: int[]`.
+  - Mid-chain, `playableCardIDs` leaves out the first card and the chain cards, so it lists only the possible next card.
+- **`actPlayCard($cardID)`** (M2 validation):
+  - Not a 1: `recordChoice(...)` as in M2.
+  - A 1: `savePendingChoice($id, ['play_choice' => 'card', 'play_choice_card_id' => $cardID], 'playChoiceConfirmed', [... 'playableCardIDs' => next options])`. If there are no next options, the player is deactivated at once (auto-finish).
+- **`#[PossibleAction] actAddChainCard_POWER1(int $cardID, int $currentPlayerId)`:**
+  - Requires mid-chain, with the last chosen card a 1.
+  - The card must be in `getPlayableCardIDs()` minus the cards already chosen.
+  - Sets `chain_position_POWER1` = next.
+  - Sends a private `playChainUpdated_POWER1` with `chainCardIDs_POWER1` and the next `playableCardIDs`.
+  - If the card is a 1 and options remain, the player stays active. Otherwise `setPlayerNonMultiactive($id, RevealCards::class)`.
+- **`#[PossibleAction] actFinishChain_POWER1(int $currentPlayerId)`:** requires mid-chain, then `setPlayerNonMultiactive`.
+- **`actChangeMindPlayCard`:** M2 `changeMind(...)`, then `clearChainPOWER1($id)`.
+  - It works both while inactive (M2) and mid-chain.
+  - `playChoiceReverted` now carries the full `playableCardIDs`, because the client gets no args refresh while it stays active.
+- **`zombie()`:** M2, and if that leaves the zombie mid-chain, `actFinishChain_POWER1`.
+
+The client gets no new args while it stays active, so every private notif in this state carries the `playableCardIDs` for the player's next step. F5 recomputes them through `getArgs()`.
+
+#### RevealCards (22)
+1. A `card` choice moves the first card, then the chain cards in `chain_position_POWER1` order. Each gets the next `location_in_column` and the same "still in this hand" WHERE check.
+2. Each reveal entry gains `extra_cards_POWER1: PlayedCard[]` (empty without a chain). The fallback text lists them too.
+3. NULL the chain and play columns (M2 + `clearChainPOWER1()`). The `cardsRevealed` and `playerCrashed` notifs are otherwise as in M2.
+4. **Grand Slam check: unchanged and in the same place.** It counts every card played this turn, chains included, and returns `EndScore::class` before any power.
+5. `powerManager->expireDiceEffects()`, then `markPendingPowers(<last revealed card value per player>)`, then `return powerManager->goToNextPreRollPower()`.
+
+Card 10 never changes a hand size, so no later Grand Slam check is needed.
+
+#### ModifyDie (15, ACTIVE_PLAYER): card 9
+- `getArgs()`: `['modifiableDice' => [['color', 'value'], ...]]`. These are public: everyone sees the dice.
+- `#[PossibleAction] actModifyDie_POWER9(#[StringParam(enum: ['red','green','purple','blue','orange','gold'])] string $dieColor, #[IntParam(min: -1, max: 1)] int $delta, int $activePlayerId)`:
+  - Checks: `pending_POWER9 = 'yes'`, `$delta !== 0`, and the die is in `modifiableDice`.
+  - The new value wraps: 6 + 1 → 1, 1 − 1 → 6.
+  - Sets `modified_by_POWER9 = 'yes'` and clears the pending marker.
+  - `notify->all('dieModified_POWER9', '${DIE_MODIFIED_POWER9_LOG_STR}', [player_id, die_color, old_value, new_value, dice])`.
+  - `return powerManager->goToNextPOWER9Owner()`.
+- `#[PossibleAction] actSkip_POWER9(int $activePlayerId)`: `skipPower`, then the next owner.
+- If no die is modifiable any more (every one already modified), `goToNextPOWER9Owner()` skips the owner silently.
+- `zombie()`: skip.
+
+#### ResolvePowers (30, ACTIVE_PLAYER): card 11
+- `#[PossibleAction] actAddGoldenDie_POWER11(int $activePlayerId)`:
+  - Requires `pending_POWER11`.
+  - Gold gets `in_use_by_POWER11 = 'yes'` and `die_value = NULL` (blank until the roll). The marker is cleared.
+  - `notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [player_id, dice])`.
+  - `return goToNextPreRollPower()`.
+- `actSkip_POWER11`, and `zombie()` → skip.
+
+#### SwapCards (35, ACTIVE_PLAYER): card 10
+- **`getArgs()`** (public, nothing private needed):
+  - `mode: 'swap' | 'redraw'`.
+  - `targets: [{player_id, hand_count}]` lists opponents with `round_status = 'in'` and at least 1 card.
+  - `maxCards` = min(2, my hand, best target hand) for swap, or min(2, my hand, drawable) for redraw.
+  - `drawableCount`.
+- **`#[PossibleAction] actSwapCards_POWER10(#[IntArrayParam] array $cardIDs, int $targetPlayerId, int $activePlayerId)`:**
+  - Validates `pending_POWER10`, a valid target, and distinct cards in my hand. The count must be exactly min(2, my hand, target hand).
+  - Takes the same number of random target cards (`bga_rand`) and swaps `card_location_arg` both ways.
+  - Sends `notify->player($owner, 'cardsSwapped_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', [owner_id, target_id, owner_gives, target_gives])`. The target gets the same notif with the same payload, since both of them know both sets.
+  - Sends `notify->all('cardsSwappedPublic_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', [owner_id, target_id, count])`, with ids only and no cards.
+  - Then `goToNextPreRollPower()`.
+- **`#[PossibleAction] actRedrawCards_POWER10(#[IntArrayParam] array $cardIDs, int $activePlayerId)`:**
+  - Only allowed when no target exists. The count must equal min(2, my hand, drawable).
+  - **Draws first** (with the reshuffle, so the cards discarded now can't come back), then moves the chosen cards to `discard`.
+  - Sends a private `cardsRedrawn_POWER10` (discarded + drawn) and a public `cardsRedrawnPublic_POWER10` (count only), both with `${CARDS_REDRAWN_POWER10_LOG_STR}`.
+- `actSkip_POWER10`, and `zombie()` → skip.
+- **One row per viewer:**
+  - The owner and target get their private row with the real cards.
+  - The public row's `createLog*` method, when the viewer is the owner or the target, adds a second tag, `duplicate-log`, which `Game.scss` hides (`display: none`), and the public notif handler does nothing for them.
+  - This works live, after F5, in replay and in the chatbar, because the same `bgaFormatText` / `LogMutationObserver` path runs for every row. No undeclared API like `notifqueue.setIgnoreNotificationCheck` is needed: it exists in `bga-framework.d.ts` only on `GameNotifQueue`, which `bga` doesn't expose.
+
+#### Game.php debug functions (all `#[Debug(reload: true)]`)
+A shared private helper, `debugGiveCards(int $playerID, array $colorValues)`, moves the named cards into my hand.
+- It takes them from the deck, the discard or another hand. Each card taken from a hand is swapped with a random card of mine, so every count stays the same.
+- It never takes from `played` or `returned_to_box`, and it only uses colors in use.
+- It then sets the matching dice so those cards are playable (the die alone if the value is 6 or less, otherwise the color die 6 plus a second die) and jumps to PlayCard (20).
+
+| Function | Sets up |
+|---|---|
+| `debug_POWER1()` | Two 1s of different colors + a 2 of a third color, all playable on the same roll: tests the chain 1 → 1 → 2 (+ automatic reservation). |
+| `debug_POWER2()` | A playable 2. |
+| `debug_POWER9(bool $resolveNow = false)` | A playable 9. With `true`, it instead sets my `pending_POWER9` and jumps to RollDice (10), so ModifyDie starts at once. |
+| `debug_POWER10(bool $othersStopped = false)` | A playable 10. With `true`, every other player becomes `stopped`, to test the redraw fallback. |
+| `debug_POWER11()` | A playable 11. |
+| `debug_setDrawPile(int $deckCount = 0, int $discardCount = 0)` | Moves cards between `deck` and `discard` to reach those counts, for the reshuffle / draw-short / nothing-to-draw cases. Extra cards go to `returned_to_box` **for the rest of that table**, so use a throwaway table. |
+
+The M2 debug functions (`debug_setDice`, `debug_trimHands`, ...) are kept.
+
+### TypeScript (`src/ts/`)
 
 | File | Kind | Mirrors | Content |
 |---|---|---|---|
-| `src/ts/Game.ts` | EDIT | Fugu `src/ts/Game.ts` | Register new client state handlers, map each public power notification to its own log formatter, and update dice/hand/score UI from notification payloads. Keep log formatting in `bgaFormatText` and do not send hidden card data to all players. |
-| `src/ts/types.d.ts` | EDIT | Fugu `src/ts/types.d.ts` | Add typed args and payloads for POWER1 choices/reveals, POWER2/POWER11 activations, POWER9 die changes, and POWER10 exchange notifications. Model card/die fields with existing types; mark private payloads separately from public notification data. |
-| `src/ts/States/BonusPlay.ts` | NEW | Fugu `src/ts/States/PlayerTurn.ts`; Riviera `PlayCard.ts` and `StopOrMore.ts` | Render the eligible player's playable-card selection, optional pass, and Change my mind while the simultaneous window remains open. Restore pending choice after refresh, clear actions/classes on leaving, and show only the current player's choice. |
-| `src/ts/States/ModifyDie.ts` | NEW | Fugu `src/ts/States/PlayerTurn.ts`; Riviera `PlayCard.ts` | For the active card-9 owner, render the die +/-/pass controls, show the changed die selection clearly, and submit one validated action. Others see who is resolving the power but not controls for the active player. |
-| `src/ts/States/ResolvePowers.ts` | NEW | Fugu `src/ts/States/PlayerTurn.ts`; Riviera `StopOrMore.ts` | Present optional activate/skip actions for the current POWER2/POWER11 owner and a brief status for waiting players. Card 10 transitions to its own state. |
-| `src/ts/States/SwapCards.ts` | NEW | Fugu `src/ts/States/PlayerTurn.ts`; Fugu `src/ts/HandHandler.ts` selection pattern | Let the POWER10 owner select two of their cards and an eligible opponent, or choose the approved fallback when no opponent remains. Show a server-confirm action only when selection is complete; never render an opponent's card identities before the private result notification. |
-| `src/ts/HandHandler.ts` | EDIT | Fugu `src/ts/HandHandler.ts`; Riviera selection patterns | Add only state-gated POWER10 card selection if the existing card-selection mechanism cannot be shared safely. Keep normal M2 playable-card selection and card-1 reveal animation unchanged. Clear power-specific selected classes on state exit and reload. |
-| `src/ts/DiceHandler.ts` | EDIT | Fugu `src/ts/CenterHandler.ts`; current Riviera handler | Keep rendering from `RivieraDie`. Support any selection/highlight needed by ModifyDie and update reservation/golden-die state after notifications. Continue to reflect existing `reserved_by_POWER2`, `modified_by_POWER9`, and `in_use_by_POWER11` values. |
-| `src/ts/LogMutationObserver.ts` | EDIT | Fugu `src/ts/LogMutationObserver.ts` | Add a distinct formatter and row class for each public power effect/reveal: proposed classes are `bonus-play-POWER1`, `reserved-die-POWER2`, `modified-die-POWER9`, `golden-die-POWER11`, and `cards-swapped-POWER10`. Keep individual public effects identifiable, card/die icon rendering shared with existing helpers, and card-10 public text limited to “two cards swapped.” |
-| `src/ts/Game.ts` / client state notification handlers | EDIT | Fugu `src/ts/Game.ts` notification pattern | Private notifications for pending/change-mind and POWER10 outcomes should update only the recipient's UI and must not create public log rows containing private information. Each public log-producing notification gets exactly one distinct log class. |
-| `src/ts/PlayerHandler.ts` | EDIT only if needed | Fugu `src/ts/PlayerHandler.ts` | Reflect current round-visible status only; do not expose private power choices or hand cards. No persistent power badge is planned unless the rule decision requires one. |
-| `src/ts/ModalBoxHandler.ts` | KEEP / reuse if useful | Fugu `src/ts/ModalBoxHandler.ts` | Reuse for anchored selection guidance only if necessary; do not add a modal dependency merely for simple status-bar/state controls. |
+| `Game.ts` | EDIT | Fugu `Game.ts` | Registers `ModifyDie`, `ResolvePowers` and `SwapCards`. Adds the `bgaFormatText` keys `DIE_RESERVED_POWER2_LOG_STR`, `GOLDEN_DIE_POWER11_LOG_STR`, `DIE_MODIFIED_POWER9_LOG_STR`, `CARDS_SWAPPED_POWER10_LOG_STR`, `CARDS_REDRAWN_POWER10_LOG_STR` and `POWER_SKIPPED_LOG_STR`, each mapped to one `createLog*`. `animateReveal` slides `extra_cards_POWER1` into the column after the first card (short stagger). New notif handlers in the table below. |
+| `States/PlayCard.ts` | EDIT | M2 | Below. Also the M2 button label: `_('confirm')` becomes `_('Confirm')`. |
+| `States/ModifyDie.ts` | NEW | Fugu `States/PlayerTurn.ts` | Below. |
+| `States/ResolvePowers.ts` | NEW | Fugu `States/PlayerTurn.ts` | Active player: "${you} may add the golden die to the next roll", with "Add the golden die" and "Skip". Others: "${actplayer} may add the golden die". |
+| `States/SwapCards.ts` | NEW | Fugu `States/PlayerTurn.ts` (hidden-until-ready button, `destination` slot) | Below. |
+| `HandHandler.ts` | EDIT | Fugu `HandHandler.ts` | Selection becomes generic. `setSelectableCards(ids, maxSelected)` replaces the PlayCard-only gating; clicks are allowed in `PlayCard` and `SwapCards`. Multi-select up to `maxSelected` (1 in PlayCard). `getSelectedCardIDs()`. The click calls `game.handSelectionChanged()`, which dispatches to the current state class. `setChosenCards(ids[])` (first card + chain, set aside, in order) replaces `setChosenCard`. `async removeCards(ids, toElement)` / `async addCards(cards, fromElement)` use `animateSlide` for swaps and redraws. M2 behaviour is kept. |
+| `DiceHandler.ts` | EDIT | Fugu `CenterHandler.ts` | `setSelectableDice(colors)` (glow, click to select one), `clearSelectableDice()`, `getSelectedDieColor()`. `updateDice` is reused for every dice notif. The gold die keeps showing whenever `in_use_by_POWER11` (existing SCSS). |
+| `LogMutationObserver.ts` | EDIT | Fugu `createLogSwapCards` | `createLogCardsRevealed` shows the chain: the first card, then "+" and each extra mini card. Six new `createLog*` methods (Logs table). |
+| `types.d.ts` | EDIT | Fugu | `PlayCardArgs._private.chainCardIDs_POWER1`. `CardReveal.extra_cards_POWER1`. `PendingPlayChoice` notifs get `playableCardIDs`. `ModifyDieArgs`, `SwapCardsArgs`, and one args interface per new notif. |
+| `ChangeMindHandler.ts`, `PlayerHandler.ts`, `PlayedColumnHandler.ts`, `StartTokenHandler.ts` | KEEP | — | — |
 
-### SCSS
+**Client `PlayCard`** keeps a local model: `pendingChoice`, `chainCardIDs`, `playableCardIDs`. It comes from the args on entry and F5, and then from the private notifs. Every change re-renders the status bar:
+- **Active, no pending choice:** as in M2.
+- **Active, mid-chain:**
+  - Title: "${you} may add a card to your 1".
+  - The chosen cards are set aside and the next options glow.
+  - Select a card, then "Add this card" (hidden until a card is selected).
+  - "Finish", and "Change my mind".
+- **Inactive with a pending choice:** "${you} chose [card icons]. Waiting for other players" + Change my mind.
+- **Otherwise:** M2.
 
-| File | Kind | Mirrors | Content |
+**Client `ModifyDie`:**
+- **Active:** the dice in `modifiableDice` glow. Clicking one shows "−1 → n" and "+1 → n" buttons (with the wrap shown), plus "Skip" at all times.
+- **Others:** "${actplayer} may change a die (card 9)".
+
+**Client `SwapCards`:**
+- **Active, swap mode:**
+  - Select `maxCards` hand cards; then one button per target appears: "Swap with <name>".
+  - If `maxCards < 2`, or the chosen target has fewer than 2 cards, the click first opens `bga.dialogs.confirmation()`, which explains that only N cards will be swapped.
+  - "Skip".
+- **Active, redraw mode:** "No opponent is still in the round: discard and draw". Select cards, then "Discard N and draw N", with the same confirmation when N < 2. "Skip".
+- **Others:** "${actplayer} may swap cards (card 10)".
+
+**Notification handlers (new)**
+
+| Server notif | To | Log | Client |
 |---|---|---|---|
-| `src/scss/Game.scss` | EDIT | Fugu `src/scss/Game.scss`; existing Riviera log/card/die styles | Add selection and feedback styling for bonus cards, die modification, optional-power controls, and card-10 selections. Add one `--bg-log-*` variable for every new public log type and its own log class selector. Include desktop/mobile layout and replay/chatbar log styling. Do not dim normal unplayable cards or change existing M2 visuals. |
+| `playChoiceConfirmed` / `playChoiceReverted` (extended) | player | none | `playCard.updateChoice(...)`. |
+| `playChainUpdated_POWER1` | player | none | Same. |
+| `diceUpdated` | all | none | `diceHandler.updateDice` (expired reservation and gold). |
+| `dieReserved_POWER2` | all | `die-reserved-power2-log` | `updateDice` (outline in the owner's color). |
+| `goldenDieAdded_POWER11` | all | `golden-die-power11-log` | `updateDice` (the gold die appears, blank). |
+| `dieModified_POWER9` | all | `die-modified-power9-log` | `updateDice` (fade/scale + "±" badge). |
+| `cardsSwapped_POWER10` | owner, target | `cards-swapped-power10-log` (real cards) | My hand: `removeCards` toward the other board, `addCards` from it. |
+| `cardsSwappedPublic_POWER10` | all | same class, backs; `duplicate-log` for owner/target | Others only: N backs slide each way between the two boards. |
+| `cardsRedrawn_POWER10` | owner | `cards-redrawn-power10-log` (real cards) | `removeCards` / `addCards`. |
+| `cardsRedrawnPublic_POWER10` | all | same class, backs; `duplicate-log` for the owner | none |
+| `powerSkipped` | all | `power-skipped-log` | none |
 
-### Debug, testing, and docs
+### SCSS (`src/scss/Game.scss`)
+- `.a-die.selectable-die` glow (Fugu's pulse) and `.selected-die`, only under `body.current_player_is_active:not(.lockedInterface)`.
+- Several `.chosen-card` cards may be set aside at once (chain).
+- Selection classes are cleared on state exit and reload.
+- Reveal-row chain layout (`.reveal-chain-plus`).
+- `.log.duplicate-log, .gamelogreview.duplicate-log { display: none; }`.
+- Six new `$log-types` entries + `:root` variables (Logs below).
+- Unplayable cards keep their normal look, as in M2.
 
-| File | Kind | Mirrors | Content |
-|---|---|---|---|
-| `modules/php/Game.php` debug methods | EDIT | Fugu `modules/php/Game.php` debug convention | Provide a `#[Debug(reload: true)]` setup action for each power, or one clearly named setup action per power that calls a shared helper. A shared `debug_giveCard(int $playerID, string $color, int $value)` may place a specific card into a hand, but each power must have a direct test entry point and establish the correct timing/state/dice without waiting for the deal. Cover card-1 chains, both card-2/11 options, card-9 boundaries, and card-10 exchange/fallback. |
-| `.claude/TESTING.md` | EDIT after implementation approval | M2 checklist | Add Studio steps for each activation and skip path, card-1 chains and Grand Slam, clockwise order, reservation/gold validity, card-9 wrap and once-per-roll behavior, card-10 privacy and deck fallback, F5 restoration in every new state, spectators, mobile/replay log colors, and zombie handling. |
-| `.claude/SPEC.md` | EDIT after implementation approval | Existing M1/M2 milestone notes | Record approved answers to open rules and update M3 status/implementation notes. Do not silently resolve any question below in code or the spec. |
-| `.claude/CLAUDE.md` | EDIT after implementation approval | Current project conventions | Document new state IDs/flows, persistent fields, notification/log conventions, and power testing/debug conventions only after verified implementation. |
-| `.claude/plans/milestone-3.md` | NEW (this file) | `.claude/plans/milestone-2.md` format | Plan only. No code or other documentation is changed as part of this planning request. |
-| `modules/js/Game.js`, `riviera.css` | generated | Fugu build outputs | Regenerate via the existing build after approved source changes; do not hand-edit. |
+### Logs
 
-## Core behavior and verification
+Fugu's mechanism, as in M2: a `${X_LOG_STR}` placeholder whose plain fallback text is built on the server, plus `preserve`; one `createLog*()`; one `*-log` class; one `--bg-log-*` variable listed in `$log-types`.
 
-- **Card 1:** only an owner who just played a 1 may choose a bonus. A chosen extra card must still be in that player's hand and valid under the same roll. Passing is allowed. Choices are private until the simultaneous reveal; eligible players can change their choice until the last eligible player acts. A revealed 1 can continue the chain.
-- **Card 2:** optional reservation of the matching color die for its owner on the next roll/turn; other players cannot use it alone or in a sum. Ensure the card's owner can still use it.
-- **Card 11:** optional activation of the gold die for the next roll for everyone. Gold contributes only to sums and never supplies a card color. The gold die remains usable for the whole following turn, including card-1 bonus plays, then expires.
-- **Card 9:** after the next roll and before card choice, each owner in Start-token clockwise order may change one die by +1, -1, or pass. Values wrap at 1 and 6. Once a die has been modified for that roll, no owner may modify it again.
-- **Card 10:** optional selection of two cards from the owner's hand and an opponent still in the round; the opponent contributes two random cards. The owner and victim receive the private card details specified in SPEC; all other players see only that two cards were exchanged.
-- **Every power:** verify activation and skip; server-side rejection of invalid or stale actions; choice restoration on F5; non-leakage to opponents/spectators; clockwise ownership resolution; state transitions; hand counts; turn/round cleanup; notifications and unique log background in normal logs, chatbar, and replay.
-- **Card 1 / Grand Slam:** verify a bonus chain that does not empty the hand, one that does, and multiple players reaching zero in the same bonus reveal. Confirm the intended winner/score behavior before implementation.
-- **Card 2 / card 11:** verify their state survives the between-turn states and affects exactly the intended next roll/turn, but not later rolls.
-- **Card 9:** test 1→6 and 6→1, one-modification limit, passing, multiple owners, and a golden die if allowed by the final rule.
-- **Card 10:** test with a living opponent, no other player in the round, a full draw pile, a partially depleted pile, and insufficient cards in the owner's/opponent's hands. Verify only the owner/victim receive private card details.
+| Notif(s) | `createLog*` | Log class | Row | `:root` variable (pale gradient, dark text stays ≥ 4.5:1) |
+|---|---|---|---|---|
+| `dieReserved_POWER2` | `createLogDieReservedPOWER2(player_id, die)` | `die-reserved-power2-log` | "<name> reserves [mini die] for the next roll" | `--bg-log-die-reserved-power2`: pale indigo `#e9ebf8 → #c9cfee` |
+| `goldenDieAdded_POWER11` | `createLogGoldenDiePOWER11(player_id)` | `golden-die-power11-log` | "<name> adds [mini gold die] to the next roll" | `--bg-log-golden-die-power11`: champagne `#fbf6e6 → #eedfb0` (paler than Grand Slam) |
+| `dieModified_POWER9` | `createLogDieModifiedPOWER9(player_id, color, old, new)` | `die-modified-power9-log` | "<name> turns [die old] → [die new]" | `--bg-log-die-modified-power9`: pale teal `#e2f4f3 → #b9e0dd` |
+| `cardsSwapped_POWER10` + `...Public_POWER10` | `createLogCardsSwappedPOWER10(owner, target, ownerGives \| null, targetGives \| null, count)` | `cards-swapped-power10-log` | "<owner> [cards or N backs] ⇄ <target> [cards or N backs]" | `--bg-log-cards-swapped-power10`: pale rose `#fae8f0 → #eec4d6` |
+| `cardsRedrawn_POWER10` + `...Public_POWER10` | `createLogCardsRedrawnPOWER10(player_id, discarded \| null, drawn \| null, count)` | `cards-redrawn-power10-log` | "<name> discards [cards or backs] and draws [cards or backs]" | `--bg-log-cards-redrawn-power10`: pale lime `#f1f6e1 → #d6e6b0` |
+| `powerSkipped` | `createLogPowerSkipped(player_id, card)` | `power-skipped-log` | "<name> does not use [mini card]" (+ "nothing to draw" when given) | `--bg-log-power-skipped`: pale slate `#eef1f4 → #d3d9e1` |
+
+The card-1 chain adds no log type: it shows inside the existing `cards-revealed-log` row.
+
+## Verification
+
+1. `npm run build` is clean, and `php -l` passes on every PHP file touched.
+2. Start a **new** table, because the schema changed.
+3. Studio checks (these become the M3 section of `.claude/TESTING.md`):
+
+**Card 1 / Grand Slam test cases**
+1. I play a 1 and add a 5: both are revealed together with everyone else's cards, in that order in my column.
+2. I play a 1, add a second 1, and am asked again; I add a third card: all three are revealed.
+3. I play a 1 and press "Finish": only the 1 is revealed.
+4. I play a 1 when no other card is playable: I'm not asked anything and my choice is final at once.
+5. After a chain of three, I press "Change my mind": all three cards go back to my hand and I choose a first card again.
+6. I press "Change my mind" in the middle of a chain (still choosing): the same thing happens.
+7. I press F5 in the middle of a chain: the chosen cards are still set aside and the "add a card or finish" prompt is back.
+8. The other player only sees that I'm still choosing or done, and their network traffic shows no card id.
+9. My chain ends on a 2, 10 or 11: that card's power resolves after the reveal. A chain that ends on a 1 triggers no other power.
+10. I play my last cards through a chain (`debug_trimHands(3)` with two 1s and a playable card): Grand Slam, the game ends, and the last card's power does not resolve.
+11. Two players empty their hands on the same reveal, one with a chain and one with a single card: both get the Grand Slam score and share the win.
+12. One player makes a Grand Slam while another just played a 10: the game ends with no swap prompt.
+
+**Card 2**
+- After the reveal the die is outlined in the owner's color, with no button, and a log row appears.
+- On the next turn only the owner gets cards valid with it, alone or in a sum.
+- After that turn's reveal the outline is gone.
+- If the owner chose Stop, opponents still can't use the die on that roll.
+
+**Card 11**
+- "Add the golden die" makes a blank gold die appear. It is rolled next turn and works only in a sum, never for its own color.
+- It is gone after that turn's reveal, unless a new 11 is added, in which case it stays and is rolled again.
+- "Skip" logs a skip row.
+- A second 11 in the same turn is not asked.
+
+**Card 9**
+- After the next roll, owners are asked clockwise from the Start token holder.
+- 1 − 1 → 6 and 6 + 1 → 1.
+- A modified die can't be picked by a later owner.
+- The gold die can be picked.
+- "Skip" works.
+- An owner who stopped is not asked.
+- Playable cards reflect the new value.
+
+**Card 10**
+- **Swap:** the owner picks 2 cards and a target still in the round. The owner and target see the real cards in their single log row. A third player and a spectator see a single row with 2 backs. Hand counts don't change.
+- **Short hand:** with a target holding 1 card, the confirmation explains it and 1 card moves.
+- **Redraw fallback** (`debug_POWER10(true)`):
+  - The owner discards and draws.
+  - With `debug_setDrawPile(1, 0)` only 1 card is swapped (after the confirmation).
+  - With `debug_setDrawPile(0, 3)` the discard pile is reshuffled in, and the cards just discarded never come back.
+  - With `debug_setDrawPile(0, 0)` the power is skipped with a log row.
+- "Skip" works. The victim never has to click.
+
+**Every power**
+- F5 in ModifyDie, ResolvePowers and SwapCards restores the prompt.
+- An invalid or stale action is rejected by the server.
+- Each new log type has its own background, in the live log, in replay and in the mobile chatbar.
+- A zombie in each new state skips, and a zombie mid-chain finishes its chain.
+- A new round clears every pending power and dice effect.
 
 ## Questions / conflicts
 
-1. **Card 1 chain and Grand Slam timing:** SPEC says card-1 powers can chain and checks Grand Slam after step 4, but a chain may empty a hand before every eligible player has finished the same simultaneous wave. Should all card-1 choices in that wave resolve before the check, and do all players emptying on that same wave share the Grand Slam as on the normal reveal? Does an early Grand Slam cancel later bonus choices or the card-2/10/11 window?
-2. **Bonus-play Change my mind:** card 1 says bonus play is simultaneous, so this plan applies Change my mind up to the last eligible owner's choice, following M2. Confirm that a player can change an extra-card choice to pass (and vice versa) while others are still deciding.
-3. **Ordering within the pre-roll window:** SPEC requires owners to resolve clockwise but lists powers 2, 10, and 11 in that step; M3 implementation order is 2, 11, 9, 10 by milestone request. Should the game resolve all eligible owners strictly clockwise regardless of power type, with that owner's own card effect then handled, or group the effects by type? If one owner has multiple powers due to a card-1 chain, resolve them together before advancing clockwise?
-4. **Two card-2 owners reserve the same die:** if multiple players play the same-color 2 in one reveal and both activate, only one `reserved_by_POWER2` owner can be stored. Does the first clockwise activation win, the last clockwise activation replace it, or should later activations be skipped/rejected?
-5. **Card 11 duration and overlap:** confirm the gold die stays active through the following turn's card-1 chain and expires before resolving newly played card 11s. If card 11 is activated again on that following turn, does it simply extend/restart the next-roll effect? Is the golden die a valid target for card 9?
-6. **Card 9 eligible dice:** SPEC says “one die of your choice” and “applies to everyone,” but does that include the gold die when card 11 activated it? If allowed, does `modified_by_POWER9` apply to gold exactly like colored dice?
-7. **Card 10 draw fallback:** the SPEC's no-opponent fallback discards two and draws two, but at six players the draw pile starts empty; a pile can also become smaller than two after earlier swaps. What happens with zero or one card left in the draw pile: discard anyway, draw fewer, or cancel/skip the power? Should a player be allowed to activate it if their hand has fewer than two cards?
-8. **Card 10 target hand size:** can the selected opponent have fewer than two cards in hand? If so, should the exchange use all available cards, reject that target, or choose a different target? Confirm the analogous rule for the card-10 owner's own hand after a card-1 chain.
-9. **Card 10 no-opponent detection:** is “no other player is left in the round” exactly `round_status = 'in'` excluding the owner, or can a stopped player be a target? The proposed interpretation is only another player still `in`.
-10. **Card 10 notifications and privacy:** SPEC says the owner sees the received cards, the victim sees what they lost and got, and everyone else only sees that two cards were swapped. Confirm this is the exact visibility. The public swap log can have its own background; private result notifications should have no log row to avoid exposing private details. If “one log type per new notification” is intended to include private no-log updates, specify a privacy-safe expectation.
-11. **Effect cleanup / card 2 lifetime:** M2's existing dice columns have no generation/turn field. Proposed cleanup is to keep old POWER2/POWER11 effects available through the next turn's BonusPlay, then expire them in `ResolvePowers` before storing new activations. Confirm this matches “on the next roll” and “removed at end of that turn.”
-12. **Card-10 priority versus other powers:** card 10 is resolved before the next roll, while cards 2/11 have effects on that roll. Confirm that card-10 swaps do not alter which card-2/11 effects are pending, and that all card-10 swaps happen in the same clockwise pre-roll queue.
-13. **State type/API confirmation:** the SPEC suggests `ModifyDie` active, `BonusPlay` multiple-active, `ResolvePowers` game/dispatcher, and `SwapCards` active. This plan proposes active `ResolvePowers` to support optional sequential actions. Confirm the active-player ownership/dispatcher pattern is acceptable with the framework before coding.
-14. **Milestone size:** approve the suggested M3a/M3b/M3c splits or ask to keep all five powers in one implementation build. The order remains 1, 2, 11, 9, 10 either way.
+None open. Two items stay marked **[UNCONFIRMED with publisher]** in SPEC.md: whether the simultaneous reveal stays (card 1), and whether the gold die is a valid card-9 target.
+
+One thing I can't verify locally: re-entering the same active state (`ResolvePowers` → `ResolvePowers`) with a new active player, after `changeActivePlayer()` inside an action. If Studio doesn't refresh the active player, the fallback is a small GAME dispatcher state, as in Fugu's `NextPlayer`, on a free id such as 32.

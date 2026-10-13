@@ -54,9 +54,9 @@ Mirror these specifically:
 - **Card ids reveal identity**: cards are inserted in a fixed order, so a `card_id` tells its color and value. Never send ids of cards a player isn't allowed to see; send counts instead.
 - **Color order**: the `color` ENUM is declared in sprite order (red, green, purple, blue, orange), so `ORDER BY color, value` sorts like the sprite. Keep `CARD_COLORS` (PHP) and `$card-colors` (SCSS) in that same order.
 - **Removed color**: in 2 to 4 player games its cards stay in `cards` at location `returned_to_box` and its die stays in `dice` with `die_location = 'returned_to_box'`. "Colors in use" is read from `dice`.
-- **State ids**: RoundSetup 5, RollDice 10, ModifyDie 15, PlayCard 20, RevealCards 22, BonusPlay 25, ResolvePowers 30, SwapCards 35, PassStartToken 40, StopOrMore 50, RevealStopOrMore 55, EndRound 60, EndScore 98.
+- **State ids**: RoundSetup 5, RollDice 10, ModifyDie 15, PlayCard 20, RevealCards 22, ResolvePowers 30, SwapCards 35, PassStartToken 40, StopOrMore 50, RevealStopOrMore 55, EndRound 60, EndScore 98. (25 was BonusPlay, dropped in M3: the card-1 chain lives in PlayCard.)
 - **Framework typing differs from Fugu's**: Riviera's `bga-framework.d.ts` is newer. `Player` has no `color_back` and `playerorder` is `number[]`. Ported helpers (`divYou`, `divColoredPlayer`) drop `color_back`.
-- **No `gameui.isInterfaceLocked()`** in this framework version: use `Game.isInterfaceLocked()`, which reads the `lockedInterface` body class.
+- **No `gameui.isInterfaceLocked()`** in this framework version: use `this.game.isInterfaceLocked()`, which reads the `lockedInterface` body class.
 - **Globals** go through `$this->bga->globals` (`startPlayerId`, `roundNumber`); Fugu has none. Throw `\Bga\GameFramework\SystemException`, not the deprecated `\BgaSystemException`.
 - **Score display**: use BGA's default score counter (`bga.playerPanels.getScoreCounter(id)` when it changes), not a second `ebg.counter` like Fugu's `PlayerHandler`.
 - **Simultaneous choices**: a multiactive state stores each choice as pending `player` columns and never applies it there. The last chooser's `setPlayerNonMultiactive` moves to a GAME "reveal" state (`RevealCards`, `RevealStopOrMore`) that applies every choice and sends one notification. Change my mind goes through `RIVChangeMindManager` (`resetChoices` / `recordChoice` / `changeMind`) and the client `ChangeMindHandler`; the revert action carries `#[PossibleAction]` + `#[CheckAction(false)]`.
@@ -64,7 +64,7 @@ Mirror these specifically:
 - **Logs**: every log type has a `${X_LOG_STR}` server placeholder (plain fallback text as its value, plus `preserve` for the args the row needs), one `LogMutationObserver.createLog*()` method, one `*-log` class, and one `--bg-log-*` variable in `:root` (listed in `$log-types` in `Game.scss`).
 - **Slide animations**: use `Game.animateSlide(element, from, to, ms)` for anything moving between containers.
 - **`dbmodel.sql` comments**: put them on their own `--` lines, never after a `;` and never containing a `;`. BGA splits the file into statements itself and silently dropped an `ALTER` that had a trailing comment.
-- **Deleting or renaming PHP files**: SFTP runs with `autoDelete: false`, so a file removed locally stays on Studio, and the framework still loads every class in `modules/php/States/`. Delete it on the server by hand too, or a stale state class can collide on its state id (the template's `PlayerTurn.php` took id 10 and broke game creation once `RollDice` used 10).
+- **Deleting or renaming PHP files**: SFTP now runs with `autoDelete: true`, so a file removed locally is removed on Studio on the next sync. Still check after a delete or rename: the framework loads every class in `modules/php/States/`, and a stale state class collides on its state id (the template's `PlayerTurn.php` took id 10 and broke game creation once `RollDice` used 10).
 
 ## Keeping the docs current
 
