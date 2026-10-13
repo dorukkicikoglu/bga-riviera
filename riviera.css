@@ -12,6 +12,7 @@
   --card-width: min(6vw, 110px);
   --die-size: min(2.8vw, 40px);
   --image-source-riviera-cards: url(img/riviera_cards.webp);
+  --image-source-start-token: url(img/start_token.webp);
   --die-color-red: #c8322b;
   --die-color-green: #4f9a2a;
   --die-color-purple: #5f2d8c;
@@ -26,6 +27,13 @@
   --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
   --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
   --bg-log-stars-banked: linear-gradient(135deg, #fff0e0, #f6d2a8);
+  --bg-log-die-reserved-power2: linear-gradient(135deg, #e9ebf8, #c9cfee);
+  --bg-log-golden-die-power11: linear-gradient(135deg, #fbf6e6, #eedfb0);
+  --bg-log-die-modified-power9: linear-gradient(135deg, #e2f4f3, #b9e0dd);
+  --bg-log-cards-swapped-power10: linear-gradient(135deg, #fae8f0, #eec4d6);
+  --bg-log-cards-redrawn-power10: linear-gradient(135deg, #f1f6e1, #d6e6b0);
+  --bg-log-power-skipped: linear-gradient(135deg, #eef1f4, #d3d9e1);
+  --bg-log-power-cancelled: linear-gradient(135deg, #f7ebe4, #e8c9b8);
 }
 
 .mobile_version {
@@ -318,14 +326,11 @@ body .sliding-clone {
   box-sizing: border-box;
   width: var(--die-size);
   height: var(--die-size);
-  padding: calc(var(--die-size) * 0.08);
   border-radius: 18%;
   background: var(--die-color);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
   --pip-color: #ffffff;
+  --pip-size: calc(var(--die-size) * 0.2);
   transition: opacity 0.3s ease;
 }
 .a-die[data-color=red] {
@@ -350,75 +355,117 @@ body .sliding-clone {
 .a-die[data-color=gold][data-in-use-by-power11=false] {
   display: none;
 }
-.a-die .pip {
-  width: 72%;
-  height: 72%;
-  place-self: center;
+.a-die .die-pip {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--pip-size);
+  height: var(--pip-size);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  left: calc(var(--pip-x) - var(--pip-size) / 2);
+  top: calc(var(--pip-y) - var(--pip-size) / 2);
   border-radius: 50%;
   background: var(--pip-color);
   visibility: hidden;
 }
-.a-die[data-value="1"] .pip:nth-child(5) {
+.a-die .die-pip:nth-child(1) {
+  --pip-x: calc(var(--die-size) * 0.22);
+  --pip-y: calc(var(--die-size) * 0.22);
+}
+.a-die .die-pip:nth-child(2) {
+  --pip-x: calc(var(--die-size) * 0.5);
+  --pip-y: calc(var(--die-size) * 0.22);
+}
+.a-die .die-pip:nth-child(3) {
+  --pip-x: calc(var(--die-size) * 0.78);
+  --pip-y: calc(var(--die-size) * 0.22);
+}
+.a-die .die-pip:nth-child(4) {
+  --pip-x: calc(var(--die-size) * 0.22);
+  --pip-y: calc(var(--die-size) * 0.5);
+}
+.a-die .die-pip:nth-child(5) {
+  --pip-x: calc(var(--die-size) * 0.5);
+  --pip-y: calc(var(--die-size) * 0.5);
+}
+.a-die .die-pip:nth-child(6) {
+  --pip-x: calc(var(--die-size) * 0.78);
+  --pip-y: calc(var(--die-size) * 0.5);
+}
+.a-die .die-pip:nth-child(7) {
+  --pip-x: calc(var(--die-size) * 0.22);
+  --pip-y: calc(var(--die-size) * 0.78);
+}
+.a-die .die-pip:nth-child(8) {
+  --pip-x: calc(var(--die-size) * 0.5);
+  --pip-y: calc(var(--die-size) * 0.78);
+}
+.a-die .die-pip:nth-child(9) {
+  --pip-x: calc(var(--die-size) * 0.78);
+  --pip-y: calc(var(--die-size) * 0.78);
+}
+.a-die[data-value="1"] .die-pip:nth-child(5) {
   visibility: visible;
 }
-.a-die[data-value="2"] .pip:nth-child(1) {
+.a-die[data-value="2"] .die-pip:nth-child(1) {
   visibility: visible;
 }
-.a-die[data-value="2"] .pip:nth-child(9) {
+.a-die[data-value="2"] .die-pip:nth-child(9) {
   visibility: visible;
 }
-.a-die[data-value="3"] .pip:nth-child(1) {
+.a-die[data-value="3"] .die-pip:nth-child(1) {
   visibility: visible;
 }
-.a-die[data-value="3"] .pip:nth-child(5) {
+.a-die[data-value="3"] .die-pip:nth-child(5) {
   visibility: visible;
 }
-.a-die[data-value="3"] .pip:nth-child(9) {
+.a-die[data-value="3"] .die-pip:nth-child(9) {
   visibility: visible;
 }
-.a-die[data-value="4"] .pip:nth-child(1) {
+.a-die[data-value="4"] .die-pip:nth-child(1) {
   visibility: visible;
 }
-.a-die[data-value="4"] .pip:nth-child(3) {
+.a-die[data-value="4"] .die-pip:nth-child(3) {
   visibility: visible;
 }
-.a-die[data-value="4"] .pip:nth-child(7) {
+.a-die[data-value="4"] .die-pip:nth-child(7) {
   visibility: visible;
 }
-.a-die[data-value="4"] .pip:nth-child(9) {
+.a-die[data-value="4"] .die-pip:nth-child(9) {
   visibility: visible;
 }
-.a-die[data-value="5"] .pip:nth-child(1) {
+.a-die[data-value="5"] .die-pip:nth-child(1) {
   visibility: visible;
 }
-.a-die[data-value="5"] .pip:nth-child(3) {
+.a-die[data-value="5"] .die-pip:nth-child(3) {
   visibility: visible;
 }
-.a-die[data-value="5"] .pip:nth-child(5) {
+.a-die[data-value="5"] .die-pip:nth-child(5) {
   visibility: visible;
 }
-.a-die[data-value="5"] .pip:nth-child(7) {
+.a-die[data-value="5"] .die-pip:nth-child(7) {
   visibility: visible;
 }
-.a-die[data-value="5"] .pip:nth-child(9) {
+.a-die[data-value="5"] .die-pip:nth-child(9) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(1) {
+.a-die[data-value="6"] .die-pip:nth-child(1) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(3) {
+.a-die[data-value="6"] .die-pip:nth-child(3) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(4) {
+.a-die[data-value="6"] .die-pip:nth-child(4) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(6) {
+.a-die[data-value="6"] .die-pip:nth-child(6) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(7) {
+.a-die[data-value="6"] .die-pip:nth-child(7) {
   visibility: visible;
 }
-.a-die[data-value="6"] .pip:nth-child(9) {
+.a-die[data-value="6"] .die-pip:nth-child(9) {
   visibility: visible;
 }
 .a-die[data-value=""] {
@@ -446,6 +493,11 @@ body .sliding-clone {
 }
 .a-die.die-changed {
   animation: die-changed 300ms ease;
+}
+.a-die.selected-die {
+  transform: translateY(-6px);
+  outline: 3px solid #e8862b;
+  outline-offset: 2px;
 }
 
 #dice-container {
@@ -512,6 +564,14 @@ body .sliding-clone {
   outline-offset: -1px;
   z-index: 1;
 }
+#my-hand-container .cards-container .a-card.card-fading-out {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  opacity: 0;
+  transform: translateY(20px);
+}
+#my-hand-container .cards-container .a-card.card-fading-in {
+  animation: card-fade-in 0.4s ease;
+}
 #my-hand-container .cards-container.cards-fading-out .a-card {
   transition: opacity 0.4s ease, transform 0.4s ease;
   opacity: 0;
@@ -521,12 +581,16 @@ body .sliding-clone {
   animation: card-fade-in 0.5s ease;
 }
 
-body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.playable-card {
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card {
   cursor: pointer;
   animation: selectable-card-glow-pulse 3s ease-in-out infinite;
 }
-body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-container .cards-container .a-card.playable-card {
+body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-container .cards-container .a-card.selectable-card {
   animation: mobile-selectable-card-glow-pulse 3s ease-in-out infinite;
+}
+body.current_player_is_active:not(.lockedInterface) #dice-container .a-die.selectable-die {
+  cursor: pointer;
+  animation: selectable-die-glow-pulse 3s ease-in-out infinite;
 }
 
 #played-columns-container {
@@ -670,15 +734,13 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   box-sizing: border-box;
   width: 30px;
   height: 30px;
-  background: #000000;
-  border: 2px solid #ff0000;
+  background: var(--image-source-start-token) center/contain no-repeat;
 }
 .start-token.mini-start-token {
   display: inline-block;
   vertical-align: middle;
   width: 14px;
   height: 14px;
-  border-width: 1px;
 }
 
 .log .roundedbox, .gamelogreview {
@@ -714,6 +776,30 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 }
 .log.stars-banked-log .roundedbox, .log.gamelogreview.stars-banked-log, .gamelogreview.stars-banked-log .roundedbox, .gamelogreview.gamelogreview.stars-banked-log {
   background: var(--bg-log-stars-banked);
+}
+.log.die-reserved-power2-log .roundedbox, .log.gamelogreview.die-reserved-power2-log, .gamelogreview.die-reserved-power2-log .roundedbox, .gamelogreview.gamelogreview.die-reserved-power2-log {
+  background: var(--bg-log-die-reserved-power2);
+}
+.log.golden-die-power11-log .roundedbox, .log.gamelogreview.golden-die-power11-log, .gamelogreview.golden-die-power11-log .roundedbox, .gamelogreview.gamelogreview.golden-die-power11-log {
+  background: var(--bg-log-golden-die-power11);
+}
+.log.die-modified-power9-log .roundedbox, .log.gamelogreview.die-modified-power9-log, .gamelogreview.die-modified-power9-log .roundedbox, .gamelogreview.gamelogreview.die-modified-power9-log {
+  background: var(--bg-log-die-modified-power9);
+}
+.log.cards-swapped-power10-log .roundedbox, .log.gamelogreview.cards-swapped-power10-log, .gamelogreview.cards-swapped-power10-log .roundedbox, .gamelogreview.gamelogreview.cards-swapped-power10-log {
+  background: var(--bg-log-cards-swapped-power10);
+}
+.log.cards-redrawn-power10-log .roundedbox, .log.gamelogreview.cards-redrawn-power10-log, .gamelogreview.cards-redrawn-power10-log .roundedbox, .gamelogreview.gamelogreview.cards-redrawn-power10-log {
+  background: var(--bg-log-cards-redrawn-power10);
+}
+.log.power-skipped-log .roundedbox, .log.gamelogreview.power-skipped-log, .gamelogreview.power-skipped-log .roundedbox, .gamelogreview.gamelogreview.power-skipped-log {
+  background: var(--bg-log-power-skipped);
+}
+.log.power-cancelled-log .roundedbox, .log.gamelogreview.power-cancelled-log, .gamelogreview.power-cancelled-log .roundedbox, .gamelogreview.gamelogreview.power-cancelled-log {
+  background: var(--bg-log-power-cancelled);
+}
+.log.duplicate-log, .gamelogreview.duplicate-log {
+  display: none;
 }
 .log .new-round-row, .log .player-crashed-row, .log .grand-slam-row, .log .start-token-row, .log .stars-banked-row, .gamelogreview .new-round-row, .gamelogreview .player-crashed-row, .gamelogreview .grand-slam-row, .gamelogreview .start-token-row, .gamelogreview .stars-banked-row {
   text-align: center;
@@ -756,6 +842,30 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+.log .cards-revealed-row .reveal-chain-plus, .gamelogreview .cards-revealed-row .reveal-chain-plus {
+  font-weight: bold;
+  color: #27271c;
+}
+.log .die-reserved-row, .log .golden-die-row, .log .die-modified-row, .log .cards-swapped-row, .log .cards-redrawn-row, .log .power-skipped-row, .log .power-cancelled-row, .gamelogreview .die-reserved-row, .gamelogreview .golden-die-row, .gamelogreview .die-modified-row, .gamelogreview .cards-swapped-row, .gamelogreview .cards-redrawn-row, .gamelogreview .power-skipped-row, .gamelogreview .power-cancelled-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  text-align: center;
+  color: #27271c;
+  margin-top: 5px;
+  margin-bottom: -7px;
+  font-size: 14px;
+}
+.log .die-reserved-row .a-die, .log .golden-die-row .a-die, .log .die-modified-row .a-die, .log .cards-swapped-row .a-die, .log .cards-redrawn-row .a-die, .log .power-skipped-row .a-die, .log .power-cancelled-row .a-die, .gamelogreview .die-reserved-row .a-die, .gamelogreview .golden-die-row .a-die, .gamelogreview .die-modified-row .a-die, .gamelogreview .cards-swapped-row .a-die, .gamelogreview .cards-redrawn-row .a-die, .gamelogreview .power-skipped-row .a-die, .gamelogreview .power-cancelled-row .a-die {
+  display: inline-block;
+  --die-size: 18px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000;
+}
+.log .die-reserved-row .minimised-card-icon + .minimised-card-icon, .log .golden-die-row .minimised-card-icon + .minimised-card-icon, .log .die-modified-row .minimised-card-icon + .minimised-card-icon, .log .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .log .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .log .power-skipped-row .minimised-card-icon + .minimised-card-icon, .log .power-cancelled-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-reserved-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .golden-die-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-modified-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-skipped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-cancelled-row .minimised-card-icon + .minimised-card-icon {
+  margin-left: 2px;
 }
 .log .stop-or-more-row, .gamelogreview .stop-or-more-row {
   color: #27271c;
@@ -807,6 +917,17 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   }
   50% {
     box-shadow: 0 0 8px 8px #ffd483;
+  }
+  100% {
+    box-shadow: 0 0 4px 4px #FFD700;
+  }
+}
+@keyframes selectable-die-glow-pulse {
+  0% {
+    box-shadow: 0 0 4px 4px #FFD700;
+  }
+  50% {
+    box-shadow: 0 0 9px 9px #ffd483;
   }
   100% {
     box-shadow: 0 0 4px 4px #FFD700;

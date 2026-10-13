@@ -118,10 +118,12 @@ export class LogMutationObserver{
     public createLogCardsRevealed(reveals: CardReveal[]): LogRowData {
         const revealsHTML = reveals.map(reveal => {
             const cardDiv = (reveal.choice === 'card' && reveal.card) ? this.game.createCardDiv(reveal.card) : this.game.createLastChanceDiv();
+            //a card-1 chain: the first card, then "+" and each card added to it
+            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getMiniCardsHTML([extraCard])}`).join('');
             return `
                 <div class="reveal-entry">
                     ${this.game.divColoredPlayer(reveal.player_id, {class: 'playername'})}
-                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>
+                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>${chainHTML}
                 </div>`;
         }).join('');
 
@@ -206,5 +208,156 @@ export class LogMutationObserver{
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'stars-banked-log');
+    }
+
+    public createLogDieReservedPOWER2(player_id: number, die: RivieraDie): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const reservedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} reserve ${die} for the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} reserves ${die} for the next roll').replace('${playerName}', playerNameHTML);
+
+        let logHTML = `
+            <div class="die-reserved-row">
+                ${reservedText.replace('${die}', this.getMiniDieHTML(die))}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
+    }
+
+    public createLogGoldenDiePOWER11(player_id: number): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const goldenDieText = player_id === this.game.getMyPlayerID()
+            ? _('${you} add ${die} to the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} adds ${die} to the next roll').replace('${playerName}', playerNameHTML);
+
+        const goldenDie: RivieraDie = { color: 'gold', value: null, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        let logHTML = `
+            <div class="golden-die-row">
+                ${goldenDieText.replace('${die}', this.getMiniDieHTML(goldenDie))}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'golden-die-power11-log');
+    }
+
+    public createLogDieModifiedPOWER9(player_id: number, dieColor: DieColor, oldValue: number, newValue: number): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const modifiedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
+            : _('${playerName} turns ${oldDie} to ${newDie}').replace('${playerName}', playerNameHTML);
+
+        const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const newDie: RivieraDie = { ...oldDie, value: newValue };
+        let logHTML = `
+            <div class="die-modified-row">
+                ${modifiedText.replace('${oldDie}', this.getMiniDieHTML(oldDie)).replace('${newDie}', this.getMiniDieHTML(newDie))}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'die-modified-power9-log');
+    }
+
+    //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
+    //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
+    public createLogCardsSwappedPOWER10(owner_id: number, target_id: number, ownerGives: RivieraCard[] | null, targetGives: RivieraCard[] | null, count: number): LogRowData {
+        const ownerCardsHTML = ownerGives ? this.getMiniCardsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
+        const targetCardsHTML = targetGives ? this.getMiniCardsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+
+        let logHTML = `
+            <div class="cards-swapped-row">
+                ${this.game.divColoredPlayer(owner_id, {class: 'playername'})} ${ownerCardsHTML}
+                <span class="log-arrow">⇄</span>
+                ${this.game.divColoredPlayer(target_id, {class: 'playername'})} ${targetCardsHTML}
+            </div>` + ' &nbsp;';
+
+        const isPublicRow = ownerGives === null;
+        const isInvolved = [owner_id, target_id].includes(this.game.getMyPlayerID());
+        let logRow = this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
+        if(isPublicRow && isInvolved)
+            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
+
+        return logRow;
+    }
+
+    //card 10 with no opponent left: the owner sees the cards, everyone else card backs (the owner hides the public row)
+    public createLogCardsRedrawnPOWER10(player_id: number, discarded: RivieraCard[] | null, drawn: RivieraCard[] | null, count: number): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const redrawnText = player_id === this.game.getMyPlayerID()
+            ? _('${you} discard ${discarded} and draw ${drawn}').replace('${you}', playerNameHTML)
+            : _('${playerName} discards ${discarded} and draws ${drawn}').replace('${playerName}', playerNameHTML);
+
+        const discardedHTML = discarded ? this.getMiniCardsHTML(discarded) : this.getMiniCardBacksHTML(count);
+        const drawnHTML = drawn ? this.getMiniCardsHTML(drawn) : this.getMiniCardBacksHTML(count);
+
+        let logHTML = `
+            <div class="cards-redrawn-row">
+                ${redrawnText.replace('${discarded}', discardedHTML).replace('${drawn}', drawnHTML)}
+            </div>` + ' &nbsp;';
+
+        let logRow = this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
+        if(discarded === null && player_id === this.game.getMyPlayerID())
+            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
+
+        return logRow;
+    }
+
+    public createLogPowerSkipped(player_id: number, value: number, card: RivieraCard | null, reason: string): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
+
+        let skippedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} do not use ${card}').replace('${you}', playerNameHTML)
+            : _('${playerName} does not use ${card}').replace('${playerName}', playerNameHTML);
+        if(reason === 'nothing_to_draw')
+            skippedText += ' ' + _('(no card left to draw)');
+        else if(reason === 'not_enough_cards')
+            skippedText += ' ' + _('(fewer than 2 cards in hand)');
+
+        let logHTML = `
+            <div class="power-skipped-row">
+                ${skippedText.replace('${card}', cardHTML)}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'power-skipped-log');
+    }
+
+    //a player who stops loses the card 2 reservation or the golden die they just added for the next turn
+    public createLogPowerCancelled(player_id: number, value: number, card: RivieraCard | null, die: RivieraDie): LogRowData {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
+        const isMe = player_id === this.game.getMyPlayerID();
+
+        let cancelledText: string;
+        if(value === 2){
+            cancelledText = isMe
+                ? _('${you} stop: ${card} no longer reserves ${die}').replace('${you}', playerNameHTML)
+                : _('${playerName} stops: ${card} no longer reserves ${die}').replace('${playerName}', playerNameHTML);
+        } else {
+            cancelledText = isMe
+                ? _('${you} stop: ${card} does not add ${die} to the next roll').replace('${you}', playerNameHTML)
+                : _('${playerName} stops: ${card} does not add ${die} to the next roll').replace('${playerName}', playerNameHTML);
+        }
+
+        //the die as it was before the cancellation, without the reservation outline
+        const shownDie: RivieraDie = { ...die, reserved_by_POWER2: null, in_use_by_POWER11: true };
+        let logHTML = `
+            <div class="power-cancelled-row">
+                ${cancelledText.replace('${card}', cardHTML).replace('${die}', this.getMiniDieHTML(shownDie))}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'power-cancelled-log');
+    }
+
+    private getMiniCardsHTML(cards: RivieraCard[]): string {
+        return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');
+    }
+
+    private getMiniCardBacksHTML(count: number): string {
+        let backsHTML = '';
+        for(let i = 0; i < count; i++)
+            backsHTML += `<div class="minimised-card-icon">${this.game.createCardBackDiv().outerHTML}</div>`;
+        return backsHTML;
+    }
+
+    private getMiniDieHTML(die: RivieraDie): string {
+        return this.game.diceHandler.createDieDiv(die).outerHTML;
     }
 }

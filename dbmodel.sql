@@ -17,6 +17,7 @@
 --       you have to restart a game to see your changes in database.
 
 -- card_location_arg: shuffle order in 'deck', player_id in 'hand', 'played' and 'discard'
+-- chain_position_POWER1: order of a hand card added to a card-1 chain (1 = first extra card), pending until RevealCards like play_choice_card_id
 -- color ENUM is declared in sprite order (same as CARD_COLORS in material.inc.php), so ORDER BY `color` sorts like the sprite
 CREATE TABLE IF NOT EXISTS `cards` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `cards` (
   `card_location` ENUM('deck', 'hand', 'played', 'discard', 'returned_to_box') NOT NULL,
   `card_location_arg` int(11) NOT NULL,
   `location_in_column` TINYINT UNSIGNED NULL,
+  `chain_position_POWER1` TINYINT UNSIGNED NULL,
   `color` ENUM('red', 'green', 'purple', 'blue', 'orange') NOT NULL,
   `value` TINYINT NOT NULL,
   PRIMARY KEY (`card_id`)
@@ -50,3 +52,10 @@ ALTER TABLE `player` ADD `play_choice` ENUM('card', 'last_chance', 'crash') NULL
 ALTER TABLE `player` ADD `play_choice_card_id` INT UNSIGNED NULL AFTER `play_choice`;
 ALTER TABLE `player` ADD `stop_or_more_choice` ENUM('stop', 'more') NULL AFTER `play_choice_card_id`;
 ALTER TABLE `player` ADD `made_choice_this_state` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `stop_or_more_choice`;
+-- a non-1 power revealed this turn, waiting to resolve: 2, 10 and 11 before the next roll, 9 after it
+ALTER TABLE `player` ADD `pending_POWER2` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `made_choice_this_state`;
+ALTER TABLE `player` ADD `pending_POWER9` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER2`;
+ALTER TABLE `player` ADD `pending_POWER10` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER9`;
+ALTER TABLE `player` ADD `pending_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER10`;
+-- card 11: this player added the golden die to the next roll. It is dropped when every player who added it chose Stop
+ALTER TABLE `player` ADD `added_golden_die_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER11`;

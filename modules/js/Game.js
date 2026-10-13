@@ -6,49 +6,75 @@
  * Everyone still in the round secretly chooses a card (select, then confirm), or, only when no card is
  * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
  * "Change my mind" takes it back.
+ * [BGA] Card 1: confirming a 1 keeps me active to add another playable card or finish, again after each extra 1.
+ * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
  */
 class PlayCard {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
-        this.playCardButton = null;
+        this.confirmButton = null;
         this.pendingChoice = null;
+        this.chainCardIDs = [];
+        this.chainOpen = false;
+        this.playableCardIDs = [];
+        this.canUseLastChance = false;
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
-        this.setPendingChoice(args?._private?.pendingPlayChoice ?? null); //restores a set-aside card after F5
+        const privateArgs = args?._private;
+        this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
+        this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
+        this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
+        this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
+        this.setPendingChoice(privateArgs?.pendingPlayChoice ?? null); //restores the set-aside cards after F5
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
     }
     /**
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
-     * The chosen card keeps its set-aside look: notif_cardsRevealed comes after the state change and moves it.
+     * The chosen cards keep their set-aside look: notif_cardsRevealed comes after the state change and moves them.
      */
     onLeavingState(args, isCurrentPlayerActive) {
-        this.game.handHandler?.clearPlayableCards();
-        this.playCardButton = null;
+        this.game.handHandler?.clearSelectableCards();
+        this.confirmButton = null;
     }
     /**
      * This method is called each time the current player becomes active or inactive in a MULTIPLE_ACTIVE_PLAYER state. You can use this method to perform some user interface changes at this moment.
      * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
      */
     onPlayerActivationChange(args, isCurrentPlayerActive) {
+        this.updateStatusBar(isCurrentPlayerActive);
+    }
+    updateStatusBar(isCurrentPlayerActive) {
         this.bga.statusBar.removeActionButtons();
-        this.game.handHandler?.clearPlayableCards();
-        this.playCardButton = null;
-        const privateArgs = args?._private;
-        if (isCurrentPlayerActive && privateArgs) {
-            if (privateArgs.playableCardIDs.length > 0) {
+        this.game.handHandler?.clearSelectableCards();
+        this.confirmButton = null;
+        if (!this.game.handHandler) {
+            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+            return;
+        }
+        if (isCurrentPlayerActive && this.pendingChoice && this.chainOpen) {
+            this.bga.statusBar.setTitle(_('${you} may add another card to your 1, or finish'));
+            this.game.handHandler.setSelectableCards(this.playableCardIDs);
+            //hidden until a card is selected, like Fugu's swap button
+            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked('actAddChainCard_POWER1'), { id: 'add-chain-card-button' });
+            this.bga.statusBar.addActionButton(_('Finish'), () => this.bga.actions.performAction('actFinishChain_POWER1'), { id: 'finish-chain-button', color: 'secondary' });
+            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+            this.selectionChanged();
+        }
+        else if (isCurrentPlayerActive && !this.pendingChoice) {
+            if (this.playableCardIDs.length > 0) {
                 this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
-                this.game.handHandler?.setPlayableCards(privateArgs.playableCardIDs);
+                this.game.handHandler.setSelectableCards(this.playableCardIDs);
                 //hidden until a card is selected, like Fugu's swap button
-                this.playCardButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.playCardClicked(), { id: 'confirm-selected-card-button' });
+                this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked('actPlayCard'), { id: 'confirm-selected-card-button' });
                 this.selectionChanged();
             }
             else {
                 this.bga.statusBar.setTitle(_('${you} cannot play any card'));
-                if (privateArgs.canUseLastChance)
+                if (this.canUseLastChance)
                     this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), { id: 'last-chance-button' });
                 //no confirm dialog: Change my mind is the safety net until the last player has chosen
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), { id: 'crash-button', color: 'alert' });
@@ -56,49 +82,78 @@ class PlayCard {
         }
         else if (this.pendingChoice) {
             if (this.pendingChoice.choice === 'card') {
-                const card = this.pendingChoice.card_id === null ? null : this.game.handHandler?.getCardData(this.pendingChoice.card_id);
-                const cardIcon = card
-                    ? `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`
-                    : _('a card');
-                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardIcon));
-                this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
-                return;
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
             }
-            const pendingChoiceTitles = {
-                last_chance: _('${you} chose your Last Chance. Waiting for other players'),
-                crash: _('${you} chose to crash. Waiting for other players'),
-            };
-            this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
+            else {
+                const pendingChoiceTitles = {
+                    last_chance: _('${you} chose your Last Chance. Waiting for other players'),
+                    crash: _('${you} chose to crash. Waiting for other players'),
+                };
+                this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
+            }
             this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
         }
         else {
             this.bga.statusBar.setTitle(_('Other players must choose a card'));
         }
     }
-    //called by HandHandler when a playable card is selected or unselected
+    //called through Game.handSelectionChanged when a card is selected or unselected
     selectionChanged() {
-        if (!this.playCardButton)
+        if (!this.confirmButton)
             return;
         const selectedCard = this.game.handHandler?.getSelectedCardData();
-        this.playCardButton.style.display = selectedCard ? null : 'none';
-        if (selectedCard) {
-            const cardIcon = `<span class="status-card-icon" data-color="${selectedCard.color}" aria-label="${selectedCard.value} ${selectedCard.color}">${selectedCard.value}</span>`;
-            this.bga.statusBar.setTitle(_('Play ${card}?').replace('${card}', cardIcon));
-        }
-        else {
-            this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
-        }
+        this.confirmButton.style.display = selectedCard ? null : 'none';
+        const isAddingToChain = this.pendingChoice !== null;
+        if (selectedCard)
+            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
+        else
+            this.bga.statusBar.setTitle(isAddingToChain ? _('${you} may add another card to your 1, or finish') : _('${you} must choose a card to play'));
     }
-    playCardClicked() {
+    confirmClicked(actionName) {
         const selectedCardID = this.game.handHandler?.getSelectedCardID();
         if (!selectedCardID)
             return;
-        this.bga.actions.performAction('actPlayCard', { cardID: selectedCardID });
+        this.bga.actions.performAction(actionName, { cardID: selectedCardID });
     }
-    //pendingPlayChoice from the args on entry and F5, then playChoiceConfirmed / playChoiceReverted; the status bar follows through onPlayerActivationChange
+    getCardIconHTML(card) {
+        if (!card)
+            return '';
+        return `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`;
+    }
+    getChosenCardIDs() {
+        const firstCardID = (this.pendingChoice && this.pendingChoice.choice === 'card') ? this.pendingChoice.card_id : null;
+        return firstCardID === null ? [] : [firstCardID, ...this.chainCardIDs];
+    }
     setPendingChoice(pendingChoice) {
         this.pendingChoice = pendingChoice;
-        this.game.handHandler?.setChosenCard((pendingChoice && pendingChoice.choice === 'card') ? pendingChoice.card_id : null);
+        this.game.handHandler?.setChosenCards(this.getChosenCardIDs());
+    }
+    //the private notifications land while the state is unchanged, so they redraw the status bar themselves
+    refresh() {
+        if (this.game.getGameStateName() === 'PlayCard')
+            this.updateStatusBar(this.bga.players.isCurrentPlayerActive());
+    }
+    onChoiceConfirmed(args) {
+        this.chainCardIDs = args.chainCardIDs_POWER1;
+        this.chainOpen = args.chainOpen_POWER1;
+        this.playableCardIDs = args.playableCardIDs;
+        this.setPendingChoice({ choice: args.choice, card_id: args.card_id });
+        this.refresh();
+    }
+    onChainUpdated(args) {
+        this.chainCardIDs = args.chainCardIDs_POWER1;
+        this.chainOpen = args.chainOpen_POWER1;
+        this.playableCardIDs = args.playableCardIDs;
+        this.setPendingChoice(this.pendingChoice);
+        this.refresh();
+    }
+    onChoiceReverted(args) {
+        this.chainCardIDs = [];
+        this.chainOpen = false;
+        this.playableCardIDs = args.playableCardIDs ?? this.playableCardIDs;
+        this.setPendingChoice(null);
+        this.refresh();
     }
 }
 
@@ -151,6 +206,161 @@ class StopOrMore {
     //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange
     setPendingChoice(pendingChoice) {
         this.pendingChoice = pendingChoice;
+    }
+}
+
+/**
+ * Card 9, after the roll: the active owner picks a die that hasn't been changed this roll, then turns it by 1
+ * (6 wraps to 1, 1 wraps to 6), or skips.
+ */
+class ModifyDie {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+        this.modifiableDice = [];
+    }
+    /**
+     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onEnteringState(args, isCurrentPlayerActive) {
+        this.modifiableDice = args?.modifiableDice ?? [];
+        if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} may change a die (card 9)'));
+            return;
+        }
+        this.game.diceHandler.setSelectableDice(this.modifiableDice.map(die => die.color));
+        this.updateStatusBar();
+    }
+    /**
+     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onLeavingState(args, isCurrentPlayerActive) {
+        this.game.diceHandler.clearSelectableDice();
+    }
+    //called by DiceHandler when a die is selected or unselected
+    dieSelectionChanged() {
+        this.updateStatusBar();
+    }
+    updateStatusBar() {
+        this.bga.statusBar.removeActionButtons();
+        const selectedColor = this.game.diceHandler.getSelectedDieColor();
+        const selectedDie = this.modifiableDice.find(die => die.color === selectedColor);
+        if (selectedDie) {
+            this.bga.statusBar.setTitle(_('${you} may turn this die by 1'));
+            const lowerValue = (selectedDie.value === 1) ? 6 : selectedDie.value - 1;
+            const higherValue = (selectedDie.value === 6) ? 1 : selectedDie.value + 1;
+            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', lowerValue.toString()), () => this.modifyDie(selectedDie.color, -1), { id: 'die-minus-button' });
+            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', higherValue.toString()), () => this.modifyDie(selectedDie.color, 1), { id: 'die-plus-button' });
+        }
+        else {
+            this.bga.statusBar.setTitle(_('${you} may choose a die to turn by 1 (card 9)'));
+        }
+        this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER9'), { id: 'skip-power-button', color: 'secondary' });
+    }
+    modifyDie(dieColor, delta) {
+        this.bga.actions.performAction('actModifyDie_POWER9', { dieColor: dieColor, delta: delta });
+    }
+}
+
+/**
+ * Card 11, before the next roll: the active owner may add the golden die to the next roll, or skip.
+ * (Card 2 needs no choice and card 10 has its own SwapCards state.)
+ * When another 11 already added it, adding it too keeps it in the next roll if that player stops.
+ */
+class ResolvePowers {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+    }
+    /**
+     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onEnteringState(args, isCurrentPlayerActive) {
+        if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} may add the golden die to the next roll (card 11)'));
+            return;
+        }
+        if (args?.goldenDieAlreadyAdded) {
+            this.bga.statusBar.setTitle(_('The golden die is already added: ${you} may add it too (card 11), so it stays even if the other player stops'));
+            this.bga.statusBar.addActionButton(_('Add it too'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
+        }
+        else {
+            this.bga.statusBar.setTitle(_('${you} may add the golden die to the next roll (card 11)'));
+            this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
+        }
+        this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), { id: 'skip-power-button', color: 'secondary' });
+    }
+    /**
+     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onLeavingState(args, isCurrentPlayerActive) {
+    }
+}
+
+/**
+ * Card 10, before the next roll: the active owner selects 2 cards from their hand, then the opponent to swap them
+ * with (the opponent's cards are random). Only opponents still in the round with at least 2 cards can be chosen.
+ * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
+ */
+class SwapCards {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+        this.args = null;
+    }
+    /**
+     * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onEnteringState(args, isCurrentPlayerActive) {
+        this.args = args;
+        if (!isCurrentPlayerActive || !this.game.handHandler) {
+            this.bga.statusBar.setTitle(_('${actplayer} may swap cards with an opponent'));
+            return;
+        }
+        this.game.handHandler.setSelectableCards(this.game.handHandler.getHandCardIDs(), args.maxCards);
+        this.updateStatusBar();
+    }
+    /**
+     * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
+     */
+    onLeavingState(args, isCurrentPlayerActive) {
+        this.game.handHandler?.clearSelectableCards();
+        this.args = null;
+    }
+    //called through Game.handSelectionChanged when a card is selected or unselected
+    selectionChanged() {
+        this.updateStatusBar();
+    }
+    updateStatusBar() {
+        if (!this.args)
+            return;
+        this.bga.statusBar.removeActionButtons();
+        const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
+        if (this.args.mode === 'swap') {
+            this.bga.statusBar.setTitle(_('${you} may choose 2 cards to swap with an opponent'));
+            if (selectedCardIDs.length === this.args.maxCards) {
+                for (let target of this.args.targets) {
+                    const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
+                    this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), { id: 'swap-with-' + target.player_id + '-button' });
+                }
+            }
+        }
+        else {
+            this.bga.statusBar.setTitle(_('No opponent still in the round has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
+            if (selectedCardIDs.length === this.args.maxCards)
+                this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button' });
+        }
+        this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), { id: 'skip-power-button', color: 'secondary' });
+    }
+    swapClicked(target, cardIDs) {
+        this.bga.actions.performAction('actSwapCards_POWER10', { cardIDs: cardIDs.join(','), targetPlayerId: target.player_id });
+    }
+    async redrawClicked(cardIDs) {
+        if (cardIDs.length < 2) {
+            if (!(await this.bga.dialogs.confirmation(_('Only 1 card is left to draw, so only 1 card will be discarded and replaced. Continue?'))))
+                return;
+        }
+        this.bga.actions.performAction('actRedrawCards_POWER10', { cardIDs: cardIDs.join(',') });
     }
 }
 
@@ -330,6 +540,8 @@ class HandHandler {
     constructor(game, handData) {
         this.game = game;
         this.handData = handData;
+        this.maxSelectedCards = 1;
+        this.handFadeInCount = 0;
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
         this.handContainer = document.querySelector('#my-hand-container');
         this.handContainer.classList.add('a-hand-container');
@@ -361,21 +573,29 @@ class HandHandler {
     cardsContainerClicked(event) {
         if (!this.game.bga.players.isCurrentPlayerActive())
             return;
-        if (!['PlayCard'].includes(this.game.getGameStateName()))
+        if (!HandHandler.SELECTION_STATES.includes(this.game.getGameStateName()))
             return;
         if (this.game.isInterfaceLocked())
             return;
-        if (!event.target.classList.contains(HandHandler.PLAYABLE_CARD_CLASS))
+        if (!event.target.classList.contains(HandHandler.SELECTABLE_CARD_CLASS))
             return;
         this.handCardClicked(event.target);
     }
-    //selecting a playable card only raises it; the status-bar confirmation sends it
+    //selecting a card only raises it; the status-bar confirmation sends it. With one card at most (card play),
+    //a click moves the selection; with more (card 10), clicks add cards until the limit
     handCardClicked(cardDiv) {
         const cardWasAlreadySelected = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
-        this.clearSelection();
-        if (!cardWasAlreadySelected)
+        if (cardWasAlreadySelected) {
+            cardDiv.classList.remove(HandHandler.SELECTED_CARD_CLASS);
+        }
+        else if (this.maxSelectedCards === 1) {
+            this.clearSelection();
             cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
-        this.game.playCard.selectionChanged();
+        }
+        else if (this.getSelectedCardIDs().length < this.maxSelectedCards) {
+            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+        }
+        this.game.handSelectionChanged();
     }
     clearSelection() {
         this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
@@ -384,6 +604,9 @@ class HandHandler {
         const selectedCard = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS);
         return selectedCard ? parseInt(selectedCard.getAttribute('data-card-id')) : null;
     }
+    getSelectedCardIDs() {
+        return Array.from(this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS)).map(card => parseInt(card.getAttribute('data-card-id')));
+    }
     getSelectedCardData() {
         const selectedCardID = this.getSelectedCardID();
         return selectedCardID === null ? null : this.getCardData(selectedCardID);
@@ -391,21 +614,47 @@ class HandHandler {
     getCardData(cardID) {
         return this.handData.find(card => card.card_id === cardID) ?? null;
     }
-    //playable cards glow, the others keep their normal look
-    setPlayableCards(playableCardIDs) {
+    //selectable cards glow, the others keep their normal look
+    setSelectableCards(selectableCardIDs, maxSelectedCards = 1) {
+        this.clearSelection();
+        this.maxSelectedCards = maxSelectedCards;
         for (let card of this.getCardDivs())
-            card.classList.toggle(HandHandler.PLAYABLE_CARD_CLASS, playableCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
+            card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, selectableCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
-    clearPlayableCards() {
+    clearSelectableCards() {
         this.clearSelection();
         for (let card of this.getCardDivs())
-            card.classList.remove(HandHandler.PLAYABLE_CARD_CLASS);
+            card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS);
     }
-    //the card chosen this turn stays set aside in the hand until the reveal, or until "Change my mind"
-    setChosenCard(cardID) {
+    //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Change my mind"
+    setChosenCards(cardIDs) {
         for (let card of this.getCardDivs())
-            card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardID !== null && parseInt(card.getAttribute('data-card-id')) === cardID);
+            card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
+    //card 10: cards leaving my hand fade out
+    async removeCards(cardIDs) {
+        this.handData = this.handData.filter(handCard => !cardIDs.includes(handCard.card_id));
+        const leavingCards = cardIDs.map(cardID => this.getCardDiv(cardID)).filter(card => card);
+        leavingCards.forEach(card => card.classList.add('card-fading-out'));
+        await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
+        leavingCards.forEach(card => card.remove());
+    }
+    //card 10: cards joining my hand take their sorted place and slide in from fromElement (the other player's board), or fade in
+    async addCards(cardsData, fromElement) {
+        this.handData = [...this.handData, ...cardsData];
+        this.displayHand();
+        const arrivals = cardsData.map(cardData => {
+            const card = this.getCardDiv(cardData.card_id);
+            if (!card)
+                return Promise.resolve();
+            if (fromElement)
+                return this.game.animateSlide(card, fromElement, null, HandHandler.SLIDE_ANIM_TIME);
+            card.classList.add('card-fading-in');
+            return this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME).then(() => card.classList.remove('card-fading-in'));
+        });
+        await Promise.all(arrivals);
+    }
+    getHandCardIDs() { return this.handData.map(cardData => cardData.card_id); }
     //the card leaves the hand at once while a copy of it slides into the played column
     async animateCardToColumn(cardData, column) {
         this.handData = this.handData.filter(handCard => handCard.card_id !== cardData.card_id);
@@ -427,12 +676,19 @@ class HandHandler {
         this.cardsContainer.classList.remove('cards-fading-out');
     }
     //a new round's hand
+    //the fade-in class must come off once it has played: left on, card-fade-in stays every card's fallback animation
+    //and replays whenever another animation stops applying (the playable glow when I confirm a card, for example)
     setHand(handData) {
-        this.cardsContainer.classList.remove('cards-fading-in');
+        this.cardsContainer.classList.remove(HandHandler.HAND_FADE_IN_CLASS);
         this.handData = handData;
         this.displayHand();
         void this.cardsContainer.offsetWidth; //restart the animation if it's already running
-        this.cardsContainer.classList.add('cards-fading-in');
+        this.cardsContainer.classList.add(HandHandler.HAND_FADE_IN_CLASS);
+        const handFadeInID = ++this.handFadeInCount; //a newer hand restarts the fade-in: only its own timer may end it
+        this.game.bga.gameui.wait(HandHandler.HAND_FADE_IN_ANIM_TIME).then(() => {
+            if (handFadeInID === this.handFadeInCount)
+                this.cardsContainer.classList.remove(HandHandler.HAND_FADE_IN_CLASS);
+        });
     }
     getCardDivs() { return Array.from(this.cardsContainer.querySelectorAll('.a-card')); }
     getCardDiv(cardID) { return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
@@ -441,8 +697,12 @@ class HandHandler {
 }
 HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
 HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
-HandHandler.PLAYABLE_CARD_CLASS = 'playable-card';
+HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.FADE_ANIM_TIME = 400;
+HandHandler.HAND_FADE_IN_CLASS = 'cards-fading-in';
+HandHandler.HAND_FADE_IN_ANIM_TIME = 500; //card-fade-in on .cards-fading-in in Game.scss
+HandHandler.SLIDE_ANIM_TIME = 600;
+HandHandler.SELECTION_STATES = ['PlayCard', 'SwapCards'];
 
 class DiceHandler {
     constructor(game, diceData) {
@@ -451,13 +711,47 @@ class DiceHandler {
         this.diceContainer = document.querySelector('#dice-container');
         for (let dieData of this.diceData)
             this.diceContainer.appendChild(this.createDieDiv(dieData));
+        this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
+    }
+    //card 9: the active owner picks one die, then turns it with the status bar buttons
+    diceContainerClicked(event) {
+        if (!this.game.bga.players.isCurrentPlayerActive())
+            return;
+        if (this.game.getGameStateName() !== 'ModifyDie')
+            return;
+        if (this.game.isInterfaceLocked())
+            return;
+        const aDie = event.target.closest('.a-die');
+        if (!aDie || !aDie.classList.contains(DiceHandler.SELECTABLE_DIE_CLASS))
+            return;
+        const dieWasAlreadySelected = aDie.classList.contains(DiceHandler.SELECTED_DIE_CLASS);
+        this.clearDieSelection();
+        if (!dieWasAlreadySelected)
+            aDie.classList.add(DiceHandler.SELECTED_DIE_CLASS);
+        this.game.modifyDie.dieSelectionChanged();
+    }
+    setSelectableDice(colors) {
+        this.clearSelectableDice();
+        for (let color of colors)
+            this.getDieDiv(color)?.classList.add(DiceHandler.SELECTABLE_DIE_CLASS);
+    }
+    clearSelectableDice() {
+        this.clearDieSelection();
+        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTABLE_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTABLE_DIE_CLASS));
+    }
+    clearDieSelection() {
+        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTED_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTED_DIE_CLASS));
+    }
+    getSelectedDieColor() {
+        const selectedDie = this.diceContainer.querySelector('.a-die.' + DiceHandler.SELECTED_DIE_CLASS);
+        return selectedDie ? selectedDie.getAttribute('data-color') : null;
     }
     //also used for the mini dice in logs
     createDieDiv(dieData) {
         const aDie = document.createElement('div');
         aDie.className = 'a-die';
         aDie.setAttribute('data-color', dieData.color);
-        aDie.innerHTML = '<span class="pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
+        aDie.innerHTML = '<span class="die-pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
         this.applyDieData(aDie, dieData);
         return aDie;
     }
@@ -493,8 +787,10 @@ class DiceHandler {
     getDieDiv(color) { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
     getDiceContainer() { return this.diceContainer; }
 }
-DiceHandler.PIPS_PER_DIE = 9; //3x3 grid, Game.scss shows the right pips for each data-value
+DiceHandler.PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
 DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
+DiceHandler.SELECTABLE_DIE_CLASS = 'selectable-die';
+DiceHandler.SELECTED_DIE_CLASS = 'selected-die';
 
 class StartTokenHandler {
     constructor(game, startPlayerID) {
@@ -620,10 +916,12 @@ class LogMutationObserver {
     createLogCardsRevealed(reveals) {
         const revealsHTML = reveals.map(reveal => {
             const cardDiv = (reveal.choice === 'card' && reveal.card) ? this.game.createCardDiv(reveal.card) : this.game.createLastChanceDiv();
+            //a card-1 chain: the first card, then "+" and each card added to it
+            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getMiniCardsHTML([extraCard])}`).join('');
             return `
                 <div class="reveal-entry">
                     ${this.game.divColoredPlayer(reveal.player_id, { class: 'playername' })}
-                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>
+                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>${chainHTML}
                 </div>`;
         }).join('');
         let logHTML = `
@@ -691,6 +989,129 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'stars-banked-log');
     }
+    createLogDieReservedPOWER2(player_id, die) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const reservedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} reserve ${die} for the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} reserves ${die} for the next roll').replace('${playerName}', playerNameHTML);
+        let logHTML = `
+            <div class="die-reserved-row">
+                ${reservedText.replace('${die}', this.getMiniDieHTML(die))}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
+    }
+    createLogGoldenDiePOWER11(player_id) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const goldenDieText = player_id === this.game.getMyPlayerID()
+            ? _('${you} add ${die} to the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} adds ${die} to the next roll').replace('${playerName}', playerNameHTML);
+        const goldenDie = { color: 'gold', value: null, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        let logHTML = `
+            <div class="golden-die-row">
+                ${goldenDieText.replace('${die}', this.getMiniDieHTML(goldenDie))}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'golden-die-power11-log');
+    }
+    createLogDieModifiedPOWER9(player_id, dieColor, oldValue, newValue) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const modifiedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
+            : _('${playerName} turns ${oldDie} to ${newDie}').replace('${playerName}', playerNameHTML);
+        const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const newDie = { ...oldDie, value: newValue };
+        let logHTML = `
+            <div class="die-modified-row">
+                ${modifiedText.replace('${oldDie}', this.getMiniDieHTML(oldDie)).replace('${newDie}', this.getMiniDieHTML(newDie))}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'die-modified-power9-log');
+    }
+    //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
+    //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
+    createLogCardsSwappedPOWER10(owner_id, target_id, ownerGives, targetGives, count) {
+        const ownerCardsHTML = ownerGives ? this.getMiniCardsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
+        const targetCardsHTML = targetGives ? this.getMiniCardsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+        let logHTML = `
+            <div class="cards-swapped-row">
+                ${this.game.divColoredPlayer(owner_id, { class: 'playername' })} ${ownerCardsHTML}
+                <span class="log-arrow">⇄</span>
+                ${this.game.divColoredPlayer(target_id, { class: 'playername' })} ${targetCardsHTML}
+            </div>` + ' &nbsp;';
+        const isPublicRow = ownerGives === null;
+        const isInvolved = [owner_id, target_id].includes(this.game.getMyPlayerID());
+        let logRow = this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
+        if (isPublicRow && isInvolved)
+            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
+        return logRow;
+    }
+    //card 10 with no opponent left: the owner sees the cards, everyone else card backs (the owner hides the public row)
+    createLogCardsRedrawnPOWER10(player_id, discarded, drawn, count) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const redrawnText = player_id === this.game.getMyPlayerID()
+            ? _('${you} discard ${discarded} and draw ${drawn}').replace('${you}', playerNameHTML)
+            : _('${playerName} discards ${discarded} and draws ${drawn}').replace('${playerName}', playerNameHTML);
+        const discardedHTML = discarded ? this.getMiniCardsHTML(discarded) : this.getMiniCardBacksHTML(count);
+        const drawnHTML = drawn ? this.getMiniCardsHTML(drawn) : this.getMiniCardBacksHTML(count);
+        let logHTML = `
+            <div class="cards-redrawn-row">
+                ${redrawnText.replace('${discarded}', discardedHTML).replace('${drawn}', drawnHTML)}
+            </div>` + ' &nbsp;';
+        let logRow = this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
+        if (discarded === null && player_id === this.game.getMyPlayerID())
+            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
+        return logRow;
+    }
+    createLogPowerSkipped(player_id, value, card, reason) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
+        let skippedText = player_id === this.game.getMyPlayerID()
+            ? _('${you} do not use ${card}').replace('${you}', playerNameHTML)
+            : _('${playerName} does not use ${card}').replace('${playerName}', playerNameHTML);
+        if (reason === 'nothing_to_draw')
+            skippedText += ' ' + _('(no card left to draw)');
+        else if (reason === 'not_enough_cards')
+            skippedText += ' ' + _('(fewer than 2 cards in hand)');
+        let logHTML = `
+            <div class="power-skipped-row">
+                ${skippedText.replace('${card}', cardHTML)}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'power-skipped-log');
+    }
+    //a player who stops loses the card 2 reservation or the golden die they just added for the next turn
+    createLogPowerCancelled(player_id, value, card, die) {
+        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
+        const isMe = player_id === this.game.getMyPlayerID();
+        let cancelledText;
+        if (value === 2) {
+            cancelledText = isMe
+                ? _('${you} stop: ${card} no longer reserves ${die}').replace('${you}', playerNameHTML)
+                : _('${playerName} stops: ${card} no longer reserves ${die}').replace('${playerName}', playerNameHTML);
+        }
+        else {
+            cancelledText = isMe
+                ? _('${you} stop: ${card} does not add ${die} to the next roll').replace('${you}', playerNameHTML)
+                : _('${playerName} stops: ${card} does not add ${die} to the next roll').replace('${playerName}', playerNameHTML);
+        }
+        //the die as it was before the cancellation, without the reservation outline
+        const shownDie = { ...die, reserved_by_POWER2: null, in_use_by_POWER11: true };
+        let logHTML = `
+            <div class="power-cancelled-row">
+                ${cancelledText.replace('${card}', cardHTML).replace('${die}', this.getMiniDieHTML(shownDie))}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'power-cancelled-log');
+    }
+    getMiniCardsHTML(cards) {
+        return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');
+    }
+    getMiniCardBacksHTML(count) {
+        let backsHTML = '';
+        for (let i = 0; i < count; i++)
+            backsHTML += `<div class="minimised-card-icon">${this.game.createCardBackDiv().outerHTML}</div>`;
+        return backsHTML;
+    }
+    getMiniDieHTML(die) {
+        return this.game.diceHandler.createDieDiv(die).outerHTML;
+    }
 }
 
 //"Change my mind", shared by every multiactive state where a choice stays pending until the last player has chosen.
@@ -724,6 +1145,12 @@ class Game {
         this.bga.states.register('PlayCard', this.playCard);
         this.stopOrMore = new StopOrMore(this, bga);
         this.bga.states.register('StopOrMore', this.stopOrMore);
+        this.modifyDie = new ModifyDie(this, bga);
+        this.bga.states.register('ModifyDie', this.modifyDie);
+        this.resolvePowers = new ResolvePowers(this, bga);
+        this.bga.states.register('ResolvePowers', this.resolvePowers);
+        this.swapCards = new SwapCards(this, bga);
+        this.bga.states.register('SwapCards', this.swapCards);
         // Uncomment the next line to show debug informations about state changes in the console. Remove before going to production!
         // this.bga.states.logger = console.log;
     }
@@ -787,7 +1214,8 @@ class Game {
             if (log && args && !args.processed) {
                 args.processed = true;
                 // list of special keys we want to replace with images
-                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR'];
+                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR'];
                 for (let key of keys) {
                     if (key in args) {
                         if (key == 'NEW_ROUND_LOG_STR')
@@ -806,6 +1234,20 @@ class Game {
                             log = this.logMutationObserver.createLogStopOrMoreRevealed(args['choices']).log_html;
                         else if (key == 'STARS_BANKED_LOG_STR')
                             log = this.logMutationObserver.createLogStarsBanked(args['player_id'], args['stars']).log_html;
+                        else if (key == 'DIE_RESERVED_POWER2_LOG_STR')
+                            log = this.logMutationObserver.createLogDieReservedPOWER2(args['player_id'], args['die']).log_html;
+                        else if (key == 'GOLDEN_DIE_POWER11_LOG_STR')
+                            log = this.logMutationObserver.createLogGoldenDiePOWER11(args['player_id']).log_html;
+                        else if (key == 'DIE_MODIFIED_POWER9_LOG_STR')
+                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
+                        else if (key == 'CARDS_SWAPPED_POWER10_LOG_STR')
+                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['owner_gives'] ?? null, args['target_gives'] ?? null, args['count']).log_html;
+                        else if (key == 'CARDS_REDRAWN_POWER10_LOG_STR')
+                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
+                        else if (key == 'POWER_SKIPPED_LOG_STR')
+                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
+                        else if (key == 'POWER_CANCELLED_LOG_STR')
+                            log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
                     }
                 }
             }
@@ -882,6 +1324,7 @@ class Game {
     }
     //slides element into the container `to`, starting from where `from` is now (from may be element itself).
     //A copy flies over the page while the real element waits hidden in `to`, like Fugu moves cards between containers.
+    //With `to` null, element is already in its place (a card sorted into my hand) and only the copy moves.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
     async animateSlide(element, from, to, durationMs) {
         const slidingClone = element.cloneNode(true);
@@ -890,7 +1333,8 @@ class Game {
         document.body.appendChild(slidingClone);
         this.placeOnObject(slidingClone, from, true);
         element.style.visibility = 'hidden';
-        to.appendChild(element);
+        if (to)
+            to.appendChild(element);
         const elementRect = element.getBoundingClientRect();
         const cloneRect = slidingClone.getBoundingClientRect();
         const targetLeft = parseFloat(slidingClone.style.left || '0') + (elementRect.left - cloneRect.left);
@@ -935,6 +1379,30 @@ class Game {
     }
     getStarsForValue(value) { return this.gamedatas.starsByValue[value] || 0; }
     getPlayerColor(playerID) { return this.gamedatas.players[playerID]?.color; }
+    getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
+    //a hand card was clicked: the current state handles the selection
+    handSelectionChanged() {
+        const stateName = this.getGameStateName();
+        if (stateName === 'PlayCard')
+            this.playCard.selectionChanged();
+        else if (stateName === 'SwapCards')
+            this.swapCards.selectionChanged();
+    }
+    //card 10, seen by everyone but the two players involved: N card backs slide each way between their boards
+    async animateCardBacksBetweenBoards(fromPlayerID, toPlayerID, count) {
+        const fromPlayer = this.players[fromPlayerID];
+        const toPlayer = this.players[toPlayerID];
+        if (!fromPlayer || !toPlayer)
+            return;
+        const slides = [];
+        for (let i = 0; i < count; i++) {
+            const cardBack = this.createCardBackDiv();
+            cardBack.classList.add('mini-card-back');
+            slides.push(this.animateSlide(cardBack, fromPlayer.getHandCountElement(), toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME).then(() => cardBack.remove()));
+        }
+        await Promise.all(slides);
+        toPlayer.setHandCount(toPlayer.getHandCount()); //a swap keeps hand sizes, this only redraws the backs
+    }
     getMyPlayerID() { return this.myPlayerID; }
     //end utility
     ///////////////////////////////////////////////////
@@ -974,10 +1442,13 @@ class Game {
         this.diceHandler.updateDice(args.dice);
     }
     async notif_playChoiceConfirmed(args) {
-        this.playCard.setPendingChoice({ choice: args.choice, card_id: args.card_id });
+        this.playCard.onChoiceConfirmed(args);
+    }
+    async notif_playChainUpdated_POWER1(args) {
+        this.playCard.onChainUpdated(args);
     }
     async notif_playChoiceReverted(args) {
-        this.playCard.setPendingChoice(null);
+        this.playCard.onChoiceReverted(args);
     }
     //every revealed card slides at once: mine from my hand, the others from their player board's hand count
     async notif_cardsRevealed(args) {
@@ -993,10 +1464,18 @@ class Game {
             await player.setLastChanceUsed(true, true);
             return;
         }
-        if (reveal.player_id === this.myPlayerID && this.handHandler)
-            await this.handHandler.animateCardToColumn(reveal.card, player.getPlayedColumn());
-        else
-            await player.getPlayedColumn().animateCardIn(reveal.card, player.getHandCountElement());
+        //a card-1 chain follows its first card into the column, slightly behind it
+        const revealedCards = [reveal.card, ...(reveal.extra_cards_POWER1 ?? [])];
+        const slides = [];
+        for (let i = 0; i < revealedCards.length; i++) {
+            if (i > 0)
+                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER_TIME);
+            if (reveal.player_id === this.myPlayerID && this.handHandler)
+                slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
+            else
+                slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement()));
+        }
+        await Promise.all(slides);
     }
     async notif_playerCrashed(args) {
         const player = this.players[args.player_id];
@@ -1031,6 +1510,57 @@ class Game {
     async notif_starsBanked(args) {
         this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
     }
+    //last turn's card-2 reservation and golden die expire after the reveal
+    async notif_diceUpdated(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+    async notif_dieReserved_POWER2(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+    async notif_goldenDieAdded_POWER11(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+    async notif_dieModified_POWER9(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+    //private, to the owner and the victim only: my side of the swap
+    async notif_cardsSwapped_POWER10(args) {
+        if (!this.handHandler)
+            return;
+        const iAmOwner = args.owner_id === this.myPlayerID;
+        const cardsILose = (iAmOwner ? args.owner_gives : args.target_gives) ?? [];
+        const cardsIGet = (iAmOwner ? args.target_gives : args.owner_gives) ?? [];
+        const otherPlayerID = iAmOwner ? args.target_id : args.owner_id;
+        await this.handHandler.removeCards(cardsILose.map(card => card.card_id));
+        await this.handHandler.addCards(cardsIGet, this.players[otherPlayerID]?.getHandCountElement() ?? null);
+    }
+    //public: the owner and the victim already animated their private notification
+    async notif_cardsSwappedPublic_POWER10(args) {
+        if (args.owner_id === this.myPlayerID || args.target_id === this.myPlayerID)
+            return;
+        await Promise.all([
+            this.animateCardBacksBetweenBoards(args.owner_id, args.target_id, args.count),
+            this.animateCardBacksBetweenBoards(args.target_id, args.owner_id, args.count),
+        ]);
+    }
+    //private, to the owner only
+    async notif_cardsRedrawn_POWER10(args) {
+        if (!this.handHandler)
+            return;
+        await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
+        await this.handHandler.addCards(args.drawn ?? [], null);
+    }
+    //public: hand sizes don't change, the log row is all there is
+    async notif_cardsRedrawnPublic_POWER10(args) {
+    }
+    async notif_powerSkipped(args) {
+    }
+    //the stopping player's reservation outline or golden die goes away
+    async notif_powerCancelled(args) {
+        this.diceHandler.updateDice(args.dice);
+    }
 }
+Game.CARD_BACK_SLIDE_ANIM_TIME = 600;
+Game.CHAIN_CARD_STAGGER_TIME = 150;
 
 export { Game };

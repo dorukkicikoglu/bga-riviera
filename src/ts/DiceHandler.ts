@@ -1,8 +1,10 @@
 import { Game } from "./Game";
 
 export class DiceHandler{
-    private static readonly PIPS_PER_DIE = 9; //3x3 grid, Game.scss shows the right pips for each data-value
+    private static readonly PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
     private static readonly CHANGE_ANIM_CLASS = 'die-changed';
+    private static readonly SELECTABLE_DIE_CLASS = 'selectable-die';
+    private static readonly SELECTED_DIE_CLASS = 'selected-die';
 
     private diceContainer: HTMLDivElement;
 
@@ -11,6 +13,51 @@ export class DiceHandler{
 
         for(let dieData of this.diceData)
             this.diceContainer.appendChild(this.createDieDiv(dieData));
+
+        this.diceContainer.addEventListener('click', (event: Event) => { this.diceContainerClicked(event); });
+    }
+
+    //card 9: the active owner picks one die, then turns it with the status bar buttons
+    private diceContainerClicked(event: Event){
+        if(!this.game.bga.players.isCurrentPlayerActive())
+            return;
+
+        if(this.game.getGameStateName() !== 'ModifyDie')
+            return;
+
+        if(this.game.isInterfaceLocked())
+            return;
+
+        const aDie = (event.target as HTMLElement).closest('.a-die') as HTMLDivElement;
+        if(!aDie || !aDie.classList.contains(DiceHandler.SELECTABLE_DIE_CLASS))
+            return;
+
+        const dieWasAlreadySelected = aDie.classList.contains(DiceHandler.SELECTED_DIE_CLASS);
+        this.clearDieSelection();
+        if(!dieWasAlreadySelected)
+            aDie.classList.add(DiceHandler.SELECTED_DIE_CLASS);
+
+        this.game.modifyDie.dieSelectionChanged();
+    }
+
+    public setSelectableDice(colors: DieColor[]): void {
+        this.clearSelectableDice();
+        for(let color of colors)
+            this.getDieDiv(color)?.classList.add(DiceHandler.SELECTABLE_DIE_CLASS);
+    }
+
+    public clearSelectableDice(): void {
+        this.clearDieSelection();
+        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTABLE_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTABLE_DIE_CLASS));
+    }
+
+    private clearDieSelection(): void {
+        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTED_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTED_DIE_CLASS));
+    }
+
+    public getSelectedDieColor(): DieColor | null {
+        const selectedDie = this.diceContainer.querySelector('.a-die.' + DiceHandler.SELECTED_DIE_CLASS);
+        return selectedDie ? selectedDie.getAttribute('data-color') as DieColor : null;
     }
 
     //also used for the mini dice in logs
@@ -18,7 +65,7 @@ export class DiceHandler{
         const aDie = document.createElement('div');
         aDie.className = 'a-die';
         aDie.setAttribute('data-color', dieData.color);
-        aDie.innerHTML = '<span class="pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
+        aDie.innerHTML = '<span class="die-pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
 
         this.applyDieData(aDie, dieData);
         return aDie;

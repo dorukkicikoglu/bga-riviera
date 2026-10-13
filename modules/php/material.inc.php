@@ -32,6 +32,10 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("GRAND_SLAM_MIN_SCORE", 100); //a Grand Slam score is max(this, highest other score + 1) so BGA ranks that player first
     define("DIE_FACES", 6);
 
+    define("POWER_CARD_VALUES", [2, 9, 10, 11]); //non-1 powers: the last card a player reveals in a turn leaves a pending_POWER<n> marker
+    define("CHAIN_CARD_VALUE_POWER1", 1); //a card 1 lets its player add another card to the same choice
+    define("CARDS_SWAPPED_BY_POWER10", 2);
+
     define("CARD_COLOR_NAMES", [
         'red' => clienttranslate('red'),
         'green' => clienttranslate('green'),

@@ -1,5 +1,8 @@
 import { PlayCard } from "./States/PlayCard";
 import { StopOrMore } from "./States/StopOrMore";
+import { ModifyDie } from "./States/ModifyDie";
+import { ResolvePowers } from "./States/ResolvePowers";
+import { SwapCards } from "./States/SwapCards";
 import { PlayerHandler } from "./PlayerHandler";
 import { HandHandler } from "./HandHandler";
 import { DiceHandler } from "./DiceHandler";
@@ -8,11 +11,17 @@ import { LogMutationObserver } from "./LogMutationObserver";
 import { ChangeMindHandler } from "./ChangeMindHandler";
 
 export class Game {
+    private static readonly CARD_BACK_SLIDE_ANIM_TIME = 600;
+    private static readonly CHAIN_CARD_STAGGER_TIME = 150;
+
     public bga: Bga<RivieraPlayer, RivieraGamedatas>;
     private gamedatas: RivieraGamedatas;
 
     public playCard: PlayCard;
     public stopOrMore: StopOrMore;
+    public modifyDie: ModifyDie;
+    public resolvePowers: ResolvePowers;
+    public swapCards: SwapCards;
     public players: Record<number, PlayerHandler> = {};
     private myPlayerID: number;
     private localCardIDCounter = 1;
@@ -33,6 +42,12 @@ export class Game {
         this.bga.states.register('PlayCard', this.playCard);
         this.stopOrMore = new StopOrMore(this, bga);
         this.bga.states.register('StopOrMore', this.stopOrMore);
+        this.modifyDie = new ModifyDie(this, bga);
+        this.bga.states.register('ModifyDie', this.modifyDie);
+        this.resolvePowers = new ResolvePowers(this, bga);
+        this.bga.states.register('ResolvePowers', this.resolvePowers);
+        this.swapCards = new SwapCards(this, bga);
+        this.bga.states.register('SwapCards', this.swapCards);
 
         // Uncomment the next line to show debug informations about state changes in the console. Remove before going to production!
         // this.bga.states.logger = console.log;
@@ -111,7 +126,8 @@ export class Game {
                 args.processed = true;
 
                 // list of special keys we want to replace with images
-                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR'];
+                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR'];
                 for(let key of keys) {
                     if(key in args) {
                         if(key == 'NEW_ROUND_LOG_STR')
@@ -130,6 +146,20 @@ export class Game {
                             log = this.logMutationObserver.createLogStopOrMoreRevealed(args['choices']).log_html;
                         else if(key == 'STARS_BANKED_LOG_STR')
                             log = this.logMutationObserver.createLogStarsBanked(args['player_id'], args['stars']).log_html;
+                        else if(key == 'DIE_RESERVED_POWER2_LOG_STR')
+                            log = this.logMutationObserver.createLogDieReservedPOWER2(args['player_id'], args['die']).log_html;
+                        else if(key == 'GOLDEN_DIE_POWER11_LOG_STR')
+                            log = this.logMutationObserver.createLogGoldenDiePOWER11(args['player_id']).log_html;
+                        else if(key == 'DIE_MODIFIED_POWER9_LOG_STR')
+                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
+                        else if(key == 'CARDS_SWAPPED_POWER10_LOG_STR')
+                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['owner_gives'] ?? null, args['target_gives'] ?? null, args['count']).log_html;
+                        else if(key == 'CARDS_REDRAWN_POWER10_LOG_STR')
+                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
+                        else if(key == 'POWER_SKIPPED_LOG_STR')
+                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
+                        else if(key == 'POWER_CANCELLED_LOG_STR')
+                            log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
                     }
                 }
             }
@@ -218,8 +248,9 @@ export class Game {
     }
     //slides element into the container `to`, starting from where `from` is now (from may be element itself).
     //A copy flies over the page while the real element waits hidden in `to`, like Fugu moves cards between containers.
+    //With `to` null, element is already in its place (a card sorted into my hand) and only the copy moves.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
-    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement, to: HTMLDivElement, durationMs: number): Promise<void> {
+    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement, to: HTMLDivElement | null, durationMs: number): Promise<void> {
         const slidingClone = element.cloneNode(true) as HTMLDivElement;
         slidingClone.removeAttribute('id');
         slidingClone.classList.add('sliding-clone');
@@ -227,7 +258,8 @@ export class Game {
         this.placeOnObject(slidingClone, from, true);
 
         element.style.visibility = 'hidden';
-        to.appendChild(element);
+        if(to)
+            to.appendChild(element);
 
         const elementRect = element.getBoundingClientRect();
         const cloneRect = slidingClone.getBoundingClientRect();
@@ -279,6 +311,34 @@ export class Game {
     }
     public getStarsForValue(value: number): number { return this.gamedatas.starsByValue[value] || 0; }
     public getPlayerColor(playerID: number): string { return this.gamedatas.players[playerID]?.color; }
+    public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
+
+    //a hand card was clicked: the current state handles the selection
+    public handSelectionChanged(): void {
+        const stateName = this.getGameStateName();
+        if(stateName === 'PlayCard')
+            this.playCard.selectionChanged();
+        else if(stateName === 'SwapCards')
+            this.swapCards.selectionChanged();
+    }
+
+    //card 10, seen by everyone but the two players involved: N card backs slide each way between their boards
+    private async animateCardBacksBetweenBoards(fromPlayerID: number, toPlayerID: number, count: number): Promise<void> {
+        const fromPlayer = this.players[fromPlayerID];
+        const toPlayer = this.players[toPlayerID];
+        if(!fromPlayer || !toPlayer)
+            return;
+
+        const slides: Promise<void>[] = [];
+        for(let i = 0; i < count; i++){
+            const cardBack = this.createCardBackDiv();
+            cardBack.classList.add('mini-card-back');
+            slides.push(this.animateSlide(cardBack, fromPlayer.getHandCountElement(), toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME).then(() => cardBack.remove()));
+        }
+        await Promise.all(slides);
+
+        toPlayer.setHandCount(toPlayer.getHandCount()); //a swap keeps hand sizes, this only redraws the backs
+    }
     public getMyPlayerID(): number{ return this.myPlayerID; }
 
     //end utility
@@ -326,12 +386,16 @@ export class Game {
         this.diceHandler.updateDice(args.dice);
     }
 
-    public async notif_playChoiceConfirmed(args: PendingPlayChoice) {
-        this.playCard.setPendingChoice({ choice: args.choice, card_id: args.card_id });
+    public async notif_playChoiceConfirmed(args: PlayChoiceConfirmedArgs) {
+        this.playCard.onChoiceConfirmed(args);
     }
 
-    public async notif_playChoiceReverted(args: {}) {
-        this.playCard.setPendingChoice(null);
+    public async notif_playChainUpdated_POWER1(args: PlayChainUpdatedPOWER1Args) {
+        this.playCard.onChainUpdated(args);
+    }
+
+    public async notif_playChoiceReverted(args: PlayChoiceRevertedArgs) {
+        this.playCard.onChoiceReverted(args);
     }
 
     //every revealed card slides at once: mine from my hand, the others from their player board's hand count
@@ -352,9 +416,18 @@ export class Game {
             return;
         }
 
-        if(reveal.player_id === this.myPlayerID && this.handHandler)
-            await this.handHandler.animateCardToColumn(reveal.card, player.getPlayedColumn());
-        else await player.getPlayedColumn().animateCardIn(reveal.card, player.getHandCountElement());
+        //a card-1 chain follows its first card into the column, slightly behind it
+        const revealedCards = [reveal.card, ...(reveal.extra_cards_POWER1 ?? [])];
+        const slides: Promise<void>[] = [];
+        for(let i = 0; i < revealedCards.length; i++){
+            if(i > 0)
+                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER_TIME);
+
+            if(reveal.player_id === this.myPlayerID && this.handHandler)
+                slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
+            else slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement()));
+        }
+        await Promise.all(slides);
     }
 
     public async notif_playerCrashed(args: PlayerCrashedArgs) {
@@ -397,5 +470,68 @@ export class Game {
 
     public async notif_starsBanked(args: ScoreChangedArgs) {
         this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+    }
+
+    //last turn's card-2 reservation and golden die expire after the reveal
+    public async notif_diceUpdated(args: DiceUpdatedArgs) {
+        this.diceHandler.updateDice(args.dice);
+    }
+
+    public async notif_dieReserved_POWER2(args: DieReservedPOWER2Args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+
+    public async notif_goldenDieAdded_POWER11(args: GoldenDieAddedPOWER11Args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+
+    public async notif_dieModified_POWER9(args: DieModifiedPOWER9Args) {
+        this.diceHandler.updateDice(args.dice);
+    }
+
+    //private, to the owner and the victim only: my side of the swap
+    public async notif_cardsSwapped_POWER10(args: CardsSwappedPOWER10Args) {
+        if(!this.handHandler)
+            return;
+
+        const iAmOwner = args.owner_id === this.myPlayerID;
+        const cardsILose = (iAmOwner ? args.owner_gives : args.target_gives) ?? [];
+        const cardsIGet = (iAmOwner ? args.target_gives : args.owner_gives) ?? [];
+        const otherPlayerID = iAmOwner ? args.target_id : args.owner_id;
+
+        await this.handHandler.removeCards(cardsILose.map(card => card.card_id));
+        await this.handHandler.addCards(cardsIGet, this.players[otherPlayerID]?.getHandCountElement() ?? null);
+    }
+
+    //public: the owner and the victim already animated their private notification
+    public async notif_cardsSwappedPublic_POWER10(args: CardsSwappedPOWER10Args) {
+        if(args.owner_id === this.myPlayerID || args.target_id === this.myPlayerID)
+            return;
+
+        await Promise.all([
+            this.animateCardBacksBetweenBoards(args.owner_id, args.target_id, args.count),
+            this.animateCardBacksBetweenBoards(args.target_id, args.owner_id, args.count),
+        ]);
+    }
+
+    //private, to the owner only
+    public async notif_cardsRedrawn_POWER10(args: CardsRedrawnPOWER10Args) {
+        if(!this.handHandler)
+            return;
+
+        await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
+        await this.handHandler.addCards(args.drawn ?? [], null);
+    }
+
+    //public: hand sizes don't change, the log row is all there is
+    public async notif_cardsRedrawnPublic_POWER10(args: CardsRedrawnPOWER10Args) {
+    }
+
+    public async notif_powerSkipped(args: PowerSkippedArgs) {
+    }
+
+    //the stopping player's reservation outline or golden die goes away
+    public async notif_powerCancelled(args: PowerCancelledArgs) {
+        this.diceHandler.updateDice(args.dice);
     }
 }

@@ -33,6 +33,15 @@ class RIVChangeMindManager{
      * $choiceValues maps a column to an int, an ENUM literal or null; never a user string.
      */
     function recordChoice(int $playerID, array $choiceValues, string $notifName, array $notifArgs, string $nextState): void{
+        $this->savePendingChoice($playerID, $choiceValues, $notifName, $notifArgs);
+
+        $this->game->gamestate->setPlayerNonMultiactive($playerID, $nextState);
+    }
+
+    /**
+     * Saves the choice as pending and tells only that player, who stays active (a card-1 chain goes on choosing).
+     */
+    function savePendingChoice(int $playerID, array $choiceValues, string $notifName, array $notifArgs): void{
         $madeChoiceThisState = $this->game->getUniqueValueFromDB("SELECT `made_choice_this_state` FROM `player` WHERE `player_id` = $playerID");
         if($madeChoiceThisState === 'no')
             $this->game->giveExtraTime($playerID); //only on the first choice, so changing your mind can't farm time
@@ -50,15 +59,14 @@ class RIVChangeMindManager{
         $this->game->DbQuery("UPDATE `player` SET ".implode(', ', $columnUpdates)." WHERE `player_id` = $playerID");
 
         $this->game->bga->notify->player($playerID, $notifName, '', $notifArgs);
-
-        $this->game->gamestate->setPlayerNonMultiactive($playerID, $nextState);
     }
 
     /**
      * Callable by an inactive player: the action carries #[CheckAction(false)], so the state is checked here instead.
      * The first column of $choiceColumns tells whether the player has a pending choice to take back.
+     * A player still choosing (in the middle of a card-1 chain) can take it back too: re-activating them changes nothing.
      */
-    function changeMind(string $actionName, int $playerID, array $choiceColumns, string $notifName): void{
+    function changeMind(string $actionName, int $playerID, array $choiceColumns, string $notifName, array $notifArgs = []): void{
         $this->game->gamestate->checkPossibleAction($actionName);
 
         if($this->isPlayerZombie($playerID))
@@ -71,7 +79,7 @@ class RIVChangeMindManager{
         $columnUpdates = array_map(fn(string $column) => "`$column` = NULL", $choiceColumns);
         $this->game->DbQuery("UPDATE `player` SET ".implode(', ', $columnUpdates)." WHERE `player_id` = $playerID");
 
-        $this->game->bga->notify->player($playerID, $notifName, '', []);
+        $this->game->bga->notify->player($playerID, $notifName, '', $notifArgs);
 
         //non-exclusive: adds the player back to the active set, so the transition is never used
         $this->game->gamestate->setPlayersMultiactive([$playerID], '', false);

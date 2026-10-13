@@ -1,4 +1,4 @@
-> Status: plan, awaiting approval.
+> Status: implemented 2026-10-13, awaiting Studio test (see .claude/TESTING.md).
 
 # Riviera: Milestone 3 (Powers) plan, revision 2
 

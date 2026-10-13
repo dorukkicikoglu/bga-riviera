@@ -20,7 +20,7 @@ class RIVTableManager{
         $this->game->cardsDeck->moveAllCardsInLocation('hand', 'deck');
         $this->game->cardsDeck->moveAllCardsInLocation('played', 'deck');
         $this->game->cardsDeck->moveAllCardsInLocation('discard', 'deck');
-        $this->game->DbQuery("UPDATE `cards` SET `location_in_column` = NULL");
+        $this->game->DbQuery("UPDATE `cards` SET `location_in_column` = NULL, `chain_position_POWER1` = NULL");
 
         $playerIDs = $this->game->getObjectListFromDB("SELECT `player_id` FROM `player`", true);
 
@@ -262,6 +262,91 @@ class RIVTableManager{
      */
     function discardPlayerCards(int $playerID): void{
         $this->game->DbQuery("UPDATE `cards` SET `card_location` = 'discard', `location_in_column` = NULL WHERE `card_location` IN ('hand', 'played') AND `card_location_arg` = $playerID");
+    }
+
+    /**
+     * Hand cards $playerID added to their card-1 chain, in the order they were added. The first card of the
+     * choice is not one of them: it stays in the player's play_choice_card_id.
+     */
+    function getChainCardIDsPOWER1(int $playerID): array{
+        return array_map('intval', $this->game->getObjectListFromDB("SELECT `card_id` FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID AND `chain_position_POWER1` IS NOT NULL ORDER BY `chain_position_POWER1` ASC", true));
+    }
+
+    function clearChainPOWER1(?int $playerID = null): void{
+        $playerCondition = ($playerID === null) ? "" : " WHERE `card_location_arg` = $playerID";
+        $this->game->DbQuery("UPDATE `cards` SET `chain_position_POWER1` = NULL".$playerCondition);
+    }
+
+    /**
+     * The card $playerID revealed last: the bottom of their played column. Public information.
+     */
+    function getLastPlayedCard(int $playerID): ?array{
+        $cardDB = $this->game->getObjectFromDB("SELECT * FROM `cards` WHERE `card_location` = 'played' AND `card_location_arg` = $playerID ORDER BY `location_in_column` DESC LIMIT 1");
+        return $cardDB ? $this->formatCard($cardDB) : null;
+    }
+
+    /**
+     * $count random cards from $playerID's hand, drawn with bga_rand.
+     */
+    function getRandomHandCards(int $playerID, int $count): array{
+        $handCardsDB = $this->game->getObjectListFromDB("SELECT * FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID");
+
+        $randomCards = [];
+        while(count($randomCards) < $count && count($handCardsDB) > 0){
+            $randomIndex = bga_rand(0, count($handCardsDB) - 1);
+            $randomCards[] = $this->formatCard($handCardsDB[$randomIndex]);
+            array_splice($handCardsDB, $randomIndex, 1);
+        }
+
+        return $randomCards;
+    }
+
+    /**
+     * Cards the card-10 fallback can draw: the draw pile, plus the discard pile reshuffled into it when it runs short.
+     */
+    function getDrawableCountPOWER10(): int{
+        return (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `cards` WHERE `card_location` IN ('deck', 'discard')");
+    }
+
+    /**
+     * Draws $count cards into $playerID's hand. A short draw pile first gets the discard pile shuffled into it,
+     * so call this before discarding the cards being replaced: they must never come back.
+     */
+    function drawCardsPOWER10(int $playerID, int $count): array{
+        $deckCount = (int) $this->game->cardsDeck->countCardInLocation('deck');
+        if($deckCount < $count){
+            $this->game->cardsDeck->moveAllCardsInLocation('discard', 'deck');
+            $this->game->cardsDeck->shuffle('deck');
+        }
+
+        $drawnCardIDs = array_map(fn(array $card) => (int) $card['id'], $this->game->cardsDeck->pickCards($count, 'deck', $playerID) ?? []);
+        if(empty($drawnCardIDs))
+            return [];
+
+        $drawnCardsDB = $this->game->getObjectListFromDB("SELECT * FROM `cards` WHERE `card_id` IN (".implode(',', $drawnCardIDs).") ORDER BY `color` ASC, `value` ASC");
+        return array_map(fn(array $cardDB) => $this->formatCard($cardDB), $drawnCardsDB);
+    }
+
+    /**
+     * Rolled dice a card 9 can still change this roll: not modified yet; the golden die only while it is in use.
+     */
+    function getModifiableDicePOWER9(): array{
+        $diceDB = $this->game->getObjectListFromDB(
+            "SELECT `die_color`, `die_value` FROM `dice`
+             WHERE `die_location` = 'in_play' AND `die_value` IS NOT NULL AND `modified_by_POWER9` = 'no'
+             AND (`die_color` <> 'gold' OR `in_use_by_POWER11` = 'yes')
+             ORDER BY `die_color` ASC"
+        );
+
+        return array_map(fn(array $dieDB) => ['color' => $dieDB['die_color'], 'value' => (int) $dieDB['die_value']], $diceDB);
+    }
+
+    function getDie(string $dieColor): ?array{
+        foreach($this->getDice() as $die){
+            if($die['color'] === $dieColor)
+                return $die;
+        }
+        return null;
     }
 }
 

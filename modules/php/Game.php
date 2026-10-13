@@ -22,6 +22,7 @@ use Bga\Games\Riviera\States\RoundSetup;
 use Bga\GameFramework\Components\Deck;
 use Bga\Games\Riviera\RIVTableManager;
 use Bga\Games\Riviera\RIVChangeMindManager;
+use Bga\Games\Riviera\RIVPowerManager;
 use Bga\GameFramework\Actions\Debug;
 
 class Game extends \Bga\GameFramework\Table
@@ -29,6 +30,7 @@ class Game extends \Bga\GameFramework\Table
     public Deck $cardsDeck;
     public RIVTableManager $tableManager;
     public RIVChangeMindManager $changeMindManager;
+    public RIVPowerManager $powerManager;
 
     /**
      * Your global variables labels:
@@ -55,6 +57,7 @@ class Game extends \Bga\GameFramework\Table
         $this->cardsDeck = $this->deckFactory->createDeck("cards");
         $this->tableManager = new RIVTableManager($this);
         $this->changeMindManager = new RIVChangeMindManager($this);
+        $this->powerManager = new RIVPowerManager($this);
     }
 
     public function getGameProgression()
@@ -263,6 +266,7 @@ class Game extends \Bga\GameFramework\Table
     }
 
     // passes the Start token to the next player with its animation and log line
+    #[Debug]
     public function debug_passStartToken() {
         $this->tableManager->passStartToken();
     }
@@ -302,6 +306,121 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
+    }
+
+    // card 1: two 1s and a 2, all playable on the same roll, to chain 1 -> 1 -> 2 (the 2 then reserves its die)
+    #[Debug(reload: true)]
+    public function debug_POWER1() {
+        $this->debugGiveCards((int) $this->getCurrentPlayerId(), [1, 1, 2]);
+    }
+
+    // card 2: a playable 2; its die is reserved for me after the reveal
+    #[Debug(reload: true)]
+    public function debug_POWER2() {
+        $this->debugGiveCards((int) $this->getCurrentPlayerId(), [2]);
+    }
+
+    // card 9: a playable 9. With $resolveNow, my card 9 is pending at once and the dice are rerolled, so ModifyDie starts right away
+    #[Debug(reload: true)]
+    public function debug_POWER9(bool $resolveNow = false) {
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+
+        if($resolveNow){
+            self::DbQuery("UPDATE `player` SET `pending_POWER9` = 'yes' WHERE `player_id` = $currentPlayerID");
+            $this->gamestate->jumpToState(10); //RollDice
+            return;
+        }
+
+        $this->debugGiveCards($currentPlayerID, [9]);
+    }
+
+    // card 10: a playable 10. With $othersStopped, every other player is stopped, so the 10 falls back to discard and draw
+    #[Debug(reload: true)]
+    public function debug_POWER10(bool $othersStopped = false) {
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+
+        if($othersStopped)
+            self::DbQuery("UPDATE `player` SET `round_status` = 'stopped' WHERE `player_id` <> $currentPlayerID AND `round_status` = 'in'");
+
+        $this->debugGiveCards($currentPlayerID, [10]);
+    }
+
+    // card 11: a playable 11
+    #[Debug(reload: true)]
+    public function debug_POWER11() {
+        $this->debugGiveCards((int) $this->getCurrentPlayerId(), [11]);
+    }
+
+    // sets the draw pile and discard pile sizes for the card-10 fallback; cards left over go to the box FOR THE REST OF THIS TABLE
+    #[Debug(reload: true)]
+    public function debug_setDrawPile(int $deckCount = 0, int $discardCount = 0) {
+        $pileCardIDs = $this->getObjectListFromDB("SELECT `card_id` FROM `cards` WHERE `card_location` IN ('deck', 'discard') ORDER BY RAND()", true);
+
+        foreach($pileCardIDs as $index => $cardID){
+            if($index < $deckCount)
+                $location = 'deck';
+            else if($index < $deckCount + $discardCount)
+                $location = 'discard';
+            else $location = 'returned_to_box';
+
+            self::DbQuery("UPDATE `cards` SET `card_location` = '$location', `card_location_arg` = 0 WHERE `card_id` = $cardID");
+        }
+
+        $this->cardsDeck->shuffle('deck');
+    }
+
+    /**
+     * Debug helper: puts one card of each value in $values into $playerID's hand, each in a different color in use
+     * that nobody has played yet, sets the dice so every one of them is playable, then re-enters PlayCard.
+     * A card taken from another hand or a pile is swapped with a random card of mine, so every count stays the same.
+     */
+    private function debugGiveCards(int $playerID, array $values): void {
+        $colorsInUse = $this->tableManager->getColorsInUse();
+        $usedColors = [];
+        $dieValues = [];
+
+        foreach($values as $value){
+            $cardDB = null;
+            foreach($colorsInUse as $color){
+                if(in_array($color, $usedColors, true))
+                    continue;
+
+                $candidateDB = $this->getObjectFromDB("SELECT * FROM `cards` WHERE `color` = '$color' AND `value` = $value AND `card_location` IN ('deck', 'discard', 'hand')");
+                if($candidateDB){
+                    $cardDB = $candidateDB;
+                    break;
+                }
+            }
+            if(!$cardDB)
+                continue;
+
+            $usedColors[] = $cardDB['color'];
+            $dieValues[$cardDB['color']] = min($value, DIE_FACES);
+
+            $isAlreadyMine = $cardDB['card_location'] === 'hand' && (int) $cardDB['card_location_arg'] === $playerID;
+            if(!$isAlreadyMine){
+                $givenCardsCondition = empty($usedColors) ? "" : " AND NOT (`value` IN (".implode(',', $values).") AND `color` IN ('".implode("','", $usedColors)."'))";
+                $myCardDB = $this->getObjectFromDB("SELECT * FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID".$givenCardsCondition." ORDER BY RAND() LIMIT 1");
+                if($myCardDB)
+                    self::DbQuery("UPDATE `cards` SET `card_location` = '".$cardDB['card_location']."', `card_location_arg` = ".$cardDB['card_location_arg']." WHERE `card_id` = ".$myCardDB['card_id']);
+
+                self::DbQuery("UPDATE `cards` SET `card_location` = 'hand', `card_location_arg` = $playerID WHERE `card_id` = ".$cardDB['card_id']);
+            }
+
+            if($value > DIE_FACES){ //a sum: the card's die shows 6, a die of a color not used here shows the rest
+                foreach($colorsInUse as $otherColor){
+                    if(!in_array($otherColor, $usedColors, true) && !isset($dieValues[$otherColor])){
+                        $dieValues[$otherColor] = $value - DIE_FACES;
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach($dieValues as $color => $dieValue)
+            self::DbQuery("UPDATE `dice` SET `die_value` = $dieValue, `modified_by_POWER9` = 'no' WHERE `die_color` = '$color'");
+
+        $this->gamestate->jumpToState(20); //PlayCard
     }
 
     public function message($txt, $desc = '', $color = 'blue') {

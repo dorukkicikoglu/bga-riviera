@@ -20,7 +20,7 @@ class RollDice extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Rolls every die in play, then everyone still in the round picks a card.
+     * Rolls every die in play, then card-9 owners may change a die, then everyone still in the round picks a card.
      */
     function onEnteringState() {
         $this->game->tableManager->rollDice();
@@ -38,6 +38,6 @@ class RollDice extends \Bga\GameFramework\States\GameState
             'DICE_ROLLED_LOG_STR' => 'Dice: '.implode(', ', $diceLogParts),
         ]);
 
-        return PlayCard::class;
+        return $this->game->powerManager->goToNextPOWER9Owner();
     }
 }

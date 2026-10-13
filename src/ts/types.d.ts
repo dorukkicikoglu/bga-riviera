@@ -61,7 +61,30 @@ interface PlayCardArgs {
         playableCardIDs: number[];
         canUseLastChance: boolean;
         pendingPlayChoice: PendingPlayChoice | null;
+        chainCardIDs_POWER1: number[];
+        chainOpen_POWER1: boolean;
     };
+}
+
+interface ModifyDieArgs {
+    modifiableDice: { color: DieColor; value: number; }[];
+}
+
+interface ResolvePowersArgs {
+    goldenDieAlreadyAdded: boolean;
+}
+
+interface SwapTargetPOWER10 {
+    player_id: number;
+    hand_count: number;
+}
+
+interface SwapCardsArgs {
+    mode: 'swap' | 'redraw';
+    targets: SwapTargetPOWER10[];
+    myHandCount: number;
+    drawableCount: number;
+    maxCards: number;
 }
 
 interface StopOrMoreArgs {
@@ -81,6 +104,80 @@ interface CardReveal {
     player_id: number;
     choice: 'card' | 'last_chance';
     card: PlayedCard | null;
+    extra_cards_POWER1: PlayedCard[];
+}
+
+//private: playChoiceConfirmed, playChainUpdated_POWER1 and playChoiceReverted carry what the player sees next
+interface PlayChoiceConfirmedArgs extends PendingPlayChoice {
+    chainCardIDs_POWER1: number[];
+    playableCardIDs: number[];
+    chainOpen_POWER1: boolean;
+}
+
+interface PlayChainUpdatedPOWER1Args {
+    chainCardIDs_POWER1: number[];
+    playableCardIDs: number[];
+    chainOpen_POWER1: boolean;
+}
+
+interface PlayChoiceRevertedArgs {
+    playableCardIDs: number[];
+}
+
+interface DiceUpdatedArgs {
+    dice: RivieraDie[];
+}
+
+interface DieReservedPOWER2Args {
+    player_id: number;
+    die: RivieraDie;
+    dice: RivieraDie[];
+}
+
+interface GoldenDieAddedPOWER11Args {
+    player_id: number;
+    dice: RivieraDie[];
+}
+
+interface DieModifiedPOWER9Args {
+    player_id: number;
+    die_color: DieColor;
+    old_value: number;
+    new_value: number;
+    dice: RivieraDie[];
+}
+
+//owner_gives / target_gives only in the private notification to the owner and the victim
+interface CardsSwappedPOWER10Args {
+    owner_id: number;
+    target_id: number;
+    owner_gives?: RivieraCard[];
+    target_gives?: RivieraCard[];
+    count: number;
+}
+
+//discarded / drawn only in the private notification to the owner
+interface CardsRedrawnPOWER10Args {
+    player_id: number;
+    discarded?: RivieraCard[];
+    drawn?: RivieraCard[];
+    count: number;
+}
+
+interface PowerSkippedArgs {
+    player_id: number;
+    value: number;
+    card: RivieraCard | null;
+    reason: '' | 'nothing_to_draw' | 'not_enough_cards';
+}
+
+//a player who stops loses the card 2 reservation or the golden die they just added
+interface PowerCancelledArgs {
+    player_id: number;
+    value: 2 | 11;
+    card: RivieraCard | null;
+    die: RivieraDie;
+    dice: RivieraDie[];
 }
 
 interface CardsRevealedArgs {

@@ -27,7 +27,7 @@ Mirror these specifically:
   `[red 1..12] [green 1..12] [purple 1..12] [blue 1..12] [orange 1..12] [Last Chance] [card back]` (62 frames, rest of the last row blank).
   Compute `background-position` from an index (see SPEC.md > Sprite); never hardcode per-card positions.
 - Dice have no art yet. Draw them in CSS (rounded square in the die color, pips or a number). Gold die for the golden die.
-- Start token has no art yet: a 30x30px black square with a red border.
+- `img/start_token.webp` is the Start token (a black pawn, portrait), fitted inside the 30x30px `#start-token` and the 14x14px mini token in log rows.
 
 ## Layout (client)
 
@@ -63,6 +63,7 @@ Mirror these specifically:
 - **Private state args**: per-player data goes in `getArgs()` as `['_private' => [playerId => [...]]]`; the client reads `args._private`. Act methods take the magic `int $currentPlayerId` (multiactive) parameter.
 - **Logs**: every log type has a `${X_LOG_STR}` server placeholder (plain fallback text as its value, plus `preserve` for the args the row needs), one `LogMutationObserver.createLog*()` method, one `*-log` class, and one `--bg-log-*` variable in `:root` (listed in `$log-types` in `Game.scss`).
 - **Slide animations**: use `Game.animateSlide(element, from, to, ms)` for anything moving between containers.
+- **One-shot animation classes** (fade-ins, fade-outs, `die-changed`) must be removed once they have played: a leftover one becomes the element's fallback `animation` and replays whenever another animation (like the playable glow) stops applying.
 - **`dbmodel.sql` comments**: put them on their own `--` lines, never after a `;` and never containing a `;`. BGA splits the file into statements itself and silently dropped an `ALTER` that had a trailing comment.
 - **Deleting or renaming PHP files**: SFTP now runs with `autoDelete: true`, so a file removed locally is removed on Studio on the next sync. Still check after a delete or rename: the framework loads every class in `modules/php/States/`, and a stale state class collides on its state id (the template's `PlayerTurn.php` took id 10 and broke game creation once `RollDice` used 10).
 

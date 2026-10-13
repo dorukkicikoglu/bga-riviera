@@ -23,7 +23,7 @@ Game area, top to bottom:
 Player boards:
 - [ ] Each board shows one card back + "x 10", with the Last Chance card to its right (in color, not greyed).
 - [ ] Each board shows status "In" with its icon.
-- [ ] The Start token (a 30x30 black square with a red border) is on exactly one board: the `startPlayerId` player's.
+- [ ] The Start token (the black pawn image) is on exactly one board: the `startPlayerId` player's.
 
 Debug functions (Studio debug menu):
 - [ ] `debug_playRandomCards(5)`, then F5. Each player has 5 cards in their column, stacked so only the top star strip of the covered cards shows. The star totals are right (stars: 1-3 = 2, 4-7 = 1, 8-10 = 2, 11 = 3, 12 = 5). Each board shows 5 individual card backs.
@@ -89,3 +89,71 @@ Other:
 - [x] A spectator sees reveals, statuses, scores, the token and the dice, and never a hand or a pending choice.
 - [x] Kick a player (zombie) during card play and during Stop or More: the game does not block.
 - [x] If "Change my mind" fails with "This is not your turn" or similar on the server, `#[CheckAction(false)]` isn't honored on state-class methods: paste the error.
+
+## Milestone 3: Powers
+
+Deploy as before (`modules/`, `riviera.css`, `dbmodel.sql`). The schema changed (`cards.chain_position_POWER1` and 5 `player` columns), so start a **new** table. SFTP now deletes on Studio, but check that `modules/php/States/` on Studio holds exactly: EndRound, EndScore, ModifyDie, PassStartToken, PlayCard, ResolvePowers, RevealCards, RevealStopOrMore, RollDice, RoundSetup, StopOrMore, SwapCards. Keep the browser console open and paste any error.
+
+Every debug function below is in the Studio debug menu and reloads the page. Use a 3-player table for card 10 (a victim and a bystander).
+
+Card 1 / Grand Slam (`debug_POWER1()`: gives me two 1s and a 2, all playable):
+- [ ] The play button reads "Confirm".
+- [ ] I play a 1 and add a 5: both are revealed together with everyone else's cards, in that order in my column.
+- [ ] I play a 1, add a second 1, and am asked again; I add a third card: all three are revealed.
+- [ ] I play a 1 and press "Finish": only the 1 is revealed.
+- [ ] I play a 1 when no other card is playable: I'm not asked anything and my choice is final at once.
+- [ ] After a chain of three, I press "Change my mind": all three cards go back to my hand and I choose a first card again.
+- [ ] I press "Change my mind" in the middle of a chain (still choosing): the same thing happens.
+- [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "add a card or finish" prompt is back. Same after F5 once the chain is finished (waiting for others).
+- [ ] The other player only sees that I'm still choosing or done, and their network traffic shows no card id.
+- [ ] My chain ends on a 2, 10 or 11: that card's power resolves after the reveal. A chain that ends on a 1 triggers no other power.
+- [ ] The reveal log row shows the chain as card + card + card.
+- [ ] I play my last cards through a chain (`debug_trimHands(3)`, then `debug_POWER1()`): Grand Slam, the game ends, and the last card's power does not resolve.
+- [ ] Two players empty their hands on the same reveal, one with a chain and one with a single card: both get the Grand Slam score and share the win.
+- [ ] One player makes a Grand Slam while another just played a 10: the game ends with no swap prompt.
+
+Card 2 (`debug_POWER2()`):
+- [ ] After the reveal the die is outlined in my color, with no button, and an indigo log row appears.
+- [ ] On the next turn only I get cards valid with it, alone or in a sum; the other player's glowing cards ignore it.
+- [ ] After that turn's reveal the outline is gone.
+- [ ] If I choose Stop in that turn's Stop or More: after the reveal the outline disappears, a terracotta "stops: [2] no longer reserves [die]" row appears, and on the next roll the other player can use that die. Same after F5.
+
+Card 11 (`debug_POWER11()`):
+- [ ] After the reveal I'm asked "Add the golden die" / "Skip"; the other player sees that I may add it.
+- [ ] "Add the golden die": a blank gold die appears and a champagne log row. It is rolled next turn and works only in a sum, never for its own color.
+- [ ] It is gone after that turn's reveal, unless a new 11 is added, in which case it stays and is rolled again.
+- [ ] "Skip" logs a slate "does not use" row.
+- [ ] If I choose Stop after adding it: the gold die disappears and a terracotta "stops: [11] does not add [gold die]" row appears; it is not rolled next turn.
+- [ ] A second 11 in the same turn is asked with "Add it too". If both players add it and only one stops, the gold die stays (no cancel row). If both stop, it goes, with one row each.
+
+Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9 first):
+- [ ] After the next roll I'm asked to pick a die; the modifiable dice glow. Others see that I may change a die.
+- [ ] Picking a die shows "Turn to N" twice: 1 can go to 6 and 2, 6 can go to 5 and 1.
+- [ ] The die changes for everyone, gets the "±" badge, and a teal log row shows old and new die.
+- [ ] Playable cards reflect the new value.
+- [ ] A modified die can't be picked by a later owner (two 9s in the same turn, clockwise from the Start token holder).
+- [ ] The gold die can be picked when it is in use.
+- [ ] "Skip" works and logs a skip row.
+- [ ] An owner who chose Stop after playing the 9 is not asked.
+
+Card 10 (`debug_POWER10()`; fallback: `debug_POWER10(true)`):
+- [ ] Swap: I select 2 cards, then "Swap with <name>" (no confirm). My 2 cards fade out and 2 random cards slide in from their board.
+- [ ] The victim never has to click. Their hand changes the same way.
+- [ ] The owner and victim each see a single pink log row with the real cards. A third player and a spectator see a single row with 2 backs, and 2 backs slide each way between the two boards. Hand counts don't change.
+- [ ] Targets: only opponents still in the round with at least 2 cards get a "Swap with" button. A player who stopped never does (stop one of two opponents, then play a 10).
+- [ ] An opponent down to 1 card gets no button, and if every opponent still in is down to 1 card I get the discard-and-draw fallback instead (no debug helper trims a single hand: play the opponent's hand down).
+- [ ] With fewer than 2 cards in my own hand, my 10 is skipped with a "(fewer than 2 cards in hand)" row: `debug_trimHands(2)`, then `debug_POWER10()` (the 10 replaces one of my 2 cards), then play the 10 so 1 card is left.
+- [ ] Redraw fallback (`debug_POWER10(true)`): with nobody else in the round I discard and draw; a lime log row shows my cards to me and backs to others.
+- [ ] `debug_setDrawPile(1, 0)` first: only 1 card is replaced, after the confirmation.
+- [ ] `debug_setDrawPile(0, 3)` first: the discard pile is reshuffled in, and the cards just discarded never come back.
+- [ ] `debug_setDrawPile(0, 0)` first: the power is skipped with a "no card left to draw" log row.
+- [ ] "Skip" works.
+
+Every power:
+- [ ] F5 in ModifyDie, ResolvePowers and SwapCards restores the prompt (and the dice / card selection).
+- [ ] An invalid or stale action is rejected by the server.
+- [ ] Each new log type has its own background, in the live log, in replay and in the mobile chatbar.
+- [ ] A zombie in each new state skips, and a zombie that plays a 1 does not chain.
+- [ ] A new round clears every pending power and dice effect.
+- [ ] If two power owners in a row are both asked in the same state (two 11s cannot be, but two 9s or two 10s can), the second one really becomes active. If not, paste what happens: re-entering the same active state is the one thing I couldn't verify locally.
+- [ ] If "Swap with" or "Discard and draw" fails with a parameter error, `#[IntArrayParam]` doesn't read the comma-separated `cardIDs`: paste the error.

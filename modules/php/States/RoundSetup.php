@@ -20,13 +20,14 @@ class RoundSetup extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Starts a new round: everyone is back in, dice are cleared and new hands are dealt (with the silent redeal).
+     * Starts a new round: everyone is back in, dice and pending powers are cleared and new hands are dealt (with the silent redeal).
      * Everyone sees the new hand counts; each player privately gets their own hand.
      */
     function onEnteringState() {
         $roundNumber = $this->game->bga->globals->inc('roundNumber', 1);
 
         $this->game->DbQuery("UPDATE `player` SET `round_status` = 'in', `play_choice` = NULL, `play_choice_card_id` = NULL, `stop_or_more_choice` = NULL");
+        $this->game->powerManager->clearPendingPowers();
         $this->game->tableManager->resetDice();
         $this->game->tableManager->shuffleAndDealCards();
 
