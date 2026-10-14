@@ -224,53 +224,229 @@ class StopOrMore {
     }
 }
 
+class DiceHandler {
+    constructor(game, diceData) {
+        this.game = game;
+        this.diceData = diceData;
+        this.previewedColorPOWER9 = null;
+        this.diceContainer = document.querySelector('#dice-container');
+        //each die sits in a slot; during card 9 the slot also gets the die's arrow hit containers (showModifyArrowsPOWER9),
+        //absolutely placed over it and in the space #dice-container always reserves, so the dice never move. Only the dice
+        //in the game area get an id (for their tooltip), never the copies in log rows
+        for (let dieData of this.diceData) {
+            const aDie = this.createDieDiv(dieData);
+            aDie.id = 'die-' + dieData.color;
+            const dieSlot = document.createElement('div');
+            dieSlot.className = 'die-slot';
+            dieSlot.setAttribute('data-color', dieData.color);
+            dieSlot.appendChild(aDie);
+            this.diceContainer.appendChild(dieSlot);
+        }
+        this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
+    }
+    //card 9: an arrow's hit container (the triangle, the gap and that half of the die) picks that choice
+    diceContainerClicked(event) {
+        if (!this.game.bga.players.isCurrentPlayerActive())
+            return;
+        if (this.game.getGameStateName() !== 'ModifyDie')
+            return;
+        if (this.game.isInterfaceLocked())
+            return;
+        const dieArrow = event.target.closest('.die-arrow');
+        const dieSlot = dieArrow?.closest('.die-slot');
+        if (!dieArrow || !dieSlot || !dieSlot.classList.contains(DiceHandler.MODIFIABLE_CLASS_POWER9))
+            return;
+        this.game.modifyDie.choiceClicked(dieSlot.getAttribute('data-color'), parseInt(dieArrow.getAttribute('data-delta')));
+    }
+    //card 9, active owner only: each die that can still be turned this roll gets two transparent hit containers on top of
+    //it, the up one from its triangle's tip down to the die's middle line, the down one from that line to its triangle's tip,
+    //each holding its visible triangle. They only exist during this, so the dice and their tooltips are untouched otherwise.
+    //The title shows the result, wrap-around included
+    showModifyArrowsPOWER9(modifiableDice) {
+        this.hideModifyArrowsPOWER9();
+        for (let die of modifiableDice) {
+            const dieSlot = this.getDieSlot(die.color);
+            if (!dieSlot)
+                continue;
+            for (let delta of [1, -1]) {
+                const resultText = `${die.value} → ${DiceHandler.turnDieValue(die.value, delta)}`;
+                dieSlot.insertAdjacentHTML('beforeend', `<div class="die-arrow" data-delta="${delta}" role="button" title="${resultText}" aria-label="${resultText}"><span class="die-arrow-triangle"></span></div>`);
+            }
+            dieSlot.classList.add(DiceHandler.MODIFIABLE_CLASS_POWER9);
+        }
+    }
+    hideModifyArrowsPOWER9() {
+        this.setSelectedChoicePOWER9(null);
+        this.diceContainer.querySelectorAll('.die-arrow').forEach(dieArrow => dieArrow.remove());
+        this.diceContainer.querySelectorAll('.die-slot').forEach(dieSlot => dieSlot.classList.remove(DiceHandler.MODIFIABLE_CLASS_POWER9));
+    }
+    //the chosen arrow stays highlighted until it is confirmed, switched or clicked again, and its die previews the result
+    setSelectedChoicePOWER9(choice) {
+        this.diceContainer.querySelectorAll('.die-arrow.' + DiceHandler.SELECTED_ARROW_CLASS_POWER9).forEach(dieArrow => dieArrow.classList.remove(DiceHandler.SELECTED_ARROW_CLASS_POWER9));
+        if (choice)
+            this.getDieSlot(choice.color)?.querySelector(`.die-arrow[data-delta="${choice.delta}"]`)?.classList.add(DiceHandler.SELECTED_ARROW_CLASS_POWER9);
+        this.previewChoicePOWER9(choice);
+    }
+    //local only: one die at a time shows the value it would become. Its real value stays in diceData (status bar icon,
+    //tooltip), so restoring it is just applying the real data again. Previewing and restoring change the face instantly:
+    //the die-changed animation is only for real changes from the server (updateDice)
+    previewChoicePOWER9(choice) {
+        if (this.previewedColorPOWER9) {
+            const previewedDie = this.getDieDiv(this.previewedColorPOWER9);
+            const realDieData = this.diceData.find(dieData => dieData.color === this.previewedColorPOWER9);
+            this.previewedColorPOWER9 = null;
+            if (previewedDie && realDieData) {
+                previewedDie.classList.remove(DiceHandler.PREVIEWED_CLASS_POWER9);
+                this.applyDieData(previewedDie, realDieData);
+            }
+        }
+        const realDieData = choice ? this.diceData.find(dieData => dieData.color === choice.color) : null;
+        const aDie = choice ? this.getDieDiv(choice.color) : null;
+        if (!choice || !aDie || !realDieData || realDieData.value === null)
+            return;
+        aDie.setAttribute('data-value', DiceHandler.turnDieValue(realDieData.value, choice.delta).toString());
+        aDie.classList.add(DiceHandler.PREVIEWED_CLASS_POWER9);
+        this.previewedColorPOWER9 = choice.color;
+    }
+    //6 + 1 wraps to 1, 1 - 1 wraps to 6, like the server
+    static turnDieValue(value, delta) { return ((value - 1 + delta + DiceHandler.DIE_FACES) % DiceHandler.DIE_FACES) + 1; }
+    //also used for the mini dice in logs
+    createDieDiv(dieData) {
+        const aDie = document.createElement('div');
+        aDie.className = 'a-die';
+        aDie.setAttribute('data-color', dieData.color);
+        aDie.innerHTML = '<span class="die-pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
+        this.applyDieData(aDie, dieData);
+        return aDie;
+    }
+    //a die that has not been rolled yet (value null) shows a blank face
+    applyDieData(aDie, dieData) {
+        aDie.setAttribute('data-value', dieData.value === null ? '' : dieData.value.toString());
+        aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
+        aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
+        const reserverID = dieData.reserved_by_POWER2;
+        aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
+        if (reserverID !== null)
+            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(reserverID));
+        else
+            aDie.style.removeProperty('--reserver-color');
+    }
+    updateDice(diceData) {
+        if (this.previewedColorPOWER9) //real values from the server end any card-9 preview (and its selection)
+            this.game.modifyDie.cancelSelection();
+        for (let dieData of diceData) {
+            const aDie = this.getDieDiv(dieData.color);
+            if (!aDie)
+                continue;
+            this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
+            this.game.tooltipHandler?.updateDieTooltip(dieData);
+            const previousValue = aDie.getAttribute('data-value');
+            this.applyDieData(aDie, dieData);
+            if (previousValue !== aDie.getAttribute('data-value'))
+                this.playChangeAnimation(aDie);
+        }
+    }
+    playChangeAnimation(aDie) {
+        aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
+        void aDie.offsetWidth; // restart the animation if it's already running
+        aDie.classList.add(DiceHandler.CHANGE_ANIM_CLASS);
+        aDie.addEventListener('animationend', () => aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS), { once: true });
+    }
+    getDieDiv(color) { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
+    getDieSlot(color) { return this.diceContainer.querySelector(`.die-slot[data-color="${color}"]`); }
+    getDiceContainer() { return this.diceContainer; }
+    getDiceData() { return this.diceData; }
+}
+DiceHandler.PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
+DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
+DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows its card-9 arrows
+DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
+DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
+DiceHandler.DIE_FACES = 6;
+
 /**
- * Card 9, after the roll: the active owner picks a die that hasn't been changed this roll, then turns it by 1
- * (6 wraps to 1, 1 wraps to 6), or skips.
+ * Card 9, after the roll: the active owner turns one die that hasn't been changed this roll by 1 (6 wraps to 1,
+ * 1 wraps to 6), or skips. Clicking a die's up (+1) or down (-1) arrow, or the top or bottom half of the die, selects
+ * that choice; "Confirm" sends it ([BGA] like card play, the "One-click card play" preference sends it at once).
+ * Everyone else only sees the status text.
  */
 class ModifyDie {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
         this.modifiableDice = [];
+        this.selectedChoice = null;
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
         this.modifiableDice = args?.modifiableDice ?? [];
+        this.selectedChoice = null;
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} may change a die (card 9)'));
             return;
         }
-        this.game.diceHandler.setSelectableDice(this.modifiableDice.map(die => die.color));
+        this.game.diceHandler.showModifyArrowsPOWER9(this.modifiableDice);
         this.updateStatusBar();
     }
     /**
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
      */
     onLeavingState(args, isCurrentPlayerActive) {
-        this.game.diceHandler.clearSelectableDice();
+        this.selectedChoice = null;
+        this.game.diceHandler.hideModifyArrowsPOWER9();
     }
-    //called by DiceHandler when a die is selected or unselected
-    dieSelectionChanged() {
+    //called by DiceHandler: another choice switches the selection, the selected one clears it
+    choiceClicked(dieColor, delta) {
+        if (this.game.prefHandler?.isOneClickPlay()) {
+            this.modifyDie(dieColor, delta);
+            return;
+        }
+        const isSelectedChoice = this.selectedChoice?.color === dieColor && this.selectedChoice?.delta === delta;
+        this.selectedChoice = isSelectedChoice ? null : { color: dieColor, delta: delta };
+        this.game.diceHandler.setSelectedChoicePOWER9(this.selectedChoice);
         this.updateStatusBar();
     }
     updateStatusBar() {
         this.bga.statusBar.removeActionButtons();
-        const selectedColor = this.game.diceHandler.getSelectedDieColor();
-        const selectedDie = this.modifiableDice.find(die => die.color === selectedColor);
-        if (selectedDie) {
-            this.bga.statusBar.setTitle(_('${you} may turn this die by 1'));
-            const lowerValue = (selectedDie.value === 1) ? 6 : selectedDie.value - 1;
-            const higherValue = (selectedDie.value === 6) ? 1 : selectedDie.value + 1;
-            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', lowerValue.toString()), () => this.modifyDie(selectedDie.color, -1), { id: 'die-minus-button' });
-            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', higherValue.toString()), () => this.modifyDie(selectedDie.color, 1), { id: 'die-plus-button' });
+        const selectedChoice = this.selectedChoice;
+        const selectedDie = selectedChoice ? this.modifiableDice.find(die => die.color === selectedChoice.color) : null;
+        if (selectedChoice && selectedDie) {
+            const newValue = DiceHandler.turnDieValue(selectedDie.value, selectedChoice.delta);
+            this.bga.statusBar.setTitle(_('Turn ${die} ${oldValue} → ${newValue}?')
+                .replace('${die}', this.getDieIconHTML(selectedDie.color))
+                .replace('${oldValue}', selectedDie.value.toString())
+                .replace('${newValue}', newValue.toString()));
+            this.bga.statusBar.addActionButton(_('Confirm'), () => this.modifyDie(selectedChoice.color, selectedChoice.delta), { id: 'confirm-die-button' });
         }
         else {
-            this.bga.statusBar.setTitle(_('${you} may choose a die to turn by 1 (card 9)'));
+            this.bga.statusBar.setTitle(_('${you} may turn a die up or down by 1 (card 9)'));
         }
-        this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER9'), { id: 'skip-power-button', color: 'secondary' });
+        this.bga.statusBar.addActionButton(_('Skip'), () => this.skipClicked(), { id: 'skip-power-button', color: 'secondary' });
+    }
+    //"Skip" puts a previewed die back at once
+    skipClicked() {
+        this.cancelSelection();
+        this.bga.actions.performAction('actSkip_POWER9');
+    }
+    //clears the choice and its die preview; DiceHandler calls it when the server sends real dice values
+    cancelSelection() {
+        if (!this.selectedChoice)
+            return;
+        this.selectedChoice = null;
+        this.game.diceHandler.setSelectedChoicePOWER9(null);
+        if (this.game.getGameStateName() === 'ModifyDie' && this.bga.players.isCurrentPlayerActive())
+            this.updateStatusBar();
+    }
+    //a mini copy of the die with its real value (never the preview), for the status bar
+    getDieIconHTML(dieColor) {
+        const dieData = this.game.diceHandler.getDiceData().find(die => die.color === dieColor);
+        if (!dieData)
+            return '';
+        const dieIcon = this.game.diceHandler.createDieDiv(dieData);
+        dieIcon.classList.add('status-die-icon');
+        return dieIcon.outerHTML;
     }
     modifyDie(dieColor, delta) {
         this.bga.actions.performAction('actModifyDie_POWER9', { dieColor: dieColor, delta: delta });
@@ -769,101 +945,6 @@ HandHandler.MAX_CARD_OVERLAP = 0.7;
 HandHandler.MOBILE_HAND_SPAN_PERCENT = 99; //like Fugu: on mobile the hand spans 99% of its container's width
 HandHandler.MOBILE_MAX_CARD_OVERLAP = 0.85; //on mobile a card may cover this share of the one before
 HandHandler.RESIZE_DEBOUNCE_TIME = 100;
-
-class DiceHandler {
-    constructor(game, diceData) {
-        this.game = game;
-        this.diceData = diceData;
-        this.diceContainer = document.querySelector('#dice-container');
-        //only the dice in the game area get an id (for their tooltip), never the copies in log rows
-        for (let dieData of this.diceData) {
-            const aDie = this.createDieDiv(dieData);
-            aDie.id = 'die-' + dieData.color;
-            this.diceContainer.appendChild(aDie);
-        }
-        this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
-    }
-    //card 9: the active owner picks one die, then turns it with the status bar buttons
-    diceContainerClicked(event) {
-        if (!this.game.bga.players.isCurrentPlayerActive())
-            return;
-        if (this.game.getGameStateName() !== 'ModifyDie')
-            return;
-        if (this.game.isInterfaceLocked())
-            return;
-        const aDie = event.target.closest('.a-die');
-        if (!aDie || !aDie.classList.contains(DiceHandler.SELECTABLE_DIE_CLASS))
-            return;
-        const dieWasAlreadySelected = aDie.classList.contains(DiceHandler.SELECTED_DIE_CLASS);
-        this.clearDieSelection();
-        if (!dieWasAlreadySelected)
-            aDie.classList.add(DiceHandler.SELECTED_DIE_CLASS);
-        this.game.modifyDie.dieSelectionChanged();
-    }
-    setSelectableDice(colors) {
-        this.clearSelectableDice();
-        for (let color of colors)
-            this.getDieDiv(color)?.classList.add(DiceHandler.SELECTABLE_DIE_CLASS);
-    }
-    clearSelectableDice() {
-        this.clearDieSelection();
-        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTABLE_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTABLE_DIE_CLASS));
-    }
-    clearDieSelection() {
-        this.diceContainer.querySelectorAll('.a-die.' + DiceHandler.SELECTED_DIE_CLASS).forEach(aDie => aDie.classList.remove(DiceHandler.SELECTED_DIE_CLASS));
-    }
-    getSelectedDieColor() {
-        const selectedDie = this.diceContainer.querySelector('.a-die.' + DiceHandler.SELECTED_DIE_CLASS);
-        return selectedDie ? selectedDie.getAttribute('data-color') : null;
-    }
-    //also used for the mini dice in logs
-    createDieDiv(dieData) {
-        const aDie = document.createElement('div');
-        aDie.className = 'a-die';
-        aDie.setAttribute('data-color', dieData.color);
-        aDie.innerHTML = '<span class="die-pip"></span>'.repeat(DiceHandler.PIPS_PER_DIE);
-        this.applyDieData(aDie, dieData);
-        return aDie;
-    }
-    //a die that has not been rolled yet (value null) shows a blank face
-    applyDieData(aDie, dieData) {
-        aDie.setAttribute('data-value', dieData.value === null ? '' : dieData.value.toString());
-        aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
-        aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
-        const reserverID = dieData.reserved_by_POWER2;
-        aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
-        if (reserverID !== null)
-            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(reserverID));
-        else
-            aDie.style.removeProperty('--reserver-color');
-    }
-    updateDice(diceData) {
-        for (let dieData of diceData) {
-            const aDie = this.getDieDiv(dieData.color);
-            if (!aDie)
-                continue;
-            this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
-            this.game.tooltipHandler?.updateDieTooltip(dieData);
-            const previousValue = aDie.getAttribute('data-value');
-            this.applyDieData(aDie, dieData);
-            if (previousValue !== aDie.getAttribute('data-value'))
-                this.playChangeAnimation(aDie);
-        }
-    }
-    playChangeAnimation(aDie) {
-        aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
-        void aDie.offsetWidth; // restart the animation if it's already running
-        aDie.classList.add(DiceHandler.CHANGE_ANIM_CLASS);
-        aDie.addEventListener('animationend', () => aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS), { once: true });
-    }
-    getDieDiv(color) { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
-    getDiceContainer() { return this.diceContainer; }
-    getDiceData() { return this.diceData; }
-}
-DiceHandler.PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
-DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
-DiceHandler.SELECTABLE_DIE_CLASS = 'selectable-die';
-DiceHandler.SELECTED_DIE_CLASS = 'selected-die';
 
 class StartTokenHandler {
     constructor(game, startPlayerID) {

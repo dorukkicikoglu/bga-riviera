@@ -129,12 +129,23 @@ Card 11 (`debug_POWER11()`, then More):
 - [ ] Two 11s in the same turn, both owners More: the first owner (clockwise from the new Start token holder) is asked; if they add it, the second owner is not asked and gets no row. If the first skips, the second is asked.
 
 Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9 first):
-- [ ] After the next roll I'm asked to pick a die; the modifiable dice glow. Others see that I may change a die.
-- [ ] Picking a die shows "Turn to N" twice: 1 can go to 6 and 2, 6 can go to 5 and 1.
+- [ ] After the next roll each die I can turn shows a small up arrow above it and a small down arrow below it; the status bar only has "Skip". Others and spectators see no arrows, just that I may change a die.
+- [ ] The gap between a die and its arrow looks the same above and below.
+- [ ] Clicking an arrow selects it (it stays highlighted) and the status bar reads "Turn [die] 4 → 5?" with "Confirm" and "Skip"; nothing is sent yet. Clicking the top half of a die selects its up arrow, the bottom half its down arrow.
+- [ ] Clicking another arrow (or half) switches the selection; clicking the selected one again clears it and the status bar goes back to "may turn a die". "Confirm" turns the die.
+- [ ] Preview: selecting the green 6's down arrow makes that die show 5 with a soft glow, instantly (no shrink/expand animation, also when the real value comes back), while the status bar still shows "Turn [green 6] 6 → 5?". A new roll and the turned die after "Confirm" still animate, for everyone. Only one die is previewed: selecting another arrow (other die, or the other arrow of the same die) puts the first die back to its real value and previews the new choice; clearing the selection puts it back too.
+- [ ] The preview disappears and the real value comes back on "Skip", on F5, and when leaving the state; after "Confirm" the die shows the real new value from the server (no glow).
+- [ ] Another player and a spectator never see the preview: their dice keep the real values while I'm choosing.
+- [ ] With "One-click card play" on, clicking an arrow or a die half turns the die at once, with no Confirm.
+- [ ] On desktop, hovering anywhere from an arrow's tip to the die's middle line (the arrow, the gap or that half of the die) lights that arrow; there is no spot between the two arrows that lights neither. Hovering shows the result: 1's down arrow "1 → 6", 6's up arrow "6 → 1".
+- [ ] Outside card 9 (and for other players, spectators, and a die already turned) hovering a die shows its normal tooltip and clicking it does nothing.
+- [ ] The dice don't move when the arrows appear or disappear (compare the dice row before, during and after card 9), on desktop and on a phone.
+- [ ] On a phone: tapping an arrow, the gap, or either half of the die selects the matching choice.
+- [ ] A die already turned this roll (with its "±" badge) has no arrows.
 - [ ] The die changes for everyone, gets the "±" badge, and a teal log row shows old and new die.
 - [ ] Playable cards reflect the new value.
-- [ ] A modified die can't be picked by a later owner (two 9s in the same turn, clockwise from the Start token holder).
-- [ ] The gold die can be picked when it is in use.
+- [ ] A modified die shows no arrows for a later owner (two 9s in the same turn, clockwise from the Start token holder).
+- [ ] The gold die gets arrows when it is in use; a reserved die (card 2) gets them too.
 - [ ] "Skip" works and logs a skip row.
 - [ ] An owner who chose Stop after playing the 9 is not asked (no row).
 

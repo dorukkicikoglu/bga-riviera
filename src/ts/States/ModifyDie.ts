@@ -10,13 +10,17 @@
  * ModifyDie.ts
  */
 import { Game } from "../Game";
+import { DiceHandler } from "../DiceHandler";
 
 /**
- * Card 9, after the roll: the active owner picks a die that hasn't been changed this roll, then turns it by 1
- * (6 wraps to 1, 1 wraps to 6), or skips.
+ * Card 9, after the roll: the active owner turns one die that hasn't been changed this roll by 1 (6 wraps to 1,
+ * 1 wraps to 6), or skips. Clicking a die's up (+1) or down (-1) arrow, or the top or bottom half of the die, selects
+ * that choice; "Confirm" sends it ([BGA] like card play, the "One-click card play" preference sends it at once).
+ * Everyone else only sees the status text.
  */
 export class ModifyDie {
     private modifiableDice: { color: DieColor; value: number; }[] = [];
+    private selectedChoice: { color: DieColor; delta: number; } | null = null;
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -26,13 +30,14 @@ export class ModifyDie {
      */
     onEnteringState(args: ModifyDieArgs, isCurrentPlayerActive: boolean) {
         this.modifiableDice = args?.modifiableDice ?? [];
+        this.selectedChoice = null;
 
         if(!isCurrentPlayerActive){
             this.bga.statusBar.setTitle(_('${actplayer} may change a die (card 9)'));
             return;
         }
 
-        this.game.diceHandler.setSelectableDice(this.modifiableDice.map(die => die.color));
+        this.game.diceHandler.showModifyArrowsPOWER9(this.modifiableDice);
         this.updateStatusBar();
     }
 
@@ -40,32 +45,69 @@ export class ModifyDie {
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
      */
     onLeavingState(args: ModifyDieArgs, isCurrentPlayerActive: boolean) {
-        this.game.diceHandler.clearSelectableDice();
+        this.selectedChoice = null;
+        this.game.diceHandler.hideModifyArrowsPOWER9();
     }
 
-    //called by DiceHandler when a die is selected or unselected
-    public dieSelectionChanged(): void {
+    //called by DiceHandler: another choice switches the selection, the selected one clears it
+    public choiceClicked(dieColor: DieColor, delta: number): void {
+        if(this.game.prefHandler?.isOneClickPlay()){
+            this.modifyDie(dieColor, delta);
+            return;
+        }
+
+        const isSelectedChoice = this.selectedChoice?.color === dieColor && this.selectedChoice?.delta === delta;
+        this.selectedChoice = isSelectedChoice ? null : { color: dieColor, delta: delta };
+        this.game.diceHandler.setSelectedChoicePOWER9(this.selectedChoice);
         this.updateStatusBar();
     }
 
     private updateStatusBar(): void {
         this.bga.statusBar.removeActionButtons();
 
-        const selectedColor = this.game.diceHandler.getSelectedDieColor();
-        const selectedDie = this.modifiableDice.find(die => die.color === selectedColor);
+        const selectedChoice = this.selectedChoice;
+        const selectedDie = selectedChoice ? this.modifiableDice.find(die => die.color === selectedChoice.color) : null;
 
-        if(selectedDie){
-            this.bga.statusBar.setTitle(_('${you} may turn this die by 1'));
-
-            const lowerValue = (selectedDie.value === 1) ? 6 : selectedDie.value - 1;
-            const higherValue = (selectedDie.value === 6) ? 1 : selectedDie.value + 1;
-            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', lowerValue.toString()), () => this.modifyDie(selectedDie.color, -1), {id: 'die-minus-button'});
-            this.bga.statusBar.addActionButton(_('Turn to ${value}').replace('${value}', higherValue.toString()), () => this.modifyDie(selectedDie.color, 1), {id: 'die-plus-button'});
+        if(selectedChoice && selectedDie){
+            const newValue = DiceHandler.turnDieValue(selectedDie.value, selectedChoice.delta);
+            this.bga.statusBar.setTitle(_('Turn ${die} ${oldValue} → ${newValue}?')
+                .replace('${die}', this.getDieIconHTML(selectedDie.color))
+                .replace('${oldValue}', selectedDie.value.toString())
+                .replace('${newValue}', newValue.toString()));
+            this.bga.statusBar.addActionButton(_('Confirm'), () => this.modifyDie(selectedChoice.color, selectedChoice.delta), {id: 'confirm-die-button'});
         } else {
-            this.bga.statusBar.setTitle(_('${you} may choose a die to turn by 1 (card 9)'));
+            this.bga.statusBar.setTitle(_('${you} may turn a die up or down by 1 (card 9)'));
         }
 
-        this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER9'), {id: 'skip-power-button', color: 'secondary'});
+        this.bga.statusBar.addActionButton(_('Skip'), () => this.skipClicked(), {id: 'skip-power-button', color: 'secondary'});
+    }
+
+    //"Skip" puts a previewed die back at once
+    private skipClicked(): void {
+        this.cancelSelection();
+        this.bga.actions.performAction('actSkip_POWER9');
+    }
+
+    //clears the choice and its die preview; DiceHandler calls it when the server sends real dice values
+    public cancelSelection(): void {
+        if(!this.selectedChoice)
+            return;
+
+        this.selectedChoice = null;
+        this.game.diceHandler.setSelectedChoicePOWER9(null);
+        if(this.game.getGameStateName() === 'ModifyDie' && this.bga.players.isCurrentPlayerActive())
+            this.updateStatusBar();
+    }
+
+    //a mini copy of the die with its real value (never the preview), for the status bar
+    private getDieIconHTML(dieColor: DieColor): string {
+        const dieData = this.game.diceHandler.getDiceData().find(die => die.color === dieColor);
+        if(!dieData)
+            return '';
+
+        const dieIcon = this.game.diceHandler.createDieDiv(dieData);
+        dieIcon.classList.add('status-die-icon');
+        return dieIcon.outerHTML;
     }
 
     private modifyDie(dieColor: DieColor, delta: number): void {

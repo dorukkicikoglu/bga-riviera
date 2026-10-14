@@ -63,7 +63,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
 ## Turn sequence
 
 1. **Roll**: roll all colored dice in use, plus the golden die if a card 11 added it last turn. A card 2 reservation set last turn applies to this roll.
-2. **Card 9 powers** (from cards 9 played last turn): owners still in the round, clockwise from the Start token holder, each may change one die by +/-1 or pass.
+2. **Card 9 powers** (from cards 9 played last turn): owners still in the round, clockwise from the Start token holder, each may change one die by +/-1 or pass. **[BGA]** The active owner clicks an up (+1) or down (-1) arrow on a die that can still be turned (each arrow's click area reaches over its half of the die), then "Confirm" ("Turn [die] 4 → 5?"); another click switches or clears the choice, "Skip" passes. While a choice is selected, that die shows the value it would become, with a soft glow, for the owner only (no one else sees the preview); the status bar icon keeps the real value. With "One-click card play" on, the click turns the die at once.
 3. **Play a card (simultaneous)**: every player still in the round secretly picks one card. Valid plays:
    - a card whose value and color equal one available die, or
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
@@ -130,7 +130,7 @@ Log mini cards keep a single-power tooltip. Safari on a phone shows the same ref
 
 ## Preferences [BGA]
 
-- "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included.
+- "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included. It also skips the card 9 Confirm: clicking a die's arrow (or half) turns it at once.
 
 ## Hidden information
 
@@ -212,4 +212,5 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Power timing settled with Helvetiq (2026-10-14): cards 2, 10 and 11 resolve after Stop or More, only for owners who chose More, clockwise from the new Start token holder (`RevealStopOrMore` starts the walk, `RevealCards` goes straight to `PassStartToken`). This replaces M3's cancel-on-Stop: `added_golden_die_POWER11`, the `powerCancelled` notification, the `power-cancelled-log` row and the stat decrements are gone. A second 11 in the same turn is skipped silently.
      - Banking at the Stop reveal (2026-10-14): `RevealStopOrMore` banks each stopper's stars at once (score, `starsBanked` row, `round_scores` `stopped` row, `starsBanked` / `bestRound` stats); `RevealCards` writes the `crashed` row; `EndRound` only does the 40-point check. A Grand Slam no longer turns an earlier stopper's round into "unfinished", and progression counts column stars only for players still in.
      - Mobile layout like Fugu (2026-10-14): `.mobile_version` cards at `min(28.5vw, 150px)` and dice at `min(13.3vw, 55px)` (they were `min(9vw, 90px)` / `min(7vw, 34px)`, tiny once BGA scales the 740px layout down to a phone); my hand stays one horizontal line (no zig-zag), overlapping more so it spans the hand's width with Fugu's %-margin spacing (`applyMobileCardSpacing`); columns wrap. `Game.animateSlide()` now scales the flying copy from the source's on-screen size to the destination's and positions it with a transform measured on screen, so a card lands at the column size with no jump (it used to fly at the unscaled size, outside BGA's scaling). Desktop sizes unchanged.
+     - Card 9 arrows (2026-10-14): the "select a die, then Turn to N" flow is replaced by an up (+1) and down (-1) arrow on each die that can still be turned, for the active owner only; an arrow (its click area covers the triangle, the gap and its half of the die) selects the choice and previews it on that die (local only), "Confirm" sends it (or the click itself with "One-click card play"), the title shows the result ("6 → 1"), "Skip" stays. `#dice-container` always reserves the arrows' space, so the dice never move.
      - Not code, yours: the Game Metadata Manager (designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, banner, icon, display images, a transparent box image).

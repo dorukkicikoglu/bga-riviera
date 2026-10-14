@@ -157,10 +157,37 @@ $card-icon-number-height: 28px;
     &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
 
     &.die-changed{ animation: die-changed 300ms ease; }
-    &.selected-die{ transform: translateY(-6px); outline: 3px solid #e8862b; outline-offset: 2px; }
 }
 
-#dice-container{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px 0px 6px 0px; min-height: var(--die-size); }
+//the space above and below the dice is always reserved for the card-9 arrows (just their height plus a gap), in every
+//state, so the dice never move when the arrows appear or go. The die's drop shadow falls 2px below it, so the gap below
+//is 2px wider: the two gaps then look the same
+#dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
+
+    .die-slot{ position: relative; }
+
+    //card 9, active owner only (DiceHandler.showModifyArrowsPOWER9): two transparent hit containers on top of each die that
+    //can be turned. The up one (+1) runs from its triangle's tip down to the die's middle line, the down one (-1) from that
+    //line to its triangle's tip, so together they cover the arrows, the gaps and the die with no dead zone. Only the
+    //filled triangle inside each one is visible, centered at its outer end; hovering the container lights it
+    .die-arrow{ position: absolute; left: 0px; right: 0px; z-index: 2; cursor: pointer;
+        &[data-delta="1"]{ top: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap))); bottom: 50%;
+            .die-arrow-triangle{ top: 0px; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transform-origin: 50% 100%; }
+        }
+        &[data-delta="-1"]{ top: 50%; bottom: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap-below)));
+            .die-arrow-triangle{ bottom: 0px; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); transform-origin: 50% 0%; }
+        }
+        .die-arrow-triangle{ position: absolute; left: 50%; width: var(--die-arrow-width); height: var(--die-arrow-height); margin-left: calc(var(--die-arrow-width) / -2); background: #ffe8a3; filter: drop-shadow(0 0 1.5px #07151a); transition: transform 0.15s ease, background 0.15s ease; pointer-events: none; }
+        &:hover .die-arrow-triangle{ background: #ffd700; transform: scale(1.25); }
+        //chosen, waiting for Confirm
+        &.selected-die-arrow-power9 .die-arrow-triangle{ background: #ffd700; transform: scale(1.35); filter: drop-shadow(0 0 1.5px #07151a) drop-shadow(0 0 4px #ffd700); }
+    }
+    //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview
+    .a-die.previewed-die-power9{ filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700); }
+}
+//the die in the card-9 confirm title: "Turn [die] 4 → 5?"
+.status-die-icon{ display: inline-block; vertical-align: middle; --die-size: 24px; margin: 0px 3px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
 //end dice
 
 .my-hand-title, .played-column-title{ position: absolute; top: 0px; left: 18px; transform: translateY(-50%); font-family: "Roboto", sans-serif; font-size: 18px; white-space: nowrap; @include text-shade(#f0f0f0, 2px); @include non-selectable(); }
@@ -192,7 +219,6 @@ $card-icon-number-height: 28px;
 body.current_player_is_active:not(.lockedInterface){
     #my-hand-container .cards-container .a-card.selectable-card{ cursor: pointer; animation: selectable-card-glow-pulse 3s ease-in-out infinite; }
     &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation: mobile-selectable-card-glow-pulse 3s ease-in-out infinite; }
-    #dice-container .a-die.selectable-die{ cursor: pointer; animation: selectable-die-glow-pulse 3s ease-in-out infinite; }
 }
 
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
@@ -433,12 +459,6 @@ $power-icons: (
 @keyframes mobile-selectable-card-glow-pulse {
   0% { box-shadow: 0 0 4px 4px #FFD700; }
   50% { box-shadow: 0 0 8px 8px #ffd483; }
-  100% { box-shadow: 0 0 4px 4px #FFD700; }
-}
-
-@keyframes selectable-die-glow-pulse {
-  0% { box-shadow: 0 0 4px 4px #FFD700; }
-  50% { box-shadow: 0 0 9px 9px #ffd483; }
   100% { box-shadow: 0 0 4px 4px #FFD700; }
 }
 
