@@ -64,7 +64,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
    Dice reserved by another player are unavailable to you.
    - **[BGA]** The server computes valid cards and only offers those. If none is valid, the only buttons are "Use Last Chance" (when available) and "Crash".
-   - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm". "Crash" has no confirm dialog; Change my mind is the safety net.
+   - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm" (one click with the "One-click card play" preference, see Preferences). "Crash" has no confirm dialog; Change my mind is the safety net.
    - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Finish", again after each extra 1. If nothing more is playable, the chain finishes on its own. Change my mind rolls back the whole chain.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.
    - Crash: eliminated from the round, all played cards and hand are discarded, 0 points this round.
@@ -79,7 +79,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
    - **Players can change their mind until the last player decides** (see "Change my mind" below).
    - Stop: banks the stars of all cards in front of them, out for the rest of the round.
    - More: stays in for the next turn.
-   - A user preference for auto-"More" is a later nice-to-have.
+   - **[BGA]** No auto-"More" preference: BGA forbids sending actions programmatically.
 9. If at least one player said More, go to step 1. Otherwise the round ends.
 
 Round ends when everyone has stopped or crashed.
@@ -101,6 +101,21 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 - If anyone has 40+ points after a round: highest score wins; ties share the win (equal `player_score`, no tiebreaker).
 - Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked once, after every reveal (card-1 chains included), before any power. The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Log: "<name> plays all 10 cards: Grand Slam!".
 - Otherwise start a new round. The Start token keeps passing in turn order.
+- **[BGA]** End-game display (Fugu-style table, fading in cell by cell, winners jumping): one row per round with the stars each player banked (a bomb for a crash, a gold cell for a Grand Slam, "-" for a round a Grand Slam cut short), then a Total row equal to `player_score`. Stored in a `round_scores` table. A game-end log row names the winner(s).
+- **[BGA]** Game progression: the highest `player_score` plus column stars among players not crashed this round, out of 40, capped at 99 until the game ends.
+
+## Zombie mode [BGA]
+
+Level 1 (report it in the Game Metadata Manager):
+- Card play: the playable card with the most stars (ties at random); a 1 chains greedily. No playable card: Last Chance if available, else crash.
+- Stop or More: always Stop.
+- Card 9: random among skip and every modifiable die turned -1 or +1.
+- Card 11: random add or skip.
+- Card 10: random among skip and every target (2 random own cards); in the redraw fallback, random redraw or skip.
+
+## Preferences [BGA]
+
+- "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included.
 
 ## Hidden information
 
@@ -132,8 +147,9 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 
 ## Statistics (stats.jsonc)
 
-Per player: rounds played, rounds stopped, crashes, Last Chance used (turn number), stars banked, best round, cards played, powers used per value, grand slam.
-Table: rounds, turns.
+Per player: rounds played, rounds stopped, crashes, Last Chance used (bool) and the round it was used in (set only when used, so unused games don't skew the average), stars banked, best round, cards played (chain cards included), powers used per value (1: extra cards added; 2 and 11: not counted when a Stop cancels them; 10: cards swapped or redrawn), grand slam (bool).
+Table: rounds, turns (dice rolls).
+Full list with ids: `.claude/plans/milestone-4.md`.
 
 ## Milestones
 
@@ -168,4 +184,4 @@ Table: rounds, turns.
      - Zombies skip every power; a zombie that plays a 1 does not chain.
      - Unverified until Studio: re-entering the same active state with a new active player (`ResolvePowers` → `ResolvePowers`, `ModifyDie` → `ModifyDie`, `SwapCards` → `SwapCards`; fallback: a small GAME dispatcher state on a free id such as 32); `#[IntArrayParam]` reading the comma-separated `cardIDs` the client sends.
      - Publisher answers after the build: simultaneous reveal, simultaneous Stop/More, Grand Slam scoring, card 9 on the golden or a reserved die, and stopped players excluded from cards 9 and 10 are confirmed. Changed to match: a Stop cancels the player's card 2 reservation, and (still [UNCONFIRMED with publisher]) the golden die they added (new `player.added_golden_die_POWER11`, `powerCancelled` notification, `power-cancelled-log` row); a second 11 is now asked instead of skipped; card 10 only targets opponents with at least 2 cards, always swaps 2 (no short swap or confirm), and an owner with fewer than 2 cards skips.
-4. **Polish**: Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences.
+4. **Polish** (planned, not built; plan: `.claude/plans/milestone-4.md`): Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences, alpha checklist items. `estimated_duration` becomes 20 (box), `bgg_id` 478651 confirmed, no CSS class prefix (like Fugu). Designer, artist and images go in the Studio Game Metadata Manager.
