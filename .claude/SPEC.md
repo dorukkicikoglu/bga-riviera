@@ -38,13 +38,14 @@ Same for every color. Put this table in `material.inc.php`.
 | Value | Timing | Effect |
 |---|---|---|
 | 1 | Immediately after playing it | Play one extra card from hand, using the same roll. Must be a valid play. The extra card can trigger its own power (a second 1 chains). **[BGA]** The chain is part of the player's secret choice in step 3: after confirming a 1, they add another valid card or finish, again after each extra 1. Everything is revealed together. Faster on BGA than resolving card 1 after the reveal in turn order. |
-| 2 | Before the next roll | On the next roll, the die of this card's color is reserved for you; opponents can't use it (alone or in a sum). **[BGA]** Not optional: reserved automatically after the reveal. The owner can still use it. A reserved die can't be reserved again. If the owner then chooses Stop, the reservation is cancelled when Stop is revealed, with a log row (publisher: a player who stops does not take part in the next turn, so a power meant for that turn does not activate). |
-| 10 | Before the next roll | Choose 2 cards from your hand and an opponent still in the round (`round_status` 'in', so never a player who stopped) with at least 2 cards in hand; swap them for 2 random cards from that opponent's hand. The victim is passive. If no such opponent exists: discard and draw from the draw pile. **[BGA]** Only as many as can be drawn (hand size never changes; a confirm explains it when only 1 can be drawn). Reshuffle the discard pile (not the cards being discarded) into a short draw pile. With 0 cards to draw, the power is skipped. An owner with fewer than 2 cards in hand can't use it. |
-| 11 | Before the next roll | The golden die is added to the next roll for everyone. It has no color: it can only be used summed with a colored die, and the card must match that colored die's color. Removed at end of that turn. **[BGA]** If another 11 is activated that turn, it stays and is rolled again on the next roll. If the owner then chooses Stop, the golden die is not added, with a log row **[UNCONFIRMED with publisher]**, by analogy with card 2. A second 11 in the same turn is still asked: the golden die stays as long as one player who added it doesn't stop. |
-| 9 | After the next roll, before playing | Turn one die of your choice +1 or -1 (6 wraps to 1, 1 wraps to 6). Applies to everyone. A die already modified this turn can't be modified again. The golden die and a reserved die are valid targets. An owner who stopped before that roll can't use it. |
+| 2 | After Stop or More, before the next roll (only if the owner chose More) | **[BGA]** Automatic, no button. Reserves the die of this card's color for its owner on the next roll; opponents can't use it, alone or in a sum. The owner can still use it. A reserved die can't be reserved again. Cleared after that turn's reveal. |
+| 10 | After Stop or More, before the next roll (only if the owner chose More) | Choose 2 cards from your hand and an opponent who chose More (`round_status` 'in' once the Stops are applied) with at least 2 cards in hand; swap them for 2 random cards from that opponent's hand. The victim is passive. If no such opponent exists: discard and draw from the draw pile. **[BGA]** Only as many as can be drawn (hand size never changes; a confirm explains it when only 1 can be drawn). Reshuffle the discard pile (not the cards being discarded) into a short draw pile. With 0 cards to draw, the power is skipped. An owner with fewer than 2 cards in hand can't use it. |
+| 11 | After Stop or More, before the next roll (only if the owner chose More) | Optional. Adds the golden die to the next roll for everyone. It has no color: it only counts in a sum with a colored die, and the card must match that colored die's color. Cleared after that turn's reveal, unless a new 11 is added (then it stays and is rolled again). **[BGA]** A second 11 in the same turn, when the golden die is already added, is skipped without a prompt or log row. |
+| 9 | After the next roll, before playing | Turn one die of your choice +1 or -1 (6 wraps to 1, 1 wraps to 6). Applies to everyone. A die already modified this roll can't be modified again. The golden die and a reserved die are valid targets. Only if the owner is still in the round (an owner who stopped loses it). **[BGA]** If every die has already been turned this roll, a later owner is skipped without a prompt or log row. |
 
-Activating a power is always optional (**[BGA]** except card 2). When several players trigger powers in the same step, resolve them clockwise starting from the Start token holder. Each player has at most one non-1 power per turn (a chain only continues on 1s), so powers resolve player by player.
-**[BGA]** Effect lifetime: a card-2 reservation and the golden die apply only to the turn after the power is used, and are cleared after that turn's reveal (unless a new 11 is activated). An owner who chooses Stop right after using card 2 (or card 11, unconfirmed) cancels it.
+Activating a power is always optional (**[BGA]** except card 2). When several players trigger powers in the same step, resolve them clockwise starting from the Start token holder (the player who received it at step 5 of that turn). Each player has at most one non-1 power per turn (a chain only continues on 1s), so powers resolve player by player.
+**[BGA, confirmed with publisher]** A player who stops doesn't benefit from their powers: cards 2, 10 and 11 resolve after Stop or More (turn step 7), only for owners who chose More. Owners who stopped lose them silently (no prompt, no log row). Card 9 needs its owner still in the round at the next roll. This differs from the rulebook, which resolves cards 2, 10 and 11 before Stop or More.
+**[BGA]** Effect lifetime: a card-2 reservation and the golden die apply to the next roll's turn only, and are cleared after that turn's reveal (the golden die stays, and is rolled again, only if a new 11 adds it). Only the last card a player revealed can leave a non-1 power (the end of a card-1 chain). A Grand Slam ends the game before any power. A new round clears every pending power, reservation and golden die.
 
 ## Setup
 
@@ -61,8 +62,8 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
 
 ## Turn sequence
 
-1. **Roll**: roll all colored dice in use (plus golden die if a card 11 was played last turn). Apply card 2 reservations from last turn.
-2. **Card 9 powers** (from cards 9 played last turn): each owner, clockwise from Start token holder, may change one die by +/-1 or pass.
+1. **Roll**: roll all colored dice in use, plus the golden die if a card 11 added it last turn. A card 2 reservation set last turn applies to this roll.
+2. **Card 9 powers** (from cards 9 played last turn): owners still in the round, clockwise from the Start token holder, each may change one die by +/-1 or pass.
 3. **Play a card (simultaneous)**: every player still in the round secretly picks one card. Valid plays:
    - a card whose value and color equal one available die, or
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
@@ -72,25 +73,24 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
    - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Finish", again after each extra 1. If nothing more is playable, the chain finishes on its own. Change my mind rolls back the whole chain.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.
    - Crash: eliminated from the round, all played cards and hand are discarded, 0 points this round.
-   - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Change my mind" mechanism as Stop or More (step 8). The chosen card stays visibly set aside in their hand, and pressing "Change my mind" returns it and re-activates them.
+   - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Change my mind" mechanism as Stop or More (step 6). The chosen card stays visibly set aside in their hand, and pressing "Change my mind" returns it and re-activates them.
    - Once everyone has chosen, all cards are revealed together.
-4. **Grand Slam check** **[BGA: once, after the reveal]**: anyone whose hand is now empty (all 10 cards played this round, card-1 chains included) wins instantly; the game ends before any card 2/9/10/11 power.
-5. **Pre-roll powers** (cards 2, 10, 11 just played): resolved player by player, clockwise from the Start token holder. Card 2 is automatic, card 11 is add/skip, card 10 needs a choice (own cards and one opponent, or the discard/draw fallback). Card 9 waits for step 2 of the next turn.
-6. (merged into step 4)
-7. **Pass the Start token** to the next player in turn order, regardless of their round status. Use the framework's player order helpers (`getPlayerAfter()` / `getNextPlayerTable()`, check what Fugu and `_ide_helper.php` provide) rather than reading `player_no` by hand; fall back to `player_no` only if no helper fits.
-8. **Stop or More** **[BGA: simultaneous, differs from the rules, confirmed with publisher]**: every player still in the round chooses Stop or More at the same time (multiactive state).
+4. **Reveal and Grand Slam check**: all chosen cards are revealed together. **[BGA: once, after the reveal]** Anyone whose hand is now empty (all 10 cards played this round, card-1 chains included) wins instantly; the game ends with no power. Otherwise last turn's card 2 reservation and golden die are cleared.
+5. **Pass the Start token** to the next player in turn order, regardless of their round status. Use the framework's player order helpers (`getPlayerAfter()` / `getNextPlayerTable()`, check what Fugu and `_ide_helper.php` provide) rather than reading `player_no` by hand; fall back to `player_no` only if no helper fits.
+6. **Stop or More** **[BGA: simultaneous, differs from the rules, confirmed with publisher]**: every player still in the round chooses Stop or More at the same time (multiactive state).
    - Choices stay hidden until everyone has chosen; then all are revealed in one notification.
    - **Players can change their mind until the last player decides** (see "Change my mind" below).
    - Stop: banks the stars of all cards in front of them, out for the rest of the round.
    - More: stays in for the next turn.
    - **[BGA]** No auto-"More" preference: BGA forbids sending actions programmatically.
-9. If at least one player said More, go to step 1. Otherwise the round ends.
+7. **Powers of cards 2, 10 and 11** played this turn **[BGA, confirmed with publisher: differs from the rulebook, which resolves them before Stop or More]**: only for owners who chose More, player by player, clockwise from the Start token holder. Card 2 is automatic, card 11 is add/skip, card 10 needs a choice (own cards and one opponent who chose More, or the discard/draw fallback). Owners who stopped lose these powers. Card 9 waits for step 2 of the next turn.
+8. If at least one player chose More, go to step 1. Otherwise the round ends.
 
 Round ends when everyone has stopped or crashed.
 
 ### Change my mind (shared mechanism)
 
-Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse it in both states.
+Used in `PlayCard` (step 3) and `StopOrMore` (step 6). Build it once and reuse it in both states.
 
 - After choosing, the player becomes inactive but still sees their choice and a "Change my mind" button.
 - Pressing it re-activates them (`setPlayersMultiactive([$playerId], '', false)`) and lets them choose again. Their previous choice is cleared on the server.
@@ -112,7 +112,7 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 8). Build it once and reuse i
 
 Level 1 (report it in the Game Metadata Manager):
 - Card play: the playable card with the most stars (ties at random); a 1 chains greedily. No playable card: Last Chance if available, else crash.
-- Stop or More: always Stop.
+- Stop or More: always Stop, so a zombie's cards 2, 9, 10 and 11 never resolve. The power choices below only apply to a player who leaves while they are the active power owner.
 - Card 9: random among skip and every modifiable die turned -1 or +1.
 - Card 11: random add or skip.
 - Card 10: random among skip and every target (2 random own cards); in the redraw fallback, random redraw or skip.
@@ -121,8 +121,10 @@ Level 1 (report it in the Game Metadata Manager):
 
 Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. The hovered card's power, if any, is highlighted. The text follows our BGA rules, not the rulebook's wording:
 - Immediately after playing the card: card 1.
-- Before the next dice roll: card 2 (automatic, cancelled if you stop), card 10 (an opponent still in the round with at least 2 cards, otherwise discard and draw), card 11 (dropped if you stop).
-- After the next dice roll and before playing a card: card 9 (the golden or a reserved die can be turned, lost if you stop).
+- Before the next dice roll, only if you choose More: card 2 (automatic), card 10 (an opponent who chose More with at least 2 cards, otherwise discard and draw), card 11.
+- After the next dice roll and before playing a card: card 9 (the golden or a reserved die can be turned, only if you are still in the round).
+
+Entries are separated by spacing only: no borders or boxes, except the hovered card's power, which gets a box (soft lighter background, rounded corners, thin border) so it stands out at a glance. Hovering a card with no power highlights nothing. A thin vertical line separates the two columns (none when they stack).
 
 Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
 
@@ -149,18 +151,18 @@ Log mini cards keep a single-power tooltip. Safari on a phone shows the same ref
 - `RollDice` (game)
 - `ModifyDie` (active player, 15, loops clockwise over card-9 owners still in the round)
 - `PlayCard` (multiple active, with change-mind)
-- `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check)
-- `ResolvePowers` (active player, 30: card-11 add/skip; card 2 is applied while walking owners, card 10 goes to `SwapCards`)
+- `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check, clears last turn's dice effects → `PassStartToken`)
+- `ResolvePowers` (active player, 30: card-11 add/skip, a second 11 is skipped when the golden die is already added; card 2 is applied while walking owners, card 10 goes to `SwapCards`)
 - `SwapCards` (active player, 35: card 10 swap or discard/draw fallback)
 - `PassStartToken` (game)
 - `StopOrMore` (multiple active, with change-mind)
-- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, More → RollDice, else EndRound)
+- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification; if anyone chose More, walks their card 2/10/11 powers clockwise from the Start token holder, then `RollDice`; else `EndRound`)
 - `EndRound` (game: scoring, check 40)
 - `EndScore`
 
 ## Statistics (stats.jsonc)
 
-Per player: rounds played, rounds stopped, crashes, Last Chance used (bool) and the round it was used in (set only when used, so unused games don't skew the average), stars banked, best round, cards played (chain cards included), powers used per value (1: extra cards added; 2 and 11: not counted when a Stop cancels them; 10: cards swapped or redrawn), grand slam (bool).
+Per player: rounds played, rounds stopped, crashes, Last Chance used (bool) and the round it was used in (set only when used, so unused games don't skew the average), stars banked, best round, cards played (chain cards included), powers used per value, counted when they resolve (1: extra cards added; 2, 9, 11: uses; 10: cards swapped or redrawn), grand slam (bool).
 Table: rounds, turns (dice rolls).
 Full list with ids: `.claude/plans/milestone-4.md`.
 
@@ -196,7 +198,7 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Debug: `debug_POWER1()`, `debug_POWER2()`, `debug_POWER9($resolveNow)`, `debug_POWER10($othersStopped)`, `debug_POWER11()`, `debug_setDrawPile($deckCount, $discardCount)` (leftover cards go to the box for the rest of that table).
      - Zombies skip every power; a zombie that plays a 1 does not chain.
      - Unverified until Studio: re-entering the same active state with a new active player (`ResolvePowers` → `ResolvePowers`, `ModifyDie` → `ModifyDie`, `SwapCards` → `SwapCards`; fallback: a small GAME dispatcher state on a free id such as 32); `#[IntArrayParam]` reading the comma-separated `cardIDs` the client sends.
-     - Publisher answers after the build: simultaneous reveal, simultaneous Stop/More, Grand Slam scoring, card 9 on the golden or a reserved die, and stopped players excluded from cards 9 and 10 are confirmed. Changed to match: a Stop cancels the player's card 2 reservation, and (still [UNCONFIRMED with publisher]) the golden die they added (new `player.added_golden_die_POWER11`, `powerCancelled` notification, `power-cancelled-log` row); a second 11 is now asked instead of skipped; card 10 only targets opponents with at least 2 cards, always swaps 2 (no short swap or confirm), and an owner with fewer than 2 cards skips.
+     - Publisher answers after the build: simultaneous reveal, simultaneous Stop/More, Grand Slam scoring, card 9 on the golden or a reserved die, and stopped players excluded from cards 9 and 10 are confirmed. Changed to match: a Stop cancelled the player's card 2 reservation and the golden die they added (`player.added_golden_die_POWER11`, `powerCancelled` notification, `power-cancelled-log` row), and a second 11 was asked instead of skipped (both superseded by the power timing settled after M4, see M4 notes); card 10 only targets opponents with at least 2 cards, always swaps 2 (no short swap or confirm), and an owner with fewer than 2 cards skips.
 4. **Polish** (done, awaiting Studio test; plan: `.claude/plans/milestone-4.md`): Fugu-style logs for the remaining notifications, tooltips for powers, statistics, end-game scoring display, zombie mode, game progression, preferences, alpha checklist items. `estimated_duration` becomes 20 (box), `bgg_id` 478651 confirmed, no CSS class prefix (like Fugu). Designer, artist and images go in the Studio Game Metadata Manager.
    - Notes:
      - Built: `stats.jsonc` (2 table, 14 player stats, initialized in `setupNewGame` except `lastChanceRound`) and the stat calls in every state that changes them; `round_scores` table, written by `EndRound` and `applyGrandSlam()`; `EndScore` sends `displayEndGameScoring` with a new `game-end-log` row; `getAllDatas` gains `pref_names`, `grandSlamPlayerIds` and `endGameScoring` (at game end).
@@ -207,4 +209,5 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Differs from the plan: `clickOrTap()` is not ported (the fast-forward hint is two whole translatable strings, since Fugu's `_()` of a built string can't be translated); the card-9 zombie builds its choices in `ModifyDie` (no shared helper, it is the only user); log rows get their card tooltips through `LogMutationObserver` (`addTooltipsToCardsIn`) instead of whole-page passes.
      - Unverified until Studio: `playerStats->set` on the never-initialized `lastChanceRound` (fallback: init it to 0); `getBestZombieChoice` (fallback: pick the max with `bga_rand` tie-breaks); BGA's dark mode selectors (only the log text color is forced).
      - After M4: game-area cards show the power reference (see Power reference) instead of a per-card power tooltip; log mini cards keep the per-card one. Icons from `img/power_icons_sprite.webp`.
+     - Power timing settled with Helvetiq (2026-10-14): cards 2, 10 and 11 resolve after Stop or More, only for owners who chose More, clockwise from the new Start token holder (`RevealStopOrMore` starts the walk, `RevealCards` goes straight to `PassStartToken`). This replaces M3's cancel-on-Stop: `added_golden_die_POWER11`, the `powerCancelled` notification, the `power-cancelled-log` row and the stat decrements are gone. A second 11 in the same turn is skipped silently.
      - Not code, yours: the Game Metadata Manager (designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, banner, icon, display images, a transparent box image).

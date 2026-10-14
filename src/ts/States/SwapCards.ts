@@ -12,8 +12,9 @@
 import { Game } from "../Game";
 
 /**
- * Card 10, before the next roll: the active owner selects 2 cards from their hand, then the opponent to swap them
- * with (the opponent's cards are random). Only opponents still in the round with at least 2 cards can be chosen.
+ * Card 10, after Stop or More (the owner chose More), before the next roll: the active owner selects 2 cards from
+ * their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
+ * and have at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
  */
 export class SwapCards {
@@ -67,7 +68,7 @@ export class SwapCards {
                 }
             }
         } else {
-            this.bga.statusBar.setTitle(_('No opponent still in the round has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
+            this.bga.statusBar.setTitle(_('No opponent who chose More has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
 
             if(selectedCardIDs.length === this.args.maxCards)
                 this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), {id: 'redraw-button'});

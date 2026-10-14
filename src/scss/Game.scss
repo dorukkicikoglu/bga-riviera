@@ -43,7 +43,6 @@
     --bg-log-cards-swapped-power10: linear-gradient(135deg, #fae8f0, #eec4d6);
     --bg-log-cards-redrawn-power10: linear-gradient(135deg, #f1f6e1, #d6e6b0);
     --bg-log-power-skipped: linear-gradient(135deg, #eef1f4, #d3d9e1);
-    --bg-log-power-cancelled: linear-gradient(135deg, #f7ebe4, #e8c9b8);
     --bg-log-game-end: linear-gradient(135deg, #fff7d6, #f0d98a);
 
     //power tooltips: a pale take on the sea
@@ -252,7 +251,7 @@ body.current_player_is_active:not(.lockedInterface){
 .log .roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
 
 $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
-    "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "power-cancelled", "game-end";
+    "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
     &.a-game-log{ position: relative;
         .roundedbox{ padding-bottom: 5px; }
@@ -279,7 +278,7 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
         .reveal-chain-plus{ font-weight: bold; color: #27271c; }
     }
     //power rows: text with mini dice or mini cards inline
-    .die-reserved-row, .golden-die-row, .die-modified-row, .cards-swapped-row, .cards-redrawn-row, .power-skipped-row, .power-cancelled-row{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
+    .die-reserved-row, .golden-die-row, .die-modified-row, .cards-swapped-row, .cards-redrawn-row, .power-skipped-row{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
         .a-die{ display: inline-block; --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
         .minimised-card-icon + .minimised-card-icon{ margin-left: 2px; }
     }

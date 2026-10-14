@@ -26,7 +26,7 @@ use Bga\Games\Riviera\Game;
 /**
  * Card 9, after the roll that follows it: the owner may turn one die by +1 or -1 (6 wraps to 1, 1 wraps to 6),
  * for everyone. A die changed this roll can't be changed again. Owners still in the round go one by one,
- * clockwise from the Start token holder; [BGA] the golden die is a valid target [UNCONFIRMED with publisher].
+ * clockwise from the Start token holder. The golden die and a reserved die are valid targets.
  */
 class ModifyDie extends GameState
 {

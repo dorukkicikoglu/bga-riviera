@@ -332,33 +332,6 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'power-skipped-log');
     }
 
-    //a player who stops loses the card 2 reservation or the golden die they just added for the next turn
-    public createLogPowerCancelled(player_id: number, value: number, card: RivieraCard | null, die: RivieraDie): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
-        const isMe = player_id === this.game.getMyPlayerID();
-
-        let cancelledText: string;
-        if(value === 2){
-            cancelledText = isMe
-                ? _('${you} stop: ${card} no longer reserves ${die}').replace('${you}', playerNameHTML)
-                : _('${playerName} stops: ${card} no longer reserves ${die}').replace('${playerName}', playerNameHTML);
-        } else {
-            cancelledText = isMe
-                ? _('${you} stop: ${card} does not add ${die} to the next roll').replace('${you}', playerNameHTML)
-                : _('${playerName} stops: ${card} does not add ${die} to the next roll').replace('${playerName}', playerNameHTML);
-        }
-
-        //the die as it was before the cancellation, without the reservation outline
-        const shownDie: RivieraDie = { ...die, reserved_by_POWER2: null, in_use_by_POWER11: true };
-        let logHTML = `
-            <div class="power-cancelled-row">
-                ${cancelledText.replace('${card}', cardHTML).replace('${die}', this.getMiniDieHTML(shownDie))}
-            </div>` + ' &nbsp;';
-
-        return this.addLogClassTag(logHTML, 'power-cancelled-log');
-    }
-
     //the game ends: everyone at the top score wins (a Grand Slam, or equal scores, share the win)
     public createLogGameEnd(winner_ids: number[], winningScore: number): LogRowData {
         const iWin = winner_ids.includes(this.game.getMyPlayerID());

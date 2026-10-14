@@ -151,7 +151,7 @@ export class Game {
 
                 // list of special keys we want to replace with images
                 const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
-                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR', 'GAME_END_LOG_STR'];
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'GAME_END_LOG_STR'];
                 for(let key of keys) {
                     if(key in args) {
                         if(key == 'NEW_ROUND_LOG_STR')
@@ -182,8 +182,6 @@ export class Game {
                             log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
                         else if(key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
-                        else if(key == 'POWER_CANCELLED_LOG_STR')
-                            log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
                         else if(key == 'GAME_END_LOG_STR')
                             log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
                     }
@@ -570,11 +568,6 @@ export class Game {
     }
 
     public async notif_powerSkipped(args: PowerSkippedArgs) {
-    }
-
-    //the stopping player's reservation outline or golden die goes away
-    public async notif_powerCancelled(args: PowerCancelledArgs) {
-        this.diceHandler.updateDice(args.dice);
     }
 
     private async notif_displayEndGameScoring(args: DisplayEndGameScoringArgs) {

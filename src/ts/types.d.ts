@@ -103,7 +103,6 @@ interface ModifyDieArgs {
 }
 
 interface ResolvePowersArgs {
-    goldenDieAlreadyAdded: boolean;
 }
 
 interface SwapTargetPOWER10 {
@@ -201,15 +200,6 @@ interface PowerSkippedArgs {
     value: number;
     card: RivieraCard | null;
     reason: '' | 'nothing_to_draw' | 'not_enough_cards';
-}
-
-//a player who stops loses the card 2 reservation or the golden die they just added
-interface PowerCancelledArgs {
-    player_id: number;
-    value: 2 | 11;
-    card: RivieraCard | null;
-    die: RivieraDie;
-    dice: RivieraDie[];
 }
 
 interface CardsRevealedArgs {

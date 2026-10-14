@@ -52,13 +52,11 @@ ALTER TABLE `player` ADD `play_choice` ENUM('card', 'last_chance', 'crash') NULL
 ALTER TABLE `player` ADD `play_choice_card_id` INT UNSIGNED NULL AFTER `play_choice`;
 ALTER TABLE `player` ADD `stop_or_more_choice` ENUM('stop', 'more') NULL AFTER `play_choice_card_id`;
 ALTER TABLE `player` ADD `made_choice_this_state` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `stop_or_more_choice`;
--- a non-1 power revealed this turn, waiting to resolve: 2, 10 and 11 before the next roll, 9 after it
+-- a non-1 power revealed this turn, waiting to resolve: 2, 10 and 11 after Stop or More (owners who chose More), 9 after the next roll
 ALTER TABLE `player` ADD `pending_POWER2` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `made_choice_this_state`;
 ALTER TABLE `player` ADD `pending_POWER9` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER2`;
 ALTER TABLE `player` ADD `pending_POWER10` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER9`;
 ALTER TABLE `player` ADD `pending_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER10`;
--- card 11: this player added the golden die to the next roll. It is dropped when every player who added it chose Stop
-ALTER TABLE `player` ADD `added_golden_die_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER11`;
 
 -- one row per player per round, for the end-game scoring table
 -- round_result: stopped banks stars, crashed scores 0, grand_slam ends the game, unfinished means a Grand Slam ended the round first

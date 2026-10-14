@@ -35,7 +35,6 @@
   --bg-log-cards-swapped-power10: linear-gradient(135deg, #fae8f0, #eec4d6);
   --bg-log-cards-redrawn-power10: linear-gradient(135deg, #f1f6e1, #d6e6b0);
   --bg-log-power-skipped: linear-gradient(135deg, #eef1f4, #d3d9e1);
-  --bg-log-power-cancelled: linear-gradient(135deg, #f7ebe4, #e8c9b8);
   --bg-log-game-end: linear-gradient(135deg, #fff7d6, #f0d98a);
   --bg-gradient-tooltip: linear-gradient(120deg, #e8f4fb, #bfe0ef);
   --bg-gradient-tooltip-connector: linear-gradient(-120deg, #bfe0ef, #f5fbfd);
@@ -854,9 +853,6 @@ body.current_player_is_active:not(.lockedInterface) #dice-container .a-die.selec
 .log.power-skipped-log .roundedbox, .log.gamelogreview.power-skipped-log, .gamelogreview.power-skipped-log .roundedbox, .gamelogreview.gamelogreview.power-skipped-log {
   background: var(--bg-log-power-skipped);
 }
-.log.power-cancelled-log .roundedbox, .log.gamelogreview.power-cancelled-log, .gamelogreview.power-cancelled-log .roundedbox, .gamelogreview.gamelogreview.power-cancelled-log {
-  background: var(--bg-log-power-cancelled);
-}
 .log.game-end-log .roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.gamelogreview.game-end-log {
   background: var(--bg-log-game-end);
 }
@@ -919,7 +915,7 @@ body.current_player_is_active:not(.lockedInterface) #dice-container .a-die.selec
   font-weight: bold;
   color: #27271c;
 }
-.log .die-reserved-row, .log .golden-die-row, .log .die-modified-row, .log .cards-swapped-row, .log .cards-redrawn-row, .log .power-skipped-row, .log .power-cancelled-row, .gamelogreview .die-reserved-row, .gamelogreview .golden-die-row, .gamelogreview .die-modified-row, .gamelogreview .cards-swapped-row, .gamelogreview .cards-redrawn-row, .gamelogreview .power-skipped-row, .gamelogreview .power-cancelled-row {
+.log .die-reserved-row, .log .golden-die-row, .log .die-modified-row, .log .cards-swapped-row, .log .cards-redrawn-row, .log .power-skipped-row, .gamelogreview .die-reserved-row, .gamelogreview .golden-die-row, .gamelogreview .die-modified-row, .gamelogreview .cards-swapped-row, .gamelogreview .cards-redrawn-row, .gamelogreview .power-skipped-row {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -931,12 +927,12 @@ body.current_player_is_active:not(.lockedInterface) #dice-container .a-die.selec
   margin-bottom: -7px;
   font-size: 14px;
 }
-.log .die-reserved-row .a-die, .log .golden-die-row .a-die, .log .die-modified-row .a-die, .log .cards-swapped-row .a-die, .log .cards-redrawn-row .a-die, .log .power-skipped-row .a-die, .log .power-cancelled-row .a-die, .gamelogreview .die-reserved-row .a-die, .gamelogreview .golden-die-row .a-die, .gamelogreview .die-modified-row .a-die, .gamelogreview .cards-swapped-row .a-die, .gamelogreview .cards-redrawn-row .a-die, .gamelogreview .power-skipped-row .a-die, .gamelogreview .power-cancelled-row .a-die {
+.log .die-reserved-row .a-die, .log .golden-die-row .a-die, .log .die-modified-row .a-die, .log .cards-swapped-row .a-die, .log .cards-redrawn-row .a-die, .log .power-skipped-row .a-die, .gamelogreview .die-reserved-row .a-die, .gamelogreview .golden-die-row .a-die, .gamelogreview .die-modified-row .a-die, .gamelogreview .cards-swapped-row .a-die, .gamelogreview .cards-redrawn-row .a-die, .gamelogreview .power-skipped-row .a-die {
   display: inline-block;
   --die-size: 18px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000;
 }
-.log .die-reserved-row .minimised-card-icon + .minimised-card-icon, .log .golden-die-row .minimised-card-icon + .minimised-card-icon, .log .die-modified-row .minimised-card-icon + .minimised-card-icon, .log .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .log .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .log .power-skipped-row .minimised-card-icon + .minimised-card-icon, .log .power-cancelled-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-reserved-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .golden-die-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-modified-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-skipped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-cancelled-row .minimised-card-icon + .minimised-card-icon {
+.log .die-reserved-row .minimised-card-icon + .minimised-card-icon, .log .golden-die-row .minimised-card-icon + .minimised-card-icon, .log .die-modified-row .minimised-card-icon + .minimised-card-icon, .log .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .log .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .log .power-skipped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-reserved-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .golden-die-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-modified-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-skipped-row .minimised-card-icon + .minimised-card-icon {
   margin-left: 2px;
 }
 .log .stop-or-more-row, .gamelogreview .stop-or-more-row {

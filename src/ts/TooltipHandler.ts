@@ -120,10 +120,10 @@ export class TooltipHandler{
 
         const powerTexts: Record<number, string> = {
             1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
-            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Cancelled if you stop.'),
-            10: _('Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead.'),
-            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Dropped if you stop.'),
-            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Lost if you stop.'),
+            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Only if you choose More.'),
+            10: _('Swap 2 cards of your choice for 2 random cards of an opponent who chose More and has at least 2 cards. If there is none, discard up to 2 cards and draw as many instead. Only if you choose More.'),
+            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Only if you choose More.'),
+            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
         };
 
         const entryHTML = (value: number) => `
@@ -157,10 +157,10 @@ export class TooltipHandler{
     private getPowerTooltipHTML(value: number): string {
         const powerTexts: Record<number, {timing: string, effect: string}> = {
             1: {timing: _('Right away'), effect: _('Add one more playable card from your hand on the same dice. Another 1 lets you add again.')},
-            2: {timing: _('Next roll'), effect: _('The die of this card\'s color is reserved for you: opponents can\'t use it, alone or in a sum. Cancelled if you stop.')},
-            9: {timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Lost if you stop.')},
-            10: {timing: _('Before the next roll'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent still in the round. If none can be chosen, discard and draw instead.')},
-            11: {timing: _('Next roll'), effect: _('You may add the golden die for everyone. It only counts in a sum with a colored die and never gives its color. Cancelled if you stop.')},
+            2: {timing: _('After Stop or More, if you choose More'), effect: _('The die of this card\'s color is reserved for you on the next roll: opponents can\'t use it, alone or in a sum.')},
+            9: {timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Only if you are still in the round.')},
+            10: {timing: _('After Stop or More, if you choose More'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent who chose More. If none can be chosen, discard and draw instead.')},
+            11: {timing: _('After Stop or More, if you choose More'), effect: _('You may add the golden die to the next roll, for everyone. It only counts in a sum with a colored die and never gives its color.')},
         };
         const {timing, effect} = powerTexts[value];
         const stars = '★'.repeat(this.game.getStarsForValue(value));

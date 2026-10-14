@@ -18,13 +18,15 @@ use Bga\Games\Riviera\States\ModifyDie;
 use Bga\Games\Riviera\States\PlayCard;
 use Bga\Games\Riviera\States\ResolvePowers;
 use Bga\Games\Riviera\States\SwapCards;
-use Bga\Games\Riviera\States\PassStartToken;
+use Bga\Games\Riviera\States\RollDice;
 
 /**
  * Powers of cards 2, 9, 10 and 11. Each player reveals at most one of them per turn (a card-1 chain only goes on
  * with 1s), so the last card a player reveals leaves a pending_POWER<n> marker, and owners are walked one by one
  * clockwise from the Start token holder, like Fugu's NextPlayer: change the active player, then go to the state.
- * Card 1 lives in PlayCard: its chain is part of the player's choice.
+ * [BGA, confirmed with publisher] A player who stops doesn't benefit from their powers: cards 2, 10 and 11 resolve
+ * after Stop or More, only for owners who chose More (RevealStopOrMore starts the walk); card 9 after the next roll,
+ * only for owners still in. Card 1 lives in PlayCard: its chain is part of the player's choice.
  */
 class RIVPowerManager{
     public Game $game;
@@ -44,12 +46,20 @@ class RIVPowerManager{
     }
 
     function clearPendingPowers(): void{
-        $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER9` = 'no', `pending_POWER10` = 'no', `pending_POWER11` = 'no', `added_golden_die_POWER11` = 'no'");
+        $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER9` = 'no', `pending_POWER10` = 'no', `pending_POWER11` = 'no'");
+    }
+
+    /**
+     * Owners who stopped (or crashed) lose their pending card 2, 10 and 11 powers, silently. RevealStopOrMore, once
+     * the Stops are applied: everyone still 'in' chose More.
+     */
+    function clearPreRollPowersOfPlayersOut(): void{
+        $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER10` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
     }
 
     /**
      * [BGA] A card-2 reservation and the golden die only last for the turn after the power is used: they are
-     * cleared after that turn's reveal, before this turn's powers can set them again.
+     * cleared after that turn's reveal, before this turn's powers (after Stop or More) can set them again.
      */
     function expireDiceEffects(): void{
         $activeEffectCount = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `dice` WHERE `reserved_by_POWER2` IS NOT NULL OR `in_use_by_POWER11` = 'yes'");
@@ -58,30 +68,36 @@ class RIVPowerManager{
 
         $this->game->DbQuery("UPDATE `dice` SET `reserved_by_POWER2` = NULL");
         $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'no', `die_value` = NULL WHERE `die_color` = 'gold'");
-        $this->game->DbQuery("UPDATE `player` SET `added_golden_die_POWER11` = 'no'");
 
         $this->game->bga->notify->all('diceUpdated', '', ['dice' => $this->game->tableManager->getDice()]);
     }
 
     /**
-     * Pre-roll powers (2, 10, 11), clockwise from the Start token holder. Card 2 is applied on the spot; a card-10
-     * or card-11 owner becomes the active player of SwapCards or ResolvePowers. Every action of those states
-     * returns this again, so the walk goes on until nobody has a pending pre-roll power.
+     * Pre-roll powers (2, 10, 11), after Stop or More, for owners who chose More (still 'in'), clockwise from the
+     * Start token holder (it passed before Stop or More). Card 2 is applied on the spot; a card-10 or card-11 owner
+     * becomes the active player of SwapCards or ResolvePowers. Every action of those states returns this again,
+     * so the walk goes on until nobody has a pending pre-roll power, then the next roll.
      */
     function goToNextPreRollPower(): string{
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
-        $pendingPowersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `pending_POWER2`, `pending_POWER10`, `pending_POWER11` FROM `player`");
+        $pendingPowersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `round_status`, `pending_POWER2`, `pending_POWER10`, `pending_POWER11` FROM `player`");
 
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             $pendingPowers = $pendingPowersDB[$playerID];
+            if($pendingPowers['round_status'] !== 'in') //a player who stopped doesn't benefit from their powers
+                continue;
 
             if($pendingPowers['pending_POWER2'] === 'yes'){
                 $this->applyReservationPOWER2($playerID);
                 continue;
             }
 
-            //a second 11 this turn is asked too: the golden die stays as long as one player who added it doesn't stop
             if($pendingPowers['pending_POWER11'] === 'yes'){
+                if($this->isGoldenDieInUsePOWER11()){ //[BGA] a second 11 this turn adds nothing: skipped without a prompt or log row
+                    $this->clearPendingPower($playerID, 11);
+                    continue;
+                }
+
                 $this->game->gamestate->changeActivePlayer($playerID);
                 return ResolvePowers::class;
             }
@@ -103,7 +119,7 @@ class RIVPowerManager{
             }
         }
 
-        return PassStartToken::class;
+        return RollDice::class;
     }
 
     /**
@@ -158,7 +174,8 @@ class RIVPowerManager{
     }
 
     /**
-     * Card 10 targets: opponents still in the round with at least 2 cards in hand. With none, the owner discards and draws instead.
+     * Card 10 targets: opponents who chose More (still 'in' once the Stops are applied) with at least 2 cards in hand.
+     * With none, the owner discards and draws instead.
      */
     function getSwapTargetsPOWER10(int $ownerID): array{
         $handCounts = $this->game->tableManager->getHandCounts();
@@ -169,63 +186,6 @@ class RIVPowerManager{
                 $targets[] = ['player_id' => $playerID, 'hand_count' => $handCounts[$playerID]];
         }
         return $targets;
-    }
-
-    /**
-     * Publisher ruling: a player who stops does not take part in the next turn, so the card they just played does
-     * not activate a power meant for that turn. Called by RevealStopOrMore with this turn's stoppers, clockwise:
-     * - card 2: the die they reserved is free again;
-     * - card 11 [UNCONFIRMED with publisher]: the golden die is not added, unless another player who added it is still in.
-     * One public log row per cancelled power.
-     */
-    function cancelPowersOfStoppingPlayers(array $stoppingPlayerIDs): void{
-        if(empty($stoppingPlayerIDs))
-            return;
-
-        $stoppingPlayerIDList = implode(',', array_map('intval', $stoppingPlayerIDs));
-        $cancellations = []; //player_id => ['value' => 2|11, 'die' => the die before cancelling]
-
-        $reservedDiceDB = $this->game->getCollectionFromDB("SELECT `reserved_by_POWER2`, `die_color` FROM `dice` WHERE `reserved_by_POWER2` IN ($stoppingPlayerIDList)", true);
-        foreach($reservedDiceDB as $playerID => $dieColor){
-            $cancellations[(int) $playerID] = ['value' => 2, 'die' => $this->game->tableManager->getDie($dieColor)];
-            $this->game->DbQuery("UPDATE `dice` SET `reserved_by_POWER2` = NULL WHERE `die_color` = '$dieColor'");
-        }
-
-        $stoppingAdderIDs = array_map('intval', $this->game->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `added_golden_die_POWER11` = 'yes' AND `player_id` IN ($stoppingPlayerIDList)", true));
-        if(!empty($stoppingAdderIDs)){
-            $this->game->DbQuery("UPDATE `player` SET `added_golden_die_POWER11` = 'no' WHERE `player_id` IN ($stoppingPlayerIDList)");
-
-            $remainingAdderCount = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `player` WHERE `added_golden_die_POWER11` = 'yes'");
-            if($remainingAdderCount === 0 && $this->isGoldenDieInUsePOWER11()){
-                $goldenDie = $this->game->tableManager->getDie('gold');
-                $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'no', `die_value` = NULL WHERE `die_color` = 'gold'");
-
-                foreach($stoppingAdderIDs as $playerID)
-                    $cancellations[$playerID] = ['value' => 11, 'die' => $goldenDie];
-            }
-        }
-
-        if(empty($cancellations))
-            return;
-
-        $dice = $this->game->tableManager->getDice();
-        foreach($stoppingPlayerIDs as $playerID){
-            if(!isset($cancellations[$playerID]))
-                continue;
-
-            $cancellation = $cancellations[$playerID];
-            $this->game->bga->playerStats->inc('powerUsed_POWER'.$cancellation['value'], -1, $playerID); //only powers that took effect are counted
-            $powerCancelledLogStr = $this->game->getPlayerNameById($playerID).' stops: their '.$cancellation['value'].' has no effect';
-            $this->game->bga->notify->all('powerCancelled', '${POWER_CANCELLED_LOG_STR}', [
-                'preserve' => ['player_id', 'value', 'card', 'die'],
-                'player_id' => $playerID,
-                'value' => $cancellation['value'],
-                'card' => $this->game->tableManager->getLastPlayedCard($playerID),
-                'die' => $cancellation['die'],
-                'dice' => $dice,
-                'POWER_CANCELLED_LOG_STR' => $powerCancelledLogStr,
-            ]);
-        }
     }
 
     function isGoldenDieInUsePOWER11(): bool{

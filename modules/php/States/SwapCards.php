@@ -23,8 +23,8 @@ use Bga\GameFramework\UserException;
 use Bga\Games\Riviera\Game;
 
 /**
- * Card 10, before the next roll: the owner swaps 2 cards of their choice with 2 random cards from the hand of an
- * opponent still in the round with at least 2 cards (a player who stopped can't be targeted). The victim is passive.
+ * Card 10, after Stop or More (owner chose More), before the next roll: the owner swaps 2 cards of their choice with
+ * 2 random cards from the hand of an opponent who chose More with at least 2 cards. The victim is passive.
  * With no such opponent, the owner discards and draws instead, [BGA] only as many cards as can be drawn (the
  * discard pile is reshuffled into a short draw pile), so card 10 never changes a hand size. Owners with fewer than
  * 2 cards never get here: RIVPowerManager skips their power.
@@ -68,7 +68,7 @@ class SwapCards extends GameState
 
         $targetHandCounts = array_column($this->game->powerManager->getSwapTargetsPOWER10($activePlayerId), 'hand_count', 'player_id');
         if(!isset($targetHandCounts[$targetPlayerId]))
-            throw new UserException(clienttranslate('You can only swap with an opponent still in the round who has at least 2 cards'));
+            throw new UserException(clienttranslate('You can only swap with an opponent who chose More and has at least 2 cards'));
 
         $swapCount = CARDS_SWAPPED_BY_POWER10;
         $this->checkOwnCards($cardIDs, $swapCount, $activePlayerId);
@@ -114,7 +114,7 @@ class SwapCards extends GameState
         $this->checkPendingPower($activePlayerId);
 
         if(!empty($this->game->powerManager->getSwapTargetsPOWER10($activePlayerId)))
-            throw new UserException(clienttranslate('An opponent still in the round has 2 cards: swap with them'));
+            throw new UserException(clienttranslate('An opponent who chose More has 2 cards: swap with them'));
 
         $myHandCount = $this->game->tableManager->getHandCounts()[$activePlayerId] ?? 0;
         $redrawCount = min(CARDS_SWAPPED_BY_POWER10, $myHandCount, $this->game->tableManager->getDrawableCountPOWER10());

@@ -32,8 +32,9 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
 
     /**
      * Applies every Stop choice and reveals all choices in one notification.
-     * A player who stops loses the card 2 or 11 power they just used for the next turn.
-     * Anyone still in (they chose More) means another turn; otherwise the round ends.
+     * [BGA, confirmed with publisher] A player who stops doesn't benefit from their powers: card 2, 10 and 11 powers
+     * from this turn now resolve only for owners who chose More, clockwise from the Start token holder, before the
+     * next roll. Anyone still in (they chose More) means another turn; otherwise the round ends.
      */
     function onEnteringState() {
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
@@ -42,7 +43,6 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
         $choices = [];
         $stopNames = [];
         $moreNames = [];
-        $stoppingPlayerIDs = [];
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             if(!isset($choicesDB[$playerID]))
                 continue;
@@ -50,7 +50,6 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             $choices[$playerID] = $choicesDB[$playerID];
             if($choicesDB[$playerID] === 'stop'){
                 $stopNames[] = $this->game->getPlayerNameById($playerID);
-                $stoppingPlayerIDs[] = $playerID;
                 $this->game->bga->playerStats->inc('roundsStopped', 1, $playerID);
             } else $moreNames[] = $this->game->getPlayerNameById($playerID);
         }
@@ -66,10 +65,10 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             ]);
         }
 
-        //with nobody left the round ends, and RoundSetup clears every dice effect anyway
+        //with nobody left the round ends, and RoundSetup clears every pending power anyway
         if(count($this->game->getPlayerIDsInRound()) > 0){
-            $this->game->powerManager->cancelPowersOfStoppingPlayers($stoppingPlayerIDs);
-            return RollDice::class;
+            $this->game->powerManager->clearPreRollPowersOfPlayersOut();
+            return $this->game->powerManager->goToNextPreRollPower();
         }
 
         return EndRound::class;

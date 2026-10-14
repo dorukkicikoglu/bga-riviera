@@ -278,9 +278,9 @@ class ModifyDie {
 }
 
 /**
- * Card 11, before the next roll: the active owner may add the golden die to the next roll, or skip.
- * (Card 2 needs no choice and card 10 has its own SwapCards state.)
- * When another 11 already added it, adding it too keeps it in the next roll if that player stops.
+ * Card 11, after Stop or More (the owner chose More), before the next roll: the active owner may add the golden die
+ * to the next roll, or skip. (Card 2 needs no choice and card 10 has its own SwapCards state.)
+ * The server skips a second 11 when the golden die is already added, so this always offers to add it.
  */
 class ResolvePowers {
     constructor(game, bga) {
@@ -295,14 +295,8 @@ class ResolvePowers {
             this.bga.statusBar.setTitle(_('${actplayer} may add the golden die to the next roll (card 11)'));
             return;
         }
-        if (args?.goldenDieAlreadyAdded) {
-            this.bga.statusBar.setTitle(_('The golden die is already added: ${you} may add it too (card 11), so it stays even if the other player stops'));
-            this.bga.statusBar.addActionButton(_('Add it too'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
-        }
-        else {
-            this.bga.statusBar.setTitle(_('${you} may add the golden die to the next roll (card 11)'));
-            this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
-        }
+        this.bga.statusBar.setTitle(_('${you} may add the golden die to the next roll (card 11)'));
+        this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), { id: 'skip-power-button', color: 'secondary' });
     }
     /**
@@ -313,8 +307,9 @@ class ResolvePowers {
 }
 
 /**
- * Card 10, before the next roll: the active owner selects 2 cards from their hand, then the opponent to swap them
- * with (the opponent's cards are random). Only opponents still in the round with at least 2 cards can be chosen.
+ * Card 10, after Stop or More (the owner chose More), before the next roll: the active owner selects 2 cards from
+ * their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
+ * and have at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
  */
 class SwapCards {
@@ -361,7 +356,7 @@ class SwapCards {
             }
         }
         else {
-            this.bga.statusBar.setTitle(_('No opponent still in the round has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
+            this.bga.statusBar.setTitle(_('No opponent who chose More has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
             if (selectedCardIDs.length === this.args.maxCards)
                 this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button' });
         }
@@ -1121,30 +1116,6 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'power-skipped-log');
     }
-    //a player who stops loses the card 2 reservation or the golden die they just added for the next turn
-    createLogPowerCancelled(player_id, value, card, die) {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
-        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
-        const isMe = player_id === this.game.getMyPlayerID();
-        let cancelledText;
-        if (value === 2) {
-            cancelledText = isMe
-                ? _('${you} stop: ${card} no longer reserves ${die}').replace('${you}', playerNameHTML)
-                : _('${playerName} stops: ${card} no longer reserves ${die}').replace('${playerName}', playerNameHTML);
-        }
-        else {
-            cancelledText = isMe
-                ? _('${you} stop: ${card} does not add ${die} to the next roll').replace('${you}', playerNameHTML)
-                : _('${playerName} stops: ${card} does not add ${die} to the next roll').replace('${playerName}', playerNameHTML);
-        }
-        //the die as it was before the cancellation, without the reservation outline
-        const shownDie = { ...die, reserved_by_POWER2: null, in_use_by_POWER11: true };
-        let logHTML = `
-            <div class="power-cancelled-row">
-                ${cancelledText.replace('${card}', cardHTML).replace('${die}', this.getMiniDieHTML(shownDie))}
-            </div>` + ' &nbsp;';
-        return this.addLogClassTag(logHTML, 'power-cancelled-log');
-    }
     //the game ends: everyone at the top score wins (a Grand Slam, or equal scores, share the win)
     createLogGameEnd(winner_ids, winningScore) {
         const iWin = winner_ids.includes(this.game.getMyPlayerID());
@@ -1281,10 +1252,10 @@ class TooltipHandler {
             return this.powerReferenceHTMLByValue[highlightedValue];
         const powerTexts = {
             1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
-            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Cancelled if you stop.'),
-            10: _('Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead.'),
-            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Dropped if you stop.'),
-            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Lost if you stop.'),
+            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Only if you choose More.'),
+            10: _('Swap 2 cards of your choice for 2 random cards of an opponent who chose More and has at least 2 cards. If there is none, discard up to 2 cards and draw as many instead. Only if you choose More.'),
+            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Only if you choose More.'),
+            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
         };
         const entryHTML = (value) => `
             <div class="power-reference-entry highlighted-power-entry">
@@ -1314,10 +1285,10 @@ class TooltipHandler {
     getPowerTooltipHTML(value) {
         const powerTexts = {
             1: { timing: _('Right away'), effect: _('Add one more playable card from your hand on the same dice. Another 1 lets you add again.') },
-            2: { timing: _('Next roll'), effect: _('The die of this card\'s color is reserved for you: opponents can\'t use it, alone or in a sum. Cancelled if you stop.') },
-            9: { timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Lost if you stop.') },
-            10: { timing: _('Before the next roll'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent still in the round. If none can be chosen, discard and draw instead.') },
-            11: { timing: _('Next roll'), effect: _('You may add the golden die for everyone. It only counts in a sum with a colored die and never gives its color. Cancelled if you stop.') },
+            2: { timing: _('After Stop or More, if you choose More'), effect: _('The die of this card\'s color is reserved for you on the next roll: opponents can\'t use it, alone or in a sum.') },
+            9: { timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Only if you are still in the round.') },
+            10: { timing: _('After Stop or More, if you choose More'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent who chose More. If none can be chosen, discard and draw instead.') },
+            11: { timing: _('After Stop or More, if you choose More'), effect: _('You may add the golden die to the next roll, for everyone. It only counts in a sum with a colored die and never gives its color.') },
         };
         const { timing, effect } = powerTexts[value];
         const stars = '★'.repeat(this.game.getStarsForValue(value));
@@ -1670,7 +1641,7 @@ class Game {
                 args.processed = true;
                 // list of special keys we want to replace with images
                 const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
-                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR', 'GAME_END_LOG_STR'];
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'GAME_END_LOG_STR'];
                 for (let key of keys) {
                     if (key in args) {
                         if (key == 'NEW_ROUND_LOG_STR')
@@ -1701,8 +1672,6 @@ class Game {
                             log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
                         else if (key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
-                        else if (key == 'POWER_CANCELLED_LOG_STR')
-                            log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
                         else if (key == 'GAME_END_LOG_STR')
                             log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
                     }
@@ -2027,10 +1996,6 @@ class Game {
     async notif_cardsRedrawnPublic_POWER10(args) {
     }
     async notif_powerSkipped(args) {
-    }
-    //the stopping player's reservation outline or golden die goes away
-    async notif_powerCancelled(args) {
-        this.diceHandler.updateDice(args.dice);
     }
     async notif_displayEndGameScoring(args) {
         this.updateStatusText(_('Final scores'));
