@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * PlayedColumnHandler.ts
+ */
 import { Game } from "./Game";
 import { PlayerHandler } from "./PlayerHandler";
 
@@ -33,6 +44,7 @@ export class PlayedColumnHandler{
 
         this.cardsColumn = this.columnContainer.querySelector('.cards-column') as HTMLDivElement;
         this.starsText = this.columnContainer.querySelector('.played-column-stars') as HTMLSpanElement;
+        this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
 
         this.displayColumn();
     }

@@ -65,6 +65,10 @@ Mirror these specifically:
 - **Slide animations**: use `Game.animateSlide(element, from, to, ms)` for anything moving between containers.
 - **One-shot animation classes** (fade-ins, fade-outs, `die-changed`) must be removed once they have played: a leftover one becomes the element's fallback `animation` and replays whenever another animation (like the playable glow) stops applying.
 - **`dbmodel.sql` comments**: put them on their own `--` lines, never after a `;` and never containing a `;`. BGA splits the file into statements itself and silently dropped an `ALTER` that had a trailing comment.
+- **Statistics** go through `$this->game->bga->playerStats` / `->tableStats` (Fugu uses `$this->game->playerStats`). Every stat is initialized in `setupNewGame` except `lastChanceRound`, which is left unset on purpose so games without a Last Chance don't skew its average. A power's stat carries the power suffix (`powerUsed_POWER2`).
+- **Tooltips**: class tooltips (`addTooltipHtmlToClass`) only reach elements already on the page, and need an id on each element (`createCardDiv` / `createLastChanceDiv` give one). Call `tooltipHandler.addTooltipsToCards()` after any notification that creates cards; log rows get theirs from `LogMutationObserver` through `addTooltipsToCardsIn(node)`.
+- **Zombies** are level 1 (report it in the Game Metadata Manager): a zombie that would stay active (a card-1 chain) finishes everything inside the same `zombie()` call, since the framework doesn't call it again.
+- **Copyright header**: every PHP and TS source file starts with the same header as `Game.php` (BGA checklist).
 - **Deleting or renaming PHP files**: SFTP now runs with `autoDelete: true`, so a file removed locally is removed on Studio on the next sync. Still check after a delete or rename: the framework loads every class in `modules/php/States/`, and a stale state class collides on its state id (the template's `PlayerTurn.php` took id 10 and broke game creation once `RollDice` used 10).
 
 ## Keeping the docs current

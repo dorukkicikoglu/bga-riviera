@@ -157,3 +157,58 @@ Every power:
 - [ ] A new round clears every pending power and dice effect.
 - [ ] If two power owners in a row are both asked in the same state (two 11s cannot be, but two 9s or two 10s can), the second one really becomes active. If not, paste what happens: re-entering the same active state is the one thing I couldn't verify locally.
 - [ ] If "Swap with" or "Discard and draw" fails with a parameter error, `#[IntArrayParam]` doesn't read the comma-separated `cardIDs`: paste the error.
+
+## Milestone 4: Polish
+
+Deploy as before (`modules/`, `riviera.css`, `dbmodel.sql`, `*.jsonc`). The schema changed (new `round_scores` table) and `stats.jsonc` / `gamepreferences.jsonc` changed, so start a **new** table. Keep the browser console open and paste any error. M3 is tested in the same pass: run its section first.
+
+Tooltips:
+- [ ] Hovering a 1, 2, 9, 10 or 11 in my hand, in a column or in a log row shows its power (title with ★, timing, effect). Other values show nothing.
+- [ ] The Last Chance card (board and reveal row), Start token, hand backs, round status, column ★ and each die have tooltips.
+- [ ] A reserved die's tooltip names its owner (card 2) and loses that line once the reservation ends. A turned die says so (card 9). The gold die explains it only counts in a sum.
+- [ ] New cards get tooltips too: after a new round, after a reveal, after a card 10 swap or redraw.
+- [ ] Safari on a phone: no card tooltips, the power reference shows at the bottom of the page.
+
+Statistics (play a game to the end, then the Statistics tab):
+- [ ] Rounds and turns (dice rolls) are right.
+- [ ] A player who crashed once, used the Last Chance in round 2 and stopped the other rounds: crashes 1, Last Chance used yes, round 2, stars banked equal to their score.
+- [ ] A player who never used the Last Chance shows no Last Chance round (if the end of the game fails with a stats error on `lastChanceRound`, paste it: it then needs an init to 0).
+- [ ] Best round, rounds stopped and rounds played are right.
+- [ ] A chain of three cards counts 3 cards played and 2 extra cards (card 1).
+- [ ] Card 2 / 11: a power cancelled by a Stop is not counted. Card 9 counts each die turned, card 10 the cards swapped or redrawn (2 per use).
+- [ ] A Grand Slam sets Grand Slam to yes.
+
+End-game display:
+- [ ] `debug_setScores(38)`, then finish a round with someone banking 2 ★ or more: a gold "<name> wins with N ★" log row, then the table fades in cell by cell. Clicking anywhere fast-forwards. The winners' names jump.
+- [ ] One row per round: "N ★" when stopped, a bomb when crashed. The Total row equals the BGA score (after `debug_setScores` the round rows don't add up to it: expected).
+- [ ] Collapse and show buttons work. F5 at game end shows the table at once.
+- [ ] Grand Slam ending (`debug_trimHands(1)` + a playable card): the Grand Slam cell is gold with "+N", the other players show "-" for that round (a bomb if they crashed). After F5 the board and column glow is still there.
+- [ ] Two winners on equal scores: "<a>, <b> win with N ★" and both names jump.
+- [ ] Full replay to the end shows the table without errors.
+
+Zombie (friendly mode, kick a player in each state; a 3-player table helps):
+- [ ] Card play: the zombie plays a playable card with the most stars. If it is a 1 and more cards are playable, it chains in the same turn (check the reveal row). No playable card: Last Chance, then crash.
+- [ ] Stop or More: the zombie stops.
+- [ ] ModifyDie, ResolvePowers and SwapCards: the game never blocks. Over a few tries the zombie sometimes uses the power (turns a die, adds the golden die, swaps 2 cards with a real player) and sometimes skips.
+- [ ] A zombie swap with me: my hand changes and I get the private row with the real cards.
+
+Progression:
+- [ ] The progress bar moves during round 1 after each reveal, sits at the leader's banked score at each new round, and is 100 at game end.
+
+Preference ("One-click card play" in the game preferences menu):
+- [ ] On: clicking a glowing card plays it at once, no Confirm button. Also for the cards added to a 1. Change my mind still works.
+- [ ] Off (default): select, then Confirm, as before. Switching it while choosing doesn't break the status bar.
+
+Layout:
+- [ ] Phone width (or a narrow window): my 10 cards fit on one row, overlapping more; they spread again when the window widens or cards leave.
+- [ ] BGA dark mode: every log row stays readable (dark text on its pale background), including plain framework rows.
+
+BGA alpha checklist:
+- [ ] Game management page: turn on "Use minified JS" and "Use minified CSS", commit, and play a turn. No "Connecting to game" hang.
+- [ ] Test spectator: sees boards, columns, dice and logs, never a hand or a pending choice.
+- [ ] In-game replay from a log row, and the full replay after the end, without errors.
+- [ ] A realtime table: no timeouts during normal play.
+- [ ] Firefox and Safari (desktop) work as Chrome.
+- [ ] A game starts from the waiting screen (express start and a normal start).
+- [ ] Control panel: "Dry run build" passes.
+- [ ] Game Metadata Manager filled in: designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, box image with a transparent background, banner, icon, display images.

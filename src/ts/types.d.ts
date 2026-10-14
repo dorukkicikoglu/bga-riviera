@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * types.d.ts
+ */
 declare function bga_format(translated: string, replacements: Record<string, string | ((t: string) => string)>): string;
 
 interface RivieraPlayer extends Player {
@@ -16,6 +27,27 @@ interface RivieraGamedatas extends Gamedatas<RivieraPlayer> {
     roundNumber: number;
     cardColors: Record<number, CardColor>;
     starsByValue: Record<number, number>;
+    pref_names: GamePrefs;
+    grandSlamPlayerIds: number[];
+    endGameScoring?: EndGameScoreData;
+}
+
+interface GamePrefs{
+    one_click_play: number;
+}
+
+type RoundResult = 'stopped' | 'crashed' | 'grand_slam' | 'unfinished';
+
+interface RoundScoreEntry {
+    result: RoundResult;
+    stars: number;
+}
+
+interface EndGameScoreData {
+    winner_ids: number[];
+    winning_score: number;
+    rounds: Record<number, Record<number, RoundScoreEntry>>; //round_number => player_id => entry
+    scores: Record<number, number>;
 }
 
 interface LogRowData { //this is used to return strings containing log-class-tag divs
@@ -215,4 +247,10 @@ interface ScoreChangedArgs {
     player_id: number;
     stars?: number;
     score: number;
+}
+
+interface DisplayEndGameScoringArgs {
+    winner_ids: number[];
+    winning_score: number;
+    endGameScoring: EndGameScoreData;
 }

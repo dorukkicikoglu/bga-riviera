@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * RIVPowerManager.php
+ */
 
 namespace Bga\Games\Riviera;
 
@@ -203,6 +214,7 @@ class RIVPowerManager{
                 continue;
 
             $cancellation = $cancellations[$playerID];
+            $this->game->bga->playerStats->inc('powerUsed_POWER'.$cancellation['value'], -1, $playerID); //only powers that took effect are counted
             $powerCancelledLogStr = $this->game->getPlayerNameById($playerID).' stops: their '.$cancellation['value'].' has no effect';
             $this->game->bga->notify->all('powerCancelled', '${POWER_CANCELLED_LOG_STR}', [
                 'preserve' => ['player_id', 'value', 'card', 'die'],
@@ -235,6 +247,8 @@ class RIVPowerManager{
         $this->game->DbQuery("UPDATE `dice` SET `reserved_by_POWER2` = $playerID WHERE `die_color` = '$dieColor' AND `die_location` = 'in_play' AND `reserved_by_POWER2` IS NULL");
         if($this->game->DbAffectedRow() === 0)
             return;
+
+        $this->game->bga->playerStats->inc('powerUsed_POWER2', 1, $playerID);
 
         $dieReservedLogStr = $this->game->getPlayerNameById($playerID).' reserves the '.$dieColor.' die for the next roll';
         $this->game->bga->notify->all('dieReserved_POWER2', '${DIE_RESERVED_POWER2_LOG_STR}', [

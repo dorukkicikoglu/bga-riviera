@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * RIVTableManager.php
+ */
 
 namespace Bga\Games\Riviera;
 
@@ -235,6 +246,47 @@ class RIVTableManager{
     function getStarsInColumn(int $playerID): int{
         $playedValues = $this->game->getObjectListFromDB("SELECT `value` FROM `cards` WHERE `card_location` = 'played' AND `card_location_arg` = $playerID", true);
         return array_sum(array_map(fn($value) => STARS_BY_VALUE[(int) $value], $playedValues));
+    }
+
+    /**
+     * Stars in front of every player this round, 0 included. Public information.
+     */
+    function getStarsInColumnByPlayer(): array{
+        $starsByPlayer = [];
+        foreach($this->game->getObjectListFromDB("SELECT `player_id` FROM `player`", true) as $playerID)
+            $starsByPlayer[(int) $playerID] = 0;
+
+        $playedCardsDB = $this->game->getObjectListFromDB("SELECT `card_location_arg`, `value` FROM `cards` WHERE `card_location` = 'played'");
+        foreach($playedCardsDB as $cardDB)
+            $starsByPlayer[(int) $cardDB['card_location_arg']] += STARS_BY_VALUE[(int) $cardDB['value']];
+
+        return $starsByPlayer;
+    }
+
+    /**
+     * One row of the end-game scoring table. A replayed round (debug_redeal) overwrites its row instead of failing.
+     * $result is one of the round_result ENUM literals, never a user string.
+     */
+    function saveRoundScore(int $roundNumber, int $playerID, string $result, int $stars): void{
+        $this->game->DbQuery("INSERT INTO `round_scores` (`round_number`, `player_id`, `round_result`, `stars`) VALUES ($roundNumber, $playerID, '$result', $stars)
+            ON DUPLICATE KEY UPDATE `round_result` = '$result', `stars` = $stars");
+    }
+
+    /**
+     * Every finished round: round_number => player_id => ['result' => round_result, 'stars' => int]. Public information.
+     */
+    function getRoundScores(): array{
+        $roundScoresDB = $this->game->getObjectListFromDB("SELECT * FROM `round_scores` ORDER BY `round_number` ASC");
+
+        $roundScores = [];
+        foreach($roundScoresDB as $roundScoreDB)
+            $roundScores[(int) $roundScoreDB['round_number']][(int) $roundScoreDB['player_id']] = ['result' => $roundScoreDB['round_result'], 'stars' => (int) $roundScoreDB['stars']];
+
+        return $roundScores;
+    }
+
+    function getGrandSlamPlayerIDs(): array{
+        return array_map('intval', $this->game->getObjectListFromDB("SELECT `player_id` FROM `round_scores` WHERE `round_result` = 'grand_slam'", true));
     }
 
     function getNextLocationInColumn(int $playerID): int{

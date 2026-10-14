@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * RoundSetup.php
+ */
 
 declare(strict_types=1);
 
@@ -16,6 +27,7 @@ class RoundSetup extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 5,
             type: StateType::GAME,
+            updateGameProgression: true,
         );
     }
 
@@ -25,6 +37,8 @@ class RoundSetup extends \Bga\GameFramework\States\GameState
      */
     function onEnteringState() {
         $roundNumber = $this->game->bga->globals->inc('roundNumber', 1);
+        $this->game->bga->tableStats->inc('rounds', 1);
+        $this->game->bga->playerStats->incAll('roundsPlayed', 1);
 
         $this->game->DbQuery("UPDATE `player` SET `round_status` = 'in', `play_choice` = NULL, `play_choice_card_id` = NULL, `stop_or_more_choice` = NULL");
         $this->game->powerManager->clearPendingPowers();

@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * ModifyDie.php
+ */
 
 declare(strict_types=1);
 
@@ -52,6 +63,7 @@ class ModifyDie extends GameState
 
         $this->game->DbQuery("UPDATE `dice` SET `die_value` = $newValue, `modified_by_POWER9` = 'yes' WHERE `die_color` = '$dieColor'");
         $this->game->powerManager->clearPendingPower($activePlayerId, 9);
+        $this->game->bga->playerStats->inc('powerUsed_POWER9', 1, $activePlayerId);
 
         $dieModifiedLogStr = $this->game->getPlayerNameById($activePlayerId).' turns the '.$dieColor.' die from '.$oldValue.' to '.$newValue;
         $this->bga->notify->all('dieModified_POWER9', '${DIE_MODIFIED_POWER9_LOG_STR}', [
@@ -77,7 +89,20 @@ class ModifyDie extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * A zombie doesn't use the power.
+     * Zombie level 1: a random choice among skipping and turning any changeable die by -1 or +1.
      */
-    function zombie(int $playerId) { return $this->actSkip_POWER9($playerId); }
+    function zombie(int $playerId) {
+        $choices = ['skip'];
+        foreach($this->game->tableManager->getModifiableDicePOWER9() as $die){
+            $choices[] = $die['color'].':-1';
+            $choices[] = $die['color'].':1';
+        }
+
+        $choice = $this->getRandomZombieChoice($choices);
+        if($choice === 'skip')
+            return $this->actSkip_POWER9($playerId);
+
+        [$dieColor, $delta] = explode(':', $choice);
+        return $this->actModifyDie_POWER9($dieColor, (int) $delta, $playerId);
+    }
 }

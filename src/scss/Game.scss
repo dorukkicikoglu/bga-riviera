@@ -41,6 +41,11 @@
     --bg-log-cards-redrawn-power10: linear-gradient(135deg, #f1f6e1, #d6e6b0);
     --bg-log-power-skipped: linear-gradient(135deg, #eef1f4, #d3d9e1);
     --bg-log-power-cancelled: linear-gradient(135deg, #f7ebe4, #e8c9b8);
+    --bg-log-game-end: linear-gradient(135deg, #fff7d6, #f0d98a);
+
+    //power tooltips: a pale take on the sea
+    --bg-gradient-tooltip: linear-gradient(120deg, #e8f4fb, #bfe0ef);
+    --bg-gradient-tooltip-connector: linear-gradient(-120deg, #bfe0ef, #f5fbfd);
 }
 
 .mobile_version{ --card-width: min(9vw, 90px); --die-size: min(7vw, 34px); }
@@ -48,6 +53,7 @@
 body{ background: linear-gradient(180deg, #3d8fc6 0%, #1f5f94 100%) fixed; background-color: #1f5f94; } //Riviera sea blue
 
 @mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
+@mixin pearl-background(){ background: radial-gradient(ellipse farthest-corner at right bottom, #E8F4FC 0%, #D6EAF8 8%, #C9E4F5 25%, #EAF6FB 40%, transparent 80%), radial-gradient(ellipse farthest-corner at left top, #FFFFFF 0%, #F4FBFF 8%, #DCEEFA 25%, #B8DCEF 62.5%, #A9C9D9 100%); }
 @mixin non-selectable() { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
 
 //sprite: img/riviera_cards.webp is a 10 x 7 grid of 424x625 frames, row-major:
@@ -143,7 +149,8 @@ body .sliding-clone{ position: absolute; z-index: 1000; margin: 0; pointer-event
     .my-hand-title{ color: var(--hand-owner-color); }
 
     .cards-container{ display: flex; justify-content: center;
-        .a-card{ margin-left: calc(var(--my-card-width) * -0.1); transition: transform 0.2s ease, filter 0.2s ease;
+        //HandHandler.recomputeCardSpacing sets a bigger overlap when the hand wouldn't fit on one row
+        .a-card{ margin-left: var(--hand-card-overlap, calc(var(--my-card-width) * -0.1)); transition: transform 0.2s ease, filter 0.2s ease;
             &:first-child{ margin-left: 0px; }
 
             &.selected-hand-card{ transform: translateY(-14px); outline: 3px solid #e8862b; outline-offset: -1px; z-index: 1; }
@@ -220,11 +227,12 @@ body.current_player_is_active:not(.lockedInterface){
 //end player board
 
 //logs
-//plain logs keep a neutral background; each log type (LogMutationObserver.createLog*) overrides it with its own
-.log .roundedbox, .gamelogreview{ background: var(--bg-log-default); }
+//plain logs keep a neutral background; each log type (LogMutationObserver.createLog*) overrides it with its own.
+//The text color is set too: every background is pale, so BGA's dark mode must not lighten the text
+.log .roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
 
 $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
-    "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "power-cancelled";
+    "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "power-cancelled", "game-end";
 .log, .gamelogreview{
     &.a-game-log{ position: relative;
         .roundedbox{ padding-bottom: 5px; }
@@ -237,6 +245,9 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 
     .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row, .stars-banked-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
     .new-round-row{ font-weight: bold; font-size: 16px; }
+    .game-end-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
+        .fa-trophy{ color: #b8860b; }
+    }
     .grand-slam-row{ font-weight: bold; }
     .player-crashed-row .fa-bomb{ color: #a00000; }
 
@@ -264,6 +275,81 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 }
 //end logs
 
+//end-game scoring table (EndGameScoringHandler), from Fugu
+.end-game-score-container { position: fixed; z-index: 100; transition: top 0.2s ease; top: 122px; padding: 18px 10px 22px 10px; background: linear-gradient(377deg, #1f5f94 27%, #7fc4e9 110%); left: 16px; outline: 0.5px solid #ffffff; border-radius: 12px; user-select: none; overflow: hidden; box-shadow: 2px 2px 50px #f7f3d6; max-height: calc(100vh - 160px); overflow-y: auto;
+    .maximized-content{ display: flex; align-items: center; }
+    table{ margin-top: 14px;
+        thead{
+            th{ vertical-align: middle; outline: 0.8px solid #000; padding: 5px; text-align: center;
+                &.corner-no-border-cell{ outline: 0 solid #ffffff; }
+                &.player-name-cell { width: 110px; @include text-shade(#f0f0f0, 2px); background-color: #83b9ce;
+                    span{ width: 100px; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: 18px; display: inline-block; }
+                    &.jumping-text{ animation: jumpAndTilt 1s ease-in-out infinite; @include pearl-background(); }
+                }
+            }
+        }
+        tbody{
+            td { vertical-align: middle; height: 32px; background-color: rgba(250, 236, 207, 0.6); text-align: center; color: #000000; outline: 0.8px solid rgba(28, 79, 114, 0.6); font-size: 18px; padding: 3px 0px;
+                &.row-label-cell{ padding: 3px 10px; font-size: 15px; font-weight: bold; white-space: nowrap; color: #ffffff; background-color: rgba(7, 21, 26, 0.35); }
+                .cell-crashed .fa-bomb{ color: #a00000; }
+                .cell-grand_slam{ display: inline-block; padding: 0px 8px; border-radius: 6px; font-weight: bold; background: linear-gradient(135deg, #fff1b8, #e9c45a); }
+                .cell-unfinished{ color: #555555; }
+            }
+            tr.total-row td{ background-color: #f6e3a3; font-weight: bold;
+                &.row-label-cell{ color: #27271c; background-color: #e9c45a; }
+                .cell-total{ font-size: 22px; transition: opacity 0.2s ease; }
+            }
+        }
+    }
+
+    &[collapsed=true] { padding: 0px; width: 60px; height: 60px;}
+    .collapse-table-button { position: absolute; top: 10px; left: 12px; cursor: pointer; font-size: 28px; color: rgb(237, 246, 252); }
+    .show-table-button { cursor: pointer; color: rgb(237, 246, 252); width: 100%; height: 100%;
+        .fa6-ranking-star{ font-size: 34px; margin: 12px 0px 0px 9px; }
+    }
+    .fast-forward-text{ position: absolute; bottom: 4px; right: 11px; font-size: 12px; height: 10px; color: #e9faff; }
+}
+.gamestate_gameEnd .end-game-score-container{ top: 214px; }
+.mobile_version .end-game-score-container{ margin-top: 300px;  }
+@media (orientation: landscape){
+    .end-game-score-container{ transform: scale(0.7); transform-origin: top left; }
+}
+//end end-game scoring table
+
+//tooltip (TooltipHandler), from Fugu
+.dijitTooltipContainer{
+	&:has(.tooltip-wrapper){ background: none; }
+}
+.tooltip-wrapper { outline: 0.5px solid #ffffff; min-width: 230px; max-width: 300px; background: var(--bg-gradient-tooltip); padding: 10px; margin: -6px -6px -6px -6px; color: #27271c;
+    .power-tooltip-title{ font-size: 20px; font-weight: bold; color: #1c4f72;
+        .power-tooltip-stars{ color: #b8860b; font-size: 16px; }
+    }
+    .power-tooltip-timing{ display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px; background: #1c4f72; color: #ffffff; font-size: 12px; font-weight: bold; }
+    .power-tooltip-text{ margin-top: 6px; font-size: 14px; line-height: 1.35; }
+}
+.tundra:has(.tooltip-wrapper){ /* to change the color of the little tooltip arrow */
+	.dijitTooltip {
+		.dijitTooltipConnector{ overflow: hidden; background: none;
+			&:after{ content: ""; position: absolute; width: 86%; background: var(--bg-gradient-tooltip-connector); aspect-ratio: 1;  }
+		}
+		&.dijitTooltipAbove .dijitTooltipConnector::after{ top: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: -1px -1px 2px 2px #adadad; }
+		&.dijitTooltipBelow .dijitTooltipConnector::after{ bottom: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: 1px 1px 2px 2px #adadad; }
+		&.dijitTooltipRight .dijitTooltipConnector::after{ right: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: 1px -1px 2px 2px #adadad; }
+		&.dijitTooltipLeft .dijitTooltipConnector::after{ left: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: -1px 1px 2px 2px #adadad; }
+	}
+}
+.mobile_version .tooltip-wrapper{ min-width: 250px; }
+.round-status-tooltip div + div{ margin-top: 3px; }
+.round-status-tooltip .fa-play{ color: #2e8b2e; }
+.round-status-tooltip .fa-flag-checkered{ color: #1c4f72; }
+.round-status-tooltip .fa-bomb{ color: #a00000; }
+//Safari on mobile gets the power reference at the bottom of the page instead of tooltips
+.safari-mobile-power-reference-container{ display: none; }
+.mobile_version.safari-browser .safari-mobile-power-reference-container{ display: flex; flex-direction: column; gap: 14px; width: 390px; max-width: 100%; margin: 40px auto 0px auto; padding: 10px; box-sizing: border-box; background: var(--bg-gradient-tooltip); border-radius: 10px;
+    .tooltip-wrapper{ max-width: unset; margin: 0px; outline: none; background: none; padding: 0px; }
+}
+//end tooltip
+
 @keyframes selectable-card-glow-pulse {
   0% { box-shadow: 0 0 5px 5px #FFD700; }
   50% { box-shadow: 0 0 11px 11px #ffd483; }
@@ -285,6 +371,18 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 @keyframes card-fade-in {
     0% { opacity: 0; transform: translateY(20px); }
     100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jumpAndTilt {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-10px) rotate(-5deg);
+    }
+    75% {
+        transform: translateY(-10px) rotate(5deg);
+    }
 }
 
 @keyframes die-changed {

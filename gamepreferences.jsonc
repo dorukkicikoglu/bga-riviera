@@ -23,4 +23,17 @@
     "default": 0
   }
   */
+
+  "101": {
+    "name": "One-click card play",
+    "values": {
+      "0": {
+        "name": "Off: select, then confirm"
+      },
+      "1": {
+        "name": "On"
+      }
+    },
+    "default": 0
+  }
 }

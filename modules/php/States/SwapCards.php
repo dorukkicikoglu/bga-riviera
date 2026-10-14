@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * SwapCards.php
+ */
 
 declare(strict_types=1);
 
@@ -69,6 +80,7 @@ class SwapCards extends GameState
         $this->game->DbQuery("UPDATE `cards` SET `card_location_arg` = $targetPlayerId WHERE `card_id` IN (".implode(',', $cardIDs).")");
         $this->game->DbQuery("UPDATE `cards` SET `card_location_arg` = $activePlayerId WHERE `card_id` IN (".implode(',', $targetCardIDs).")");
         $this->game->powerManager->clearPendingPower($activePlayerId, 10);
+        $this->game->bga->playerStats->inc('powerUsed_POWER10', $swapCount, $activePlayerId);
 
         $swapLogStr = $this->game->getPlayerNameById($activePlayerId).' swaps '.$swapCount.' cards with '.$this->game->getPlayerNameById($targetPlayerId);
 
@@ -116,6 +128,7 @@ class SwapCards extends GameState
         $drawn = $this->game->tableManager->drawCardsPOWER10($activePlayerId, $redrawCount);
         $this->game->DbQuery("UPDATE `cards` SET `card_location` = 'discard', `location_in_column` = NULL, `chain_position_POWER1` = NULL WHERE `card_id` IN (".implode(',', $cardIDs).")");
         $this->game->powerManager->clearPendingPower($activePlayerId, 10);
+        $this->game->bga->playerStats->inc('powerUsed_POWER10', $redrawCount, $activePlayerId);
 
         $redrawLogStr = $this->game->getPlayerNameById($activePlayerId).' discards '.$redrawCount.' cards and draws '.count($drawn);
 
@@ -172,7 +185,30 @@ class SwapCards extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * A zombie doesn't use the power.
+     * Zombie level 1: a random choice among skipping and every target, giving 2 random cards of its own;
+     * in the discard and draw fallback, a random choice between redrawing random cards and skipping.
      */
-    function zombie(int $playerId) { return $this->actSkip_POWER10($playerId); }
+    function zombie(int $playerId) {
+        $targetIDs = array_column($this->game->powerManager->getSwapTargetsPOWER10($playerId), 'player_id');
+
+        if(!empty($targetIDs)){
+            $choice = $this->getRandomZombieChoice(['skip', ...array_map('strval', $targetIDs)]);
+            if($choice === 'skip')
+                return $this->actSkip_POWER10($playerId);
+
+            return $this->actSwapCards_POWER10($this->getRandomOwnCardIDs($playerId, CARDS_SWAPPED_BY_POWER10), (int) $choice, $playerId);
+        }
+
+        $myHandCount = $this->game->tableManager->getHandCounts()[$playerId] ?? 0;
+        $redrawCount = min(CARDS_SWAPPED_BY_POWER10, $myHandCount, $this->game->tableManager->getDrawableCountPOWER10());
+        if($redrawCount === 0 || $this->getRandomZombieChoice(['redraw', 'skip']) === 'skip')
+            return $this->actSkip_POWER10($playerId);
+
+        return $this->actRedrawCards_POWER10($this->getRandomOwnCardIDs($playerId, $redrawCount), $playerId);
+    }
+
+    private function getRandomOwnCardIDs(int $playerID, int $count): array
+    {
+        return array_column($this->game->tableManager->getRandomHandCards($playerID, $count), 'card_id');
+    }
 }

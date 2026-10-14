@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * ResolvePowers.php
+ */
 
 declare(strict_types=1);
 
@@ -43,6 +54,7 @@ class ResolvePowers extends GameState
         $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'yes', `die_value` = NULL WHERE `die_color` = 'gold'");
         $this->game->DbQuery("UPDATE `player` SET `added_golden_die_POWER11` = 'yes' WHERE `player_id` = $activePlayerId");
         $this->game->powerManager->clearPendingPower($activePlayerId, 11);
+        $this->game->bga->playerStats->inc('powerUsed_POWER11', 1, $activePlayerId);
 
         $goldenDieLogStr = $this->game->getPlayerNameById($activePlayerId).' adds the golden die to the next roll';
         $this->bga->notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [
@@ -65,7 +77,12 @@ class ResolvePowers extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * A zombie doesn't use the power.
+     * Zombie level 1: adds the golden die or skips, at random.
      */
-    function zombie(int $playerId) { return $this->actSkip_POWER11($playerId); }
+    function zombie(int $playerId) {
+        if($this->getRandomZombieChoice(['add', 'skip']) === 'add')
+            return $this->actAddGoldenDie_POWER11($playerId);
+
+        return $this->actSkip_POWER11($playerId);
+    }
 }

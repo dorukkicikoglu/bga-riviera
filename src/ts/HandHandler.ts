@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * HandHandler.ts
+ */
 import { Game } from "./Game";
 import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
@@ -10,6 +21,8 @@ export class HandHandler{
     private static readonly HAND_FADE_IN_ANIM_TIME = 500; //card-fade-in on .cards-fading-in in Game.scss
     private static readonly SLIDE_ANIM_TIME = 600;
     private static readonly SELECTION_STATES = ['PlayCard', 'SwapCards'];
+    private static readonly DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
+    private static readonly MAX_CARD_OVERLAP = 0.7;
 
     private handContainer: HTMLDivElement;
     private cardsContainer: HTMLDivElement;
@@ -41,6 +54,23 @@ export class HandHandler{
 
         for(let cardData of this.getSortedHandData())
             this.insertCardToHand(cardData);
+
+        this.recomputeCardSpacing();
+    }
+
+    //cards overlap more when the hand would not fit on one row (narrow screens, mobile). Called by Game.onScreenWidthChange
+    //too, since the screen can change without the hand changing
+    public recomputeCardSpacing(): void{
+        const cards = this.getCardDivs();
+        if(cards.length < 2 || this.cardsContainer.clientWidth === 0){
+            this.cardsContainer.style.removeProperty('--hand-card-overlap');
+            return;
+        }
+
+        const cardWidth = cards[0].offsetWidth;
+        const neededOverlap = (cardWidth * cards.length - this.cardsContainer.clientWidth) / (cards.length - 1);
+        const overlap = Math.min(cardWidth * HandHandler.MAX_CARD_OVERLAP, Math.max(cardWidth * HandHandler.DEFAULT_CARD_OVERLAP, neededOverlap));
+        this.cardsContainer.style.setProperty('--hand-card-overlap', `${-overlap}px`);
     }
 
     //sorted like the sprite: by color index, then value
@@ -137,6 +167,7 @@ export class HandHandler{
         leavingCards.forEach(card => card.classList.add('card-fading-out'));
         await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
         leavingCards.forEach(card => card.remove());
+        this.recomputeCardSpacing();
     }
 
     //card 10: cards joining my hand take their sorted place and slide in from fromElement (the other player's board), or fade in
@@ -173,6 +204,7 @@ export class HandHandler{
 
         const slidePromise = column.animateCardIn(cardData, handCard); //places the sliding copy on handCard before its first await,
         handCard.remove();                                              //so the hand card can go right away
+        this.recomputeCardSpacing();
         await slidePromise;
     }
 

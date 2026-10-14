@@ -14,6 +14,7 @@ class PlayCard {
         this.game = game;
         this.bga = bga;
         this.confirmButton = null;
+        this.confirmActionName = 'actPlayCard';
         this.pendingChoice = null;
         this.chainCardIDs = [];
         this.chainOpen = false;
@@ -59,7 +60,8 @@ class PlayCard {
             this.bga.statusBar.setTitle(_('${you} may add another card to your 1, or finish'));
             this.game.handHandler.setSelectableCards(this.playableCardIDs);
             //hidden until a card is selected, like Fugu's swap button
-            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked('actAddChainCard_POWER1'), { id: 'add-chain-card-button' });
+            this.confirmActionName = 'actAddChainCard_POWER1';
+            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked(this.confirmActionName), { id: 'add-chain-card-button' });
             this.bga.statusBar.addActionButton(_('Finish'), () => this.bga.actions.performAction('actFinishChain_POWER1'), { id: 'finish-chain-button', color: 'secondary' });
             this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
             this.selectionChanged();
@@ -69,7 +71,8 @@ class PlayCard {
                 this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
                 this.game.handHandler.setSelectableCards(this.playableCardIDs);
                 //hidden until a card is selected, like Fugu's swap button
-                this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked('actPlayCard'), { id: 'confirm-selected-card-button' });
+                this.confirmActionName = 'actPlayCard';
+                this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), { id: 'confirm-selected-card-button' });
                 this.selectionChanged();
             }
             else {
@@ -103,7 +106,13 @@ class PlayCard {
         if (!this.confirmButton)
             return;
         const selectedCard = this.game.handHandler?.getSelectedCardData();
-        this.confirmButton.style.display = selectedCard ? null : 'none';
+        const oneClickPlay = this.game.prefHandler?.isOneClickPlay() ?? false;
+        this.confirmButton.style.display = (selectedCard && !oneClickPlay) ? null : 'none';
+        //"One-click card play" preference: the click that selected the card plays it
+        if (selectedCard && oneClickPlay) {
+            this.confirmClicked(this.confirmActionName);
+            return;
+        }
         const isAddingToChain = this.pendingChoice !== null;
         if (selectedCard)
             this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
@@ -128,6 +137,10 @@ class PlayCard {
     setPendingChoice(pendingChoice) {
         this.pendingChoice = pendingChoice;
         this.game.handHandler?.setChosenCards(this.getChosenCardIDs());
+    }
+    //PrefHandler: "One-click card play" was switched while choosing
+    preferenceChanged() {
+        this.refresh();
     }
     //the private notifications land while the state is unchanged, so they redraw the status bar themselves
     refresh() {
@@ -389,6 +402,7 @@ class PlayedColumnHandler {
         }
         this.cardsColumn = this.columnContainer.querySelector('.cards-column');
         this.starsText = this.columnContainer.querySelector('.played-column-stars');
+        this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
         this.displayColumn();
     }
     displayColumn() {
@@ -482,6 +496,9 @@ class PlayerHandler {
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
         this.startTokenSlot = this.playerBoardContainer.querySelector('.start-token-slot');
+        //ids for TooltipHandler
+        this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
+        this.roundStatusIndicator.id = 'round-status-' + this.playerID;
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');
         this.lastChanceIndicator.prepend(lastChanceCard);
@@ -880,6 +897,7 @@ class LogMutationObserver {
                 parentLog.classList.add('a-game-log', logClassName);
         }
         classTags.forEach(classTag => classTag.remove());
+        this.game.tooltipHandler?.addTooltipsToCardsIn(node); //power cards and Last Chance shown in this row
         node.querySelectorAll('.playername').forEach((playerName) => {
             playerName.setAttribute('player-color', this.game.rgbToHex(window.getComputedStyle(playerName).color));
         });
@@ -1099,6 +1117,20 @@ class LogMutationObserver {
                 ${cancelledText.replace('${card}', cardHTML).replace('${die}', this.getMiniDieHTML(shownDie))}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'power-cancelled-log');
+    }
+    //the game ends: everyone at the top score wins (a Grand Slam, or equal scores, share the win)
+    createLogGameEnd(winner_ids, winningScore) {
+        const iWin = winner_ids.includes(this.game.getMyPlayerID());
+        const otherWinnersHTML = winner_ids.filter(player_id => player_id !== this.game.getMyPlayerID()).map(player_id => this.game.divColoredPlayer(player_id, { class: 'playername' }));
+        const winnersHTML = [...(iWin ? [this.game.divYou({ class: 'playername' })] : []), ...otherWinnersHTML].join(', ');
+        const gameEndText = (iWin || winner_ids.length > 1)
+            ? _('${players} win with ${stars} ★')
+            : _('${players} wins with ${stars} ★');
+        let logHTML = `
+            <div class="game-end-row">
+                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndText.replace('${players}', winnersHTML).replace('${stars}', `<b>${winningScore}</b>`)}
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'game-end-log');
     }
     getMiniCardsHTML(cards) {
         return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');

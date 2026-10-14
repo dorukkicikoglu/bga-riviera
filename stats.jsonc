@@ -1,28 +1,90 @@
 {    
     // Statistics for the table
-    "table": {},
+    "table": {
+      "rounds": {
+        "id": 10,
+        "name": "Rounds",
+        "type": "int"
+      },
+      "turns": {
+        "id": 11,
+        "name": "Turns",
+        "type": "int"
+      }
+    },
     
     // Statistics for each player
     "player": {
-      /* 
-      EXAMPLE:
-
-      "turns_number": {
+      "roundsPlayed": {
         "id": 10,
-        "name": "Number of turns",
+        "name": "Rounds played",
         "type": "int"
       },
-      "player_teststat1": {
+      "roundsStopped": {
         "id": 11,
-        "name": "player test stat 1",
+        "name": "Rounds stopped",
         "type": "int"
       },
-      "player_teststat2": {
+      "crashes": {
         "id": 12,
-        "name": "player test stat 2",
-        "type": "float"
+        "name": "Crashes",
+        "type": "int"
+      },
+      "lastChanceUsed": {
+        "id": 13,
+        "name": "Last Chance used",
+        "type": "bool"
+      },
+      // only set when the Last Chance is used, so games without one don't drag the average down
+      "lastChanceRound": {
+        "id": 14,
+        "name": "Round the Last Chance was used in",
+        "type": "int"
+      },
+      "starsBanked": {
+        "id": 15,
+        "name": "Stars banked",
+        "type": "int"
+      },
+      "bestRound": {
+        "id": 16,
+        "name": "Most stars banked in one round",
+        "type": "int"
+      },
+      "cardsPlayed": {
+        "id": 17,
+        "name": "Cards played",
+        "type": "int"
+      },
+      "powerUsed_POWER1": {
+        "id": 18,
+        "name": "Extra cards played with a 1",
+        "type": "int"
+      },
+      "powerUsed_POWER2": {
+        "id": 19,
+        "name": "Dice reserved (card 2)",
+        "type": "int"
+      },
+      "powerUsed_POWER9": {
+        "id": 20,
+        "name": "Dice turned (card 9)",
+        "type": "int"
+      },
+      "powerUsed_POWER10": {
+        "id": 21,
+        "name": "Cards swapped or redrawn (card 10)",
+        "type": "int"
+      },
+      "powerUsed_POWER11": {
+        "id": 22,
+        "name": "Golden dice added (card 11)",
+        "type": "int"
+      },
+      "grandSlam": {
+        "id": 23,
+        "name": "Grand Slam",
+        "type": "bool"
       }
-      */
-
     }
 }

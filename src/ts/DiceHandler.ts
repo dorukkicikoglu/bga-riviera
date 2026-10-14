@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * DiceHandler.ts
+ */
 import { Game } from "./Game";
 
 export class DiceHandler{
@@ -11,8 +22,12 @@ export class DiceHandler{
     constructor(private game: Game, private diceData: RivieraDie[]) {
         this.diceContainer = document.querySelector('#dice-container');
 
-        for(let dieData of this.diceData)
-            this.diceContainer.appendChild(this.createDieDiv(dieData));
+        //only the dice in the game area get an id (for their tooltip), never the copies in log rows
+        for(let dieData of this.diceData){
+            const aDie = this.createDieDiv(dieData);
+            aDie.id = 'die-' + dieData.color;
+            this.diceContainer.appendChild(aDie);
+        }
 
         this.diceContainer.addEventListener('click', (event: Event) => { this.diceContainerClicked(event); });
     }
@@ -91,6 +106,9 @@ export class DiceHandler{
             if(!aDie)
                 continue;
 
+            this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
+            this.game.tooltipHandler?.updateDieTooltip(dieData);
+
             const previousValue = aDie.getAttribute('data-value');
             this.applyDieData(aDie, dieData);
 
@@ -108,4 +126,5 @@ export class DiceHandler{
 
     public getDieDiv(color: DieColor): HTMLDivElement { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
     public getDiceContainer(): HTMLDivElement{ return this.diceContainer; }
+    public getDiceData(): RivieraDie[]{ return this.diceData; }
 }

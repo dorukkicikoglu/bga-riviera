@@ -31,6 +31,9 @@ class Game extends \Bga\GameFramework\Table
     public RIVTableManager $tableManager;
     public RIVChangeMindManager $changeMindManager;
     public RIVPowerManager $powerManager;
+    public array $userPrefs = array(
+        'one_click_play' => 101,
+    );
 
     /**
      * Your global variables labels:
@@ -60,12 +63,25 @@ class Game extends \Bga\GameFramework\Table
         $this->powerManager = new RIVPowerManager($this);
     }
 
+    /**
+     * The highest banked score plus the stars in front of a player not crashed this round, out of WINNING_SCORE.
+     * Capped at 99: the game only reaches 100 when it really ends. Recomputed by RoundSetup (columns are empty, so it is
+     * the banked score) and RevealCards; not by EndRound, where a stopped player's column is banked but not cleared yet.
+     */
     public function getGameProgression()
     {
-        $maxScore = (int) $this->getUniqueValueFromDB("SELECT MAX(`player_score`) FROM `player`");
-        $progress = (int) floor(100 * $maxScore / WINNING_SCORE);
+        $playersDB = $this->getCollectionFromDB("SELECT `player_id`, `player_score`, `round_status` FROM `player`");
+        $starsInColumns = $this->tableManager->getStarsInColumnByPlayer();
 
-        return min(100, max(0, $progress));
+        $bestScore = 0;
+        foreach($playersDB as $playerID => $playerDB){
+            $columnStars = ($playerDB['round_status'] === 'crashed') ? 0 : ($starsInColumns[(int) $playerID] ?? 0);
+            $bestScore = max($bestScore, (int) $playerDB['player_score'] + $columnStars);
+        }
+
+        $progress = (int) floor(100 * $bestScore / WINNING_SCORE);
+
+        return min(99, max(0, $progress));
     }
 
     /**
@@ -128,6 +144,12 @@ class Game extends \Bga\GameFramework\Table
         $result['roundNumber'] = (int) $this->bga->globals->get('roundNumber');
         $result['cardColors'] = CARD_COLORS;
         $result['starsByValue'] = STARS_BY_VALUE;
+        $result['pref_names'] = $this->userPrefs;
+        $result['grandSlamPlayerIds'] = $this->tableManager->getGrandSlamPlayerIDs();
+
+        $state = $this->gamestate->getCurrentMainState();
+        if($state->name == 'gameEnd')
+            $result['endGameScoring'] = $this->getEndGameScoring();
 
         return $result;
     }
@@ -189,6 +211,13 @@ class Game extends \Bga\GameFramework\Table
             self::DbQuery("UPDATE `dice` SET `die_location` = 'returned_to_box' WHERE `die_color` = '$removedColor'");
         }
 
+        // Init game statistics. lastChanceRound is left out on purpose: it is only set when a Last Chance is used,
+        // so games without one don't drag its average down
+        $this->bga->tableStats->init(['rounds', 'turns'], 0);
+        $this->bga->playerStats->init(['roundsPlayed', 'roundsStopped', 'crashes', 'starsBanked', 'bestRound', 'cardsPlayed',
+            'powerUsed_POWER1', 'powerUsed_POWER2', 'powerUsed_POWER9', 'powerUsed_POWER10', 'powerUsed_POWER11'], 0);
+        $this->bga->playerStats->init(['lastChanceUsed', 'grandSlam'], false);
+
         // Init global values with their initial values.
         $playerIDs = array_keys($players);
         $this->bga->globals->set('startPlayerId', (int) $playerIDs[bga_rand(0, count($playerIDs) - 1)]);
@@ -215,20 +244,53 @@ class Game extends \Bga\GameFramework\Table
      * max(GRAND_SLAM_MIN_SCORE, highest other score + 1) so BGA ranks them first; several of them share the win.
      */
     public function applyGrandSlam(array $playerIDs): void {
-        $playerIDList = implode(',', array_map('intval', $playerIDs));
+        $playerIDs = array_map('intval', $playerIDs);
+        $playerIDList = implode(',', $playerIDs);
         $highestOtherScore = (int) $this->getUniqueValueFromDB("SELECT COALESCE(MAX(`player_score`), 0) FROM `player` WHERE `player_id` NOT IN ($playerIDList)");
         $grandSlamScore = max(GRAND_SLAM_MIN_SCORE, $highestOtherScore + 1);
 
+        $roundNumber = (int) $this->bga->globals->get('roundNumber');
+        $playersDB = $this->getCollectionFromDB("SELECT `player_id`, `player_score`, `round_status` FROM `player`");
+
+        //the end-game table: the Grand Slam players get the jump to their new score, the round is cut short for everyone else
+        foreach($playersDB as $playerID => $playerDB){
+            $playerID = (int) $playerID;
+            if(in_array($playerID, $playerIDs, true))
+                $this->tableManager->saveRoundScore($roundNumber, $playerID, 'grand_slam', max(0, $grandSlamScore - (int) $playerDB['player_score']));
+            else $this->tableManager->saveRoundScore($roundNumber, $playerID, ($playerDB['round_status'] === 'crashed') ? 'crashed' : 'unfinished', 0);
+        }
+
         foreach($playerIDs as $playerID){
-            $this->bga->playerScore->set((int) $playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
+            $this->bga->playerScore->set($playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
+            $this->bga->playerStats->set('grandSlam', true, $playerID);
 
             $this->bga->notify->all('grandSlam', '${GRAND_SLAM_LOG_STR}', [
                 'preserve' => ['player_id', 'score'],
-                'player_id' => (int) $playerID,
+                'player_id' => $playerID,
                 'score' => $grandSlamScore,
-                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById((int) $playerID).' plays all 10 cards: Grand Slam!',
+                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById($playerID).' plays all 10 cards: Grand Slam!',
             ]);
         }
+    }
+
+    /**
+     * Everything the end-game scoring table needs. Everyone at the top score wins (Grand Slam players and tied
+     * scores share the win). The Total row shows player_score itself, so it always matches BGA's ranking.
+     */
+    public function getEndGameScoring(): array {
+        $scores = [];
+        foreach($this->getCollectionFromDB("SELECT `player_id`, `player_score` FROM `player`", true) as $playerID => $score)
+            $scores[(int) $playerID] = (int) $score;
+
+        $winningScore = max($scores);
+        $winnerIDs = array_keys(array_filter($scores, fn(int $score) => $score === $winningScore));
+
+        return [
+            'winner_ids' => $winnerIDs,
+            'winning_score' => $winningScore,
+            'rounds' => $this->tableManager->getRoundScores(),
+            'scores' => $scores,
+        ];
     }
 
     //end utility functions

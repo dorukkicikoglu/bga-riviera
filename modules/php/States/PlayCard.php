@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * PlayCard.php
+ */
 
 declare(strict_types=1);
 
@@ -223,17 +234,20 @@ class PlayCard extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * A random playable card (a 1 is not chained), else the Last Chance if still available, else a crash.
+     * Zombie level 1: the playable card with the most stars (ties at random); a 1 chains greedily the same way.
+     * With no playable card: the Last Chance if still available, else a crash.
      * Never use getCurrentPlayerId() here: there is no current player in a zombie call.
      */
     function zombie(int $playerId) {
-        if($this->isMidChainPOWER1($playerId))
-            return $this->actFinishChain_POWER1($playerId);
+        if($this->isMidChainPOWER1($playerId)){
+            $this->zombieChainPOWER1($playerId);
+            return;
+        }
 
         $playableCardIDs = $this->game->tableManager->getPlayableCardIDs($playerId);
         if(count($playableCardIDs) > 0){
-            if($this->playCard((int) $this->getRandomZombieChoice($playableCardIDs), $playerId))
-                $this->game->gamestate->setPlayerNonMultiactive($playerId, RevealCards::class);
+            if($this->playCard($this->getBestZombieCardID($playableCardIDs), $playerId))
+                $this->zombieChainPOWER1($playerId);
             return;
         }
 
@@ -242,5 +256,33 @@ class PlayCard extends GameState
             return $this->actUseLastChance($playerId);
 
         return $this->actCrash($playerId);
+    }
+
+    //the whole chain happens in this one call: the framework doesn't call zombie() again for a player who stays active
+    private function zombieChainPOWER1(int $playerID): void
+    {
+        for($step = 0; $step < CARDS_PER_HAND && $this->isMidChainPOWER1($playerID); $step++){
+            $nextCardIDs = $this->getRemainingPlayableCardIDs($playerID);
+            if(empty($nextCardIDs)){
+                $this->actFinishChain_POWER1($playerID);
+                return;
+            }
+
+            $this->actAddChainCard_POWER1($this->getBestZombieCardID($nextCardIDs), $playerID);
+        }
+
+        if($this->isMidChainPOWER1($playerID))
+            $this->actFinishChain_POWER1($playerID);
+    }
+
+    private function getBestZombieCardID(array $cardIDs): int
+    {
+        $cardValuesDB = $this->game->getCollectionFromDB("SELECT `card_id`, `value` FROM `cards` WHERE `card_id` IN (".implode(',', array_map('intval', $cardIDs)).")", true);
+
+        $starsByCardID = [];
+        foreach($cardValuesDB as $cardID => $value)
+            $starsByCardID[(int) $cardID] = STARS_BY_VALUE[(int) $value];
+
+        return (int) $this->getBestZombieChoice($starsByCardID);
     }
 }

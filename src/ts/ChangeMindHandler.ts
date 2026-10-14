@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * ChangeMindHandler.ts
+ */
 import { Game } from "./Game";
 
 //"Change my mind", shared by every multiactive state where a choice stays pending until the last player has chosen.

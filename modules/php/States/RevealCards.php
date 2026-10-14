@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * RevealCards.php
+ */
 
 declare(strict_types=1);
 
@@ -16,6 +27,7 @@ class RevealCards extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 22,
             type: StateType::GAME,
+            updateGameProgression: true,
         );
     }
 
@@ -64,14 +76,21 @@ class RevealCards extends \Bga\GameFramework\States\GameState
                 $revealLogParts[] = $playerName.': '.implode(' + ', array_map(fn(array $revealedCard) => $this->game->getCardLogHTML($revealedCard), [$card, ...$extraCards]));
                 $cardPlayerIDs[] = $playerID;
                 $lastCardValueByPlayer[$playerID] = empty($extraCards) ? $card['value'] : end($extraCards)['value'];
+
+                $this->game->bga->playerStats->inc('cardsPlayed', 1 + count($extraCards), $playerID);
+                if(count($extraCards) > 0)
+                    $this->game->bga->playerStats->inc('powerUsed_POWER1', count($extraCards), $playerID);
             } else if($playChoice === 'last_chance'){
                 $this->game->DbQuery("UPDATE `player` SET `last_chance_used` = 'yes' WHERE `player_id` = $playerID");
+                $this->game->bga->playerStats->set('lastChanceUsed', true, $playerID);
+                $this->game->bga->playerStats->set('lastChanceRound', (int) $this->game->bga->globals->get('roundNumber'), $playerID);
 
                 $reveals[] = ['player_id' => $playerID, 'choice' => 'last_chance', 'card' => null, 'extra_cards_POWER1' => []];
                 $revealLogParts[] = $playerName.': Last Chance';
             } else if($playChoice === 'crash'){
                 $this->game->DbQuery("UPDATE `player` SET `round_status` = 'crashed' WHERE `player_id` = $playerID");
                 $this->game->tableManager->discardPlayerCards($playerID);
+                $this->game->bga->playerStats->inc('crashes', 1, $playerID);
 
                 $crashedPlayerIDs[] = $playerID;
             }

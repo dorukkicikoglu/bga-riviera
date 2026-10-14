@@ -59,3 +59,14 @@ ALTER TABLE `player` ADD `pending_POWER10` ENUM('yes', 'no') NOT NULL DEFAULT 'n
 ALTER TABLE `player` ADD `pending_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER10`;
 -- card 11: this player added the golden die to the next roll. It is dropped when every player who added it chose Stop
 ALTER TABLE `player` ADD `added_golden_die_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER11`;
+
+-- one row per player per round, for the end-game scoring table
+-- round_result: stopped banks stars, crashed scores 0, grand_slam ends the game, unfinished means a Grand Slam ended the round first
+-- stars: points added to player_score that round (for grand_slam, the jump to the Grand Slam score)
+CREATE TABLE IF NOT EXISTS `round_scores` (
+  `round_number` TINYINT UNSIGNED NOT NULL,
+  `player_id` INT UNSIGNED NOT NULL,
+  `round_result` ENUM('stopped', 'crashed', 'grand_slam', 'unfinished') NOT NULL,
+  `stars` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`round_number`, `player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

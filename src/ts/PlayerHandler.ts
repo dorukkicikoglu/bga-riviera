@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * PlayerHandler.ts
+ */
 import { Game } from "./Game";
 import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
@@ -43,6 +54,10 @@ export class PlayerHandler{
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
         this.startTokenSlot = this.playerBoardContainer.querySelector('.start-token-slot');
+
+        //ids for TooltipHandler
+        this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
+        this.roundStatusIndicator.id = 'round-status-' + this.playerID;
 
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');

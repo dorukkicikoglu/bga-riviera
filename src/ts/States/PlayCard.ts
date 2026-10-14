@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * PlayCard.ts
+ */
 import { Game } from "../Game";
 
 /**
@@ -13,6 +24,7 @@ import { Game } from "../Game";
  */
 export class PlayCard {
     private confirmButton: HTMLButtonElement | null = null;
+    private confirmActionName: 'actPlayCard' | 'actAddChainCard_POWER1' = 'actPlayCard';
     private pendingChoice: PendingPlayChoice | null = null;
     private chainCardIDs: number[] = [];
     private chainOpen: boolean = false;
@@ -68,7 +80,8 @@ export class PlayCard {
             this.game.handHandler.setSelectableCards(this.playableCardIDs);
 
             //hidden until a card is selected, like Fugu's swap button
-            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked('actAddChainCard_POWER1'), {id: 'add-chain-card-button'});
+            this.confirmActionName = 'actAddChainCard_POWER1';
+            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked(this.confirmActionName), {id: 'add-chain-card-button'});
             this.bga.statusBar.addActionButton(_('Finish'), () => this.bga.actions.performAction('actFinishChain_POWER1'), {id: 'finish-chain-button', color: 'secondary'});
             this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
             this.selectionChanged();
@@ -78,7 +91,8 @@ export class PlayCard {
                 this.game.handHandler.setSelectableCards(this.playableCardIDs);
 
                 //hidden until a card is selected, like Fugu's swap button
-                this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked('actPlayCard'), {id: 'confirm-selected-card-button'});
+                this.confirmActionName = 'actPlayCard';
+                this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), {id: 'confirm-selected-card-button'});
                 this.selectionChanged();
             } else {
                 this.bga.statusBar.setTitle(_('${you} cannot play any card'));
@@ -112,7 +126,14 @@ export class PlayCard {
             return;
 
         const selectedCard = this.game.handHandler?.getSelectedCardData();
-        this.confirmButton.style.display = selectedCard ? null : 'none';
+        const oneClickPlay = this.game.prefHandler?.isOneClickPlay() ?? false;
+        this.confirmButton.style.display = (selectedCard && !oneClickPlay) ? null : 'none';
+
+        //"One-click card play" preference: the click that selected the card plays it
+        if(selectedCard && oneClickPlay){
+            this.confirmClicked(this.confirmActionName);
+            return;
+        }
 
         const isAddingToChain = this.pendingChoice !== null;
         if(selectedCard)
@@ -142,6 +163,11 @@ export class PlayCard {
     private setPendingChoice(pendingChoice: PendingPlayChoice | null): void {
         this.pendingChoice = pendingChoice;
         this.game.handHandler?.setChosenCards(this.getChosenCardIDs());
+    }
+
+    //PrefHandler: "One-click card play" was switched while choosing
+    public preferenceChanged(): void {
+        this.refresh();
     }
 
     //the private notifications land while the state is unchanged, so they redraw the status bar themselves

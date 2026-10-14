@@ -1,4 +1,4 @@
-> Status: approved 2026-10-14, not implemented yet. Docs updated only (this plan saved as `.claude/plans/milestone-4.md`, decisions recorded in SPEC.md); no code until the go-ahead.
+> Status: implemented 2026-10-14, awaiting Studio test (see .claude/TESTING.md).
 
 # Riviera: Milestone 4 (Polish) plan
 

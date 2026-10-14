@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * Game.ts
+ */
 import { PlayCard } from "./States/PlayCard";
 import { StopOrMore } from "./States/StopOrMore";
 import { ModifyDie } from "./States/ModifyDie";
@@ -9,6 +20,9 @@ import { DiceHandler } from "./DiceHandler";
 import { StartTokenHandler } from "./StartTokenHandler";
 import { LogMutationObserver } from "./LogMutationObserver";
 import { ChangeMindHandler } from "./ChangeMindHandler";
+import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
+import { EndGameScoringHandler } from "./EndGameScoringHandler";
+import { PrefHandler } from "./PrefHandler";
 
 export class Game {
     private static readonly CARD_BACK_SLIDE_ANIM_TIME = 600;
@@ -32,9 +46,11 @@ export class Game {
     public startTokenHandler: StartTokenHandler;
     public logMutationObserver: LogMutationObserver;
     public changeMindHandler: ChangeMindHandler;
+    public tooltipHandler: TooltipHandler;
+    private endGameScoringHandler: EndGameScoringHandler;
+    public prefHandler: PrefHandler;
 
     constructor(bga: Bga<RivieraPlayer, RivieraGamedatas>) {
-        console.log('riviera constructor');
         this.bga = bga;
 
         // Declare the State classes
@@ -67,7 +83,6 @@ export class Game {
     */
 
     setup(gamedatas: RivieraGamedatas) {
-        console.log( "Starting game setup" );
         this.gamedatas = gamedatas;
 
         document.body.setAttribute('data-player-count', Object.keys(gamedatas.players).length.toString());
@@ -80,6 +95,7 @@ export class Game {
 
         this.myPlayerID = this.bga.players.getCurrentPlayerId();
         this.diceHandler = new DiceHandler(this, gamedatas.dice);
+        this.endGameScoringHandler = new EndGameScoringHandler(this);
 
         // Setting up player boards and played columns
         for(let player_id in gamedatas.players) {
@@ -100,14 +116,22 @@ export class Game {
             this.handHandler = new HandHandler(this, gamedatas.cardsInMyHand);
         }
 
+        //a Grand Slam ends the game, so this only matters after F5 at the end
+        for(let player_id of gamedatas.grandSlamPlayerIds ?? [])
+            this.players[player_id]?.setGrandSlam();
+
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
         this.logMutationObserver = new LogMutationObserver(this);
         this.changeMindHandler = new ChangeMindHandler(this);
+        this.tooltipHandler = new TooltipHandler(this);
+        this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
+        this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();
+
+        if(gamedatas.hasOwnProperty('endGameScoring'))
+            this.endGameScoringHandler.displayEndGameScore(gamedatas.endGameScoring);
 
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();
-
-        console.log( "Ending game setup" );
     }
 
     ///////////////////////////////////////////////////
@@ -127,7 +151,7 @@ export class Game {
 
                 // list of special keys we want to replace with images
                 const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
-                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR'];
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR', 'GAME_END_LOG_STR'];
                 for(let key of keys) {
                     if(key in args) {
                         if(key == 'NEW_ROUND_LOG_STR')
@@ -160,6 +184,8 @@ export class Game {
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if(key == 'POWER_CANCELLED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
+                        else if(key == 'GAME_END_LOG_STR')
+                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
                     }
                 }
             }
@@ -195,6 +221,8 @@ export class Game {
         aCard.setAttribute('data-color', cardData.color);
         aCard.setAttribute('data-value', String(cardData.value));
         aCard.setAttribute('data-card-id', String(cardData.card_id));
+        if(POWER_CARD_VALUES.includes(cardData.value))
+            aCard.classList.add(TooltipHandler.getPowerCardClass(cardData.value)); //power tooltip
         return aCard;
     }
 
@@ -207,7 +235,9 @@ export class Game {
 
     createLastChanceDiv(): HTMLDivElement {
         let aCard = document.createElement('div');
-        aCard.className = 'a-card';
+        aCard.className = 'a-card last-chance-card';
+        aCard.setAttribute('id', 'an-id-required-for-tooltips-' + this.localCardIDCounter);
+        this.localCardIDCounter++;
         aCard.setAttribute('data-card-kind', 'last-chance');
         return aCard;
     }
@@ -297,9 +327,13 @@ export class Game {
         let pos = this.bga.gameui.getBoundingClientRectIgnoreZoom(node);
         return pos;
     }
+    public onScreenWidthChange(): void { //BGA's resize hook (window resize, including orientation changes); also fires once at load
+        this.handHandler?.recomputeCardSpacing();
+    }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }
     public isInterfaceLocked(): boolean { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
+    public updateStatusText(statusText): void{ $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
     public getGameStateName(): string { return this.gamedatas.gamestate.name; }
 
     public getColorIndex(color: CardColor): number {
@@ -340,6 +374,7 @@ export class Game {
         toPlayer.setHandCount(toPlayer.getHandCount()); //a swap keeps hand sizes, this only redraws the backs
     }
     public getMyPlayerID(): number{ return this.myPlayerID; }
+    public getPlayerOrder(): number[]{ return this.gamedatas.playerorder; } //turn order, starting with myself
 
     //end utility
 
@@ -355,8 +390,6 @@ export class Game {
 
     */
     setupNotifications() {
-        console.log( 'notifications subscriptions setup' );
-
         // automatically listen to the notifications, based on the `notif_xxx` function on this class.
         // Uncomment the logger param to see debug information in the console about notifications.
         this.bga.notifications.setupPromiseNotifications({
@@ -380,6 +413,7 @@ export class Game {
 
     public async notif_newHand(args: NewHandArgs) {
         this.handHandler?.setHand(args.cards);
+        this.tooltipHandler.addTooltipsToCards();
     }
 
     public async notif_diceRolled(args: DiceRolledArgs) {
@@ -404,6 +438,8 @@ export class Game {
 
         for(let player_id in args.hand_counts)
             this.players[player_id]?.setHandCount(args.hand_counts[player_id]);
+
+        this.tooltipHandler.addTooltipsToCards();
     }
 
     private async animateReveal(reveal: CardReveal): Promise<void> {
@@ -501,6 +537,7 @@ export class Game {
 
         await this.handHandler.removeCards(cardsILose.map(card => card.card_id));
         await this.handHandler.addCards(cardsIGet, this.players[otherPlayerID]?.getHandCountElement() ?? null);
+        this.tooltipHandler.addTooltipsToCards();
     }
 
     //public: the owner and the victim already animated their private notification
@@ -521,6 +558,7 @@ export class Game {
 
         await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
         await this.handHandler.addCards(args.drawn ?? [], null);
+        this.tooltipHandler.addTooltipsToCards();
     }
 
     //public: hand sizes don't change, the log row is all there is
@@ -533,5 +571,10 @@ export class Game {
     //the stopping player's reservation outline or golden die goes away
     public async notif_powerCancelled(args: PowerCancelledArgs) {
         this.diceHandler.updateDice(args.dice);
+    }
+
+    private async notif_displayEndGameScoring(args: DisplayEndGameScoringArgs) {
+        this.updateStatusText(_('Final scores'));
+        await this.endGameScoringHandler.displayEndGameScore(args.endGameScoring);
     }
 }

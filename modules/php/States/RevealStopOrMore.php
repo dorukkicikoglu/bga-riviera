@@ -1,4 +1,15 @@
 <?php
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * RevealStopOrMore.php
+ */
 
 declare(strict_types=1);
 
@@ -40,6 +51,7 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             if($choicesDB[$playerID] === 'stop'){
                 $stopNames[] = $this->game->getPlayerNameById($playerID);
                 $stoppingPlayerIDs[] = $playerID;
+                $this->game->bga->playerStats->inc('roundsStopped', 1, $playerID);
             } else $moreNames[] = $this->game->getPlayerNameById($playerID);
         }
 

@@ -1,3 +1,14 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * LogMutationObserver.ts
+ */
 import { Game } from "./Game";
 
 interface LogRowData { //this is used to return strings containing log-class-tag divs
@@ -73,6 +84,8 @@ export class LogMutationObserver{
         }
 
         classTags.forEach(classTag => classTag.remove());
+
+        this.game.tooltipHandler?.addTooltipsToCardsIn(node); //power cards and Last Chance shown in this row
         
         node.querySelectorAll('.playername').forEach((playerName: HTMLElement) => {
             playerName.setAttribute('player-color', this.game.rgbToHex(window.getComputedStyle(playerName).color));
@@ -344,6 +357,24 @@ export class LogMutationObserver{
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'power-cancelled-log');
+    }
+
+    //the game ends: everyone at the top score wins (a Grand Slam, or equal scores, share the win)
+    public createLogGameEnd(winner_ids: number[], winningScore: number): LogRowData {
+        const iWin = winner_ids.includes(this.game.getMyPlayerID());
+        const otherWinnersHTML = winner_ids.filter(player_id => player_id !== this.game.getMyPlayerID()).map(player_id => this.game.divColoredPlayer(player_id, {class: 'playername'}));
+        const winnersHTML = [...(iWin ? [this.game.divYou({class: 'playername'})] : []), ...otherWinnersHTML].join(', ');
+
+        const gameEndText = (iWin || winner_ids.length > 1)
+            ? _('${players} win with ${stars} ★')
+            : _('${players} wins with ${stars} ★');
+
+        let logHTML = `
+            <div class="game-end-row">
+                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndText.replace('${players}', winnersHTML).replace('${stars}', `<b>${winningScore}</b>`)}
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'game-end-log');
     }
 
     private getMiniCardsHTML(cards: RivieraCard[]): string {
