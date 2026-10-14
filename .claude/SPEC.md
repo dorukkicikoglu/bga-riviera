@@ -21,6 +21,8 @@ Each color has one matching die.
 Frame index for a numbered card = `(colorIndex - 1) * 12 + (value - 1)`. Last Chance = 60, back = 61.
 Column = `index % 10`, row = `floor(index / 10)`; `background-size: 1000% 700%`, `background-position: calc(col * 100% / 9) calc(row * 100% / 6)`.
 
+`img/card_icon_numbers.webp` (912x63) draws the number inside the status bar card icon (a ring in the card's color): 12 equal 76x63 frames, numbers 1 to 12 left to right, all on the same baseline. Frame for value `v` = `v - 1`; `background-size: 1200% 100%`, `background-position: calc((v - 1) * 100% / 11) 0%`. Log rows show cards as mini cards, not this icon.
+
 ### Stars per card value
 
 Same for every color. Put this table in `material.inc.php`.

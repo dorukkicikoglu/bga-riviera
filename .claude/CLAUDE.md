@@ -28,6 +28,7 @@ Mirror these specifically:
   Compute `background-position` from an index (see SPEC.md > Sprite); never hardcode per-card positions.
 - Dice have no art yet. Draw them in CSS (rounded square in the die color, pips or a number). Gold die for the golden die.
 - `img/start_token.webp` is the Start token (a black pawn, portrait), fitted inside the 30x30px `#start-token` and the 14x14px mini token in log rows.
+- `img/card_icon_numbers.webp` is the numbers 1 to 12 for the status bar card icon (`span.status-card-icon`): a 1 x 12 strip of equal 76x63 frames, left to right, gold on an opaque `#05141a` background (10 to 12 are wider glyphs inside the same frame width). Compute `background-position` from the value (see SPEC.md > Sprite). The icon keeps a visually hidden "<value> <color>" text for screen readers.
 
 ## Layout (client)
 

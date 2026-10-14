@@ -149,10 +149,12 @@ export class PlayCard {
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
     }
 
+    //the number is drawn from img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead
     private getCardIconHTML(card: RivieraCard | null): string {
         if(!card)
             return '';
-        return `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`;
+        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.game.getColorName(card.color));
+        return `<span class="status-card-icon" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
 
     private getChosenCardIDs(): number[] {

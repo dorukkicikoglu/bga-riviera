@@ -344,6 +344,10 @@ export class Game {
         return 0;
     }
     public getStarsForValue(value: number): number { return this.gamedatas.starsByValue[value] || 0; }
+    public getColorName(color: CardColor): string {
+        const colorNames: Record<CardColor, string> = { red: _('red'), green: _('green'), purple: _('purple'), blue: _('blue'), orange: _('orange') }; //same strings as CARD_COLOR_NAMES in material.inc.php
+        return colorNames[color];
+    }
     public getPlayerColor(playerID: number): string { return this.gamedatas.players[playerID]?.color; }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
 

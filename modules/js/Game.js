@@ -125,10 +125,12 @@ class PlayCard {
             return;
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
     }
+    //the number is drawn from img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead
     getCardIconHTML(card) {
         if (!card)
             return '';
-        return `<span class="status-card-icon" data-color="${card.color}" aria-label="${card.value} ${card.color}">${card.value}</span>`;
+        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.game.getColorName(card.color));
+        return `<span class="status-card-icon" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
     getChosenCardIDs() {
         const firstCardID = (this.pendingChoice && this.pendingChoice.choice === 'card') ? this.pendingChoice.card_id : null;
@@ -578,6 +580,20 @@ class HandHandler {
         this.cardsContainer.innerHTML = ''; // Clear existing cards
         for (let cardData of this.getSortedHandData())
             this.insertCardToHand(cardData);
+        this.recomputeCardSpacing();
+    }
+    //cards overlap more when the hand would not fit on one row (narrow screens, mobile). Called by Game.onScreenWidthChange
+    //too, since the screen can change without the hand changing
+    recomputeCardSpacing() {
+        const cards = this.getCardDivs();
+        if (cards.length < 2 || this.cardsContainer.clientWidth === 0) {
+            this.cardsContainer.style.removeProperty('--hand-card-overlap');
+            return;
+        }
+        const cardWidth = cards[0].offsetWidth;
+        const neededOverlap = (cardWidth * cards.length - this.cardsContainer.clientWidth) / (cards.length - 1);
+        const overlap = Math.min(cardWidth * HandHandler.MAX_CARD_OVERLAP, Math.max(cardWidth * HandHandler.DEFAULT_CARD_OVERLAP, neededOverlap));
+        this.cardsContainer.style.setProperty('--hand-card-overlap', `${-overlap}px`);
     }
     //sorted like the sprite: by color index, then value
     getSortedHandData() {
@@ -655,6 +671,7 @@ class HandHandler {
         leavingCards.forEach(card => card.classList.add('card-fading-out'));
         await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
         leavingCards.forEach(card => card.remove());
+        this.recomputeCardSpacing();
     }
     //card 10: cards joining my hand take their sorted place and slide in from fromElement (the other player's board), or fade in
     async addCards(cardsData, fromElement) {
@@ -682,6 +699,7 @@ class HandHandler {
         }
         const slidePromise = column.animateCardIn(cardData, handCard); //places the sliding copy on handCard before its first await,
         handCard.remove(); //so the hand card can go right away
+        this.recomputeCardSpacing();
         await slidePromise;
     }
     //a crash discards the whole hand
@@ -720,14 +738,20 @@ HandHandler.HAND_FADE_IN_CLASS = 'cards-fading-in';
 HandHandler.HAND_FADE_IN_ANIM_TIME = 500; //card-fade-in on .cards-fading-in in Game.scss
 HandHandler.SLIDE_ANIM_TIME = 600;
 HandHandler.SELECTION_STATES = ['PlayCard', 'SwapCards'];
+HandHandler.DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
+HandHandler.MAX_CARD_OVERLAP = 0.7;
 
 class DiceHandler {
     constructor(game, diceData) {
         this.game = game;
         this.diceData = diceData;
         this.diceContainer = document.querySelector('#dice-container');
-        for (let dieData of this.diceData)
-            this.diceContainer.appendChild(this.createDieDiv(dieData));
+        //only the dice in the game area get an id (for their tooltip), never the copies in log rows
+        for (let dieData of this.diceData) {
+            const aDie = this.createDieDiv(dieData);
+            aDie.id = 'die-' + dieData.color;
+            this.diceContainer.appendChild(aDie);
+        }
         this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
     }
     //card 9: the active owner picks one die, then turns it with the status bar buttons
@@ -789,6 +813,8 @@ class DiceHandler {
             const aDie = this.getDieDiv(dieData.color);
             if (!aDie)
                 continue;
+            this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
+            this.game.tooltipHandler?.updateDieTooltip(dieData);
             const previousValue = aDie.getAttribute('data-value');
             this.applyDieData(aDie, dieData);
             if (previousValue !== aDie.getAttribute('data-value'))
@@ -803,6 +829,7 @@ class DiceHandler {
     }
     getDieDiv(color) { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
     getDiceContainer() { return this.diceContainer; }
+    getDiceData() { return this.diceData; }
 }
 DiceHandler.PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
 DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
@@ -1166,11 +1193,350 @@ class ChangeMindHandler {
     }
 }
 
+//every card value with a power; Game.createCardDiv gives those cards the power-card-POWER<n> class
+const POWER_CARD_VALUES = [1, 2, 9, 10, 11];
+class TooltipHandler {
+    constructor(game) {
+        this.game = game;
+        this.addTooltipsToCards();
+        this.addTooltipsToBoards();
+        for (let dieData of this.game.diceHandler.getDiceData())
+            this.updateDieTooltip(dieData);
+    }
+    //class tooltips only reach the cards already on the page, so this runs again whenever cards are created
+    addTooltipsToCards() {
+        if (this.isSafariMobile()) {
+            this.addTooltipToBottomForSafari();
+            return;
+        }
+        for (let value of POWER_CARD_VALUES)
+            this.game.bga.gameui.addTooltipHtmlToClass(TooltipHandler.getPowerCardClass(value), this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
+        this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
+    }
+    //a new log row: only its own cards, so loading a long log doesn't query the whole page once per row
+    addTooltipsToCardsIn(container) {
+        if (this.isSafariMobile())
+            return;
+        container.querySelectorAll('.a-card[id]').forEach((card) => {
+            const value = parseInt(card.getAttribute('data-value'));
+            if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
+            else if (card.classList.contains('last-chance-card'))
+                this.game.bga.gameui.addTooltip(card.id, this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
+        });
+    }
+    //player boards and played columns: the parts that aren't self-explanatory
+    addTooltipsToBoards() {
+        this.game.bga.gameui.addTooltip('start-token', _('Start token: powers resolve clockwise from this player. It passes to the next player every turn.'), '', TooltipHandler.TOOLTIP_DELAY);
+        for (let player_id in this.game.players) {
+            this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltipHtml('round-status-' + player_id, this.getRoundStatusTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltip('column-stars-' + player_id, _('Stars of the cards played this round. A player who stops banks them; a crash loses them.'), '', TooltipHandler.TOOLTIP_DELAY);
+        }
+    }
+    //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11
+    updateDieTooltip(dieData) {
+        const dieID = 'die-' + dieData.color;
+        if (!document.getElementById(dieID))
+            return;
+        const dieNames = {
+            red: _('Red die'),
+            green: _('Green die'),
+            purple: _('Purple die'),
+            blue: _('Blue die'),
+            orange: _('Orange die'),
+            gold: _('Golden die (card 11): it only counts in a sum with a colored die and never gives its color'),
+        };
+        const lines = [dieNames[dieData.color]];
+        if (dieData.reserved_by_POWER2 !== null)
+            lines.push(_('Reserved by ${player_name} (card 2): only they can use it on this roll').replace('${player_name}', this.game.getPlayerName(dieData.reserved_by_POWER2)));
+        if (dieData.modified_by_POWER9)
+            lines.push(_('Turned by a card 9 this roll: it cannot be turned again'));
+        this.game.bga.gameui.addTooltipHtml(dieID, `<div class="die-tooltip">${lines.join('<br>')}</div>`, TooltipHandler.TOOLTIP_DELAY);
+    }
+    addTooltipToBottomForSafari() {
+        if (document.querySelector('.safari-mobile-power-reference-container'))
+            return;
+        const safariMobilePowerReferenceContainer = document.createElement('div');
+        safariMobilePowerReferenceContainer.className = 'safari-mobile-power-reference-container';
+        safariMobilePowerReferenceContainer.innerHTML = POWER_CARD_VALUES.map(value => this.getPowerTooltipHTML(value)).join('');
+        document.getElementById('game_play_area').appendChild(safariMobilePowerReferenceContainer);
+    }
+    getPowerTooltipHTML(value) {
+        const powerTexts = {
+            1: { timing: _('Right away'), effect: _('Add one more playable card from your hand on the same dice. Another 1 lets you add again.') },
+            2: { timing: _('Next roll'), effect: _('The die of this card\'s color is reserved for you: opponents can\'t use it, alone or in a sum. Cancelled if you stop.') },
+            9: { timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Lost if you stop.') },
+            10: { timing: _('Before the next roll'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent still in the round. If none can be chosen, discard and draw instead.') },
+            11: { timing: _('Next roll'), effect: _('You may add the golden die for everyone. It only counts in a sum with a colored die and never gives its color. Cancelled if you stop.') },
+        };
+        const { timing, effect } = powerTexts[value];
+        const stars = '★'.repeat(this.game.getStarsForValue(value));
+        const tooltipHTML = `
+            <div class="tooltip-wrapper power-tooltip">
+                <div class="power-tooltip-title">${_('Card ${value}').replace('${value}', value.toString())} <span class="power-tooltip-stars">${stars}</span></div>
+                <div class="power-tooltip-timing">${timing}</div>
+                <div class="power-tooltip-text">${effect}</div>
+            </div>
+        `;
+        return tooltipHTML;
+    }
+    getLastChanceTooltipText() {
+        return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');
+    }
+    getRoundStatusTooltipHTML() {
+        return `
+            <div class="round-status-tooltip">
+                <div><i class="fa6 fa-play"></i>&nbsp;${_('In: still playing this round')}</div>
+                <div><i class="fa6 fa-flag-checkered"></i>&nbsp;${_('Stopped: banks their stars at the end of the round')}</div>
+                <div><i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed: scores nothing this round')}</div>
+            </div>
+        `;
+    }
+    isSafariMobile() { return document.body.classList.contains('safari-browser') && this.game.isMobile(); }
+    static getPowerCardClass(value) { return 'power-card-POWER' + value; }
+}
+TooltipHandler.TOOLTIP_DELAY = 400;
+
+//Fugu's end-game table: one row per round (stars banked, a bomb for a crash, a gold cell for a Grand Slam,
+//"-" for a round a Grand Slam cut short), then the total. Cells fade in one by one; a click fast-forwards
+class EndGameScoringHandler {
+    constructor(game) {
+        this.game = game;
+        this.bodyClickHandler = null;
+        this.delayAfterFadeIns = 10000;
+    }
+    async displayEndGameScore(endGameScoring) {
+        this.endGameScoring = endGameScoring;
+        if (this.scoreContainer) {
+            console.error('end-game-score-container already exists');
+            return;
+        }
+        document.body.classList.add('displaying-end-game-score');
+        this.winner_ids = endGameScoring.winner_ids;
+        this.scoreContainer = document.createElement('div');
+        this.scoreContainer.classList.add('end-game-score-container');
+        this.scoreContainer.style.opacity = '0';
+        this.scoreContainer.innerHTML = `
+            <div class="show-table-button" style="display: none;" title="${_('Show Scoreboard')}">
+                <i class="fa6 fa6-ranking-star"></i>
+            </div>
+            <div class="maximized-content">
+                <i class="fa6 fa6-chevron-circle-left collapse-table-button" title="${_('Collapse Scoreboard')}"></i>
+                <table>
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="fast-forward-text"></div>
+            </div>
+        `;
+        document.querySelector('#game_play_area').appendChild(this.scoreContainer);
+        this.thead = this.scoreContainer.querySelector('thead');
+        this.tbody = this.scoreContainer.querySelector('tbody');
+        this.showButton = this.scoreContainer.querySelector('.show-table-button');
+        this.hideButton = this.scoreContainer.querySelector('.collapse-table-button');
+        this.fastForwardButton = this.scoreContainer.querySelector('.fast-forward-text');
+        this.fillTable();
+        this.bindShowHideButtons();
+        this.fastForwardButton.innerHTML = this.game.isDesktop() ? _('* Click anywhere to fast forward') : _('* Tap anywhere to fast forward');
+        const instantFadeIn = this.isInstantFadeIn();
+        const fadeInDuration = instantFadeIn ? 0 : 1000;
+        const fadeInDelay = instantFadeIn ? 0 : 100;
+        this.scoreContainer.style.transition = `opacity ${fadeInDuration}ms ease ${fadeInDelay}ms`;
+        this.scoreContainer.style.opacity = '1';
+        await this.game.bga.gameui.wait(fadeInDelay + fadeInDuration);
+        this.scoreContainer.style.opacity = null;
+        this.scoreContainer.style.transition = null;
+        this.bindBodyScroll();
+        await this.fadeInNextCell();
+        document.body.classList.remove('displaying-end-game-score');
+    }
+    fillTable() {
+        const playerIDs = this.game.getPlayerOrder();
+        // Create header row with player names
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = '<th class="corner-no-border-cell"></th>'; // Empty corner cell
+        for (let player_id of playerIDs) {
+            const playerNameDiv = this.game.divColoredPlayer(player_id, {}, false);
+            headerRow.innerHTML += `<th class="player-name-cell" player-id="${player_id}">${playerNameDiv}</th>`;
+        }
+        this.thead.appendChild(headerRow);
+        // One row per round
+        const roundNumbers = Object.keys(this.endGameScoring.rounds).map(roundNumber => parseInt(roundNumber)).sort((a, b) => a - b);
+        for (let roundNumber of roundNumbers) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td class="row-label-cell">${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}</td>`;
+            for (let player_id of playerIDs) {
+                const roundScore = this.endGameScoring.rounds[roundNumber][player_id] ?? null;
+                row.innerHTML += `<td>${this.getRoundCellHTML(roundScore, player_id)}</td>`;
+            }
+            this.tbody.appendChild(row);
+        }
+        // Total row: it builds up as the round cells appear, then shows the final score
+        const totalRow = document.createElement('tr');
+        totalRow.classList.add('total-row');
+        totalRow.innerHTML = `<td class="row-label-cell">${_('Total')}</td>`;
+        for (let player_id of playerIDs)
+            totalRow.innerHTML += `<td><div class="cell-text cell-total" style="opacity: 0;" player-id="${player_id}">0</div></td>`;
+        this.tbody.appendChild(totalRow);
+    }
+    //the text of a round cell is its points (parsed by addColumnTotal); a crash or an unfinished round adds nothing
+    getRoundCellHTML(roundScore, player_id) {
+        const result = roundScore?.result ?? 'unfinished';
+        let cellContent;
+        if (result === 'stopped')
+            cellContent = `${roundScore.stars} ★`;
+        else if (result === 'crashed')
+            cellContent = '<i class="fa6 fa-bomb"></i>';
+        else if (result === 'grand_slam')
+            cellContent = `+${roundScore.stars}`;
+        else
+            cellContent = '-';
+        return `<div class="cell-text cell-${result}" style="opacity: 0;" player-id="${player_id}">${cellContent}</div>`;
+    }
+    bindShowHideButtons() {
+        this.hideButton.addEventListener('click', () => {
+            this.hideButton.style.display = 'none';
+            this.scoreContainer.querySelectorAll('.maximized-content').forEach((node) => { node.style.display = 'none'; });
+            this.showButton.style.display = null;
+            this.scoreContainer.setAttribute('collapsed', 'true');
+        });
+        this.showButton.addEventListener('click', () => {
+            this.hideButton.style.display = null;
+            this.scoreContainer.querySelectorAll('.maximized-content').forEach((node) => { node.style.display = null; });
+            this.showButton.style.display = 'none';
+            this.scoreContainer.removeAttribute('collapsed');
+        });
+    }
+    bindBodyScroll() {
+        this.scoreContainer.style.transition = 'opacity 300ms ease';
+        let fadeInGeneration = 0;
+        // Bind scroll event listener to the body
+        window.addEventListener('scroll', () => {
+            const generation = ++fadeInGeneration;
+            this.scoreContainer.style.opacity = '0.3';
+            this.game.bga.gameui.wait(100).then(() => {
+                if (generation === fadeInGeneration)
+                    this.scoreContainer.style.opacity = '1';
+            });
+        });
+    }
+    async fadeInNextCell() {
+        const cells = Array.from(this.tbody.querySelectorAll('.cell-text:not(.displayed)'));
+        const overallContent = document.getElementById('overall-content');
+        overallContent.removeEventListener('click', this.bodyClickHandler);
+        if (cells.length <= Object.keys(this.game.players).length * 2) {
+            this.fastForwardButton.style.transition = 'opacity 400ms ease';
+            this.fastForwardButton.style.opacity = '0';
+        }
+        if (cells.length <= 0) { //end of score display
+            const allCells = Array.from(this.tbody.querySelectorAll('.cell-text'));
+            allCells.forEach((cell) => { cell.style.opacity = ''; });
+            this.makeWinnersJump();
+            this.setEndGamePlayerScores();
+            await this.game.bga.gameui.wait(this.delayAfterFadeIns);
+            return;
+        }
+        let cell = cells[0];
+        const instantFadeIn = this.isInstantFadeIn();
+        cell.classList.add('displayed');
+        const fadeInDuration = instantFadeIn ? 0 : 500;
+        const fadeInDelay = instantFadeIn ? 0 : 100;
+        let fastForwardFadeIn;
+        const fastForwarded = new Promise(resolve => { fastForwardFadeIn = resolve; });
+        this.bodyClickHandler = async (event) => {
+            cell.style.transition = null;
+            cell.style.opacity = '1';
+            fastForwardFadeIn();
+        };
+        overallContent.addEventListener('click', this.bodyClickHandler);
+        this.addColumnTotal(cell.getAttribute('player-id'));
+        cell.style.transition = `opacity ${fadeInDuration}ms ease ${fadeInDelay}ms`;
+        cell.style.opacity = '1';
+        await Promise.race([
+            this.game.bga.gameui.wait(fadeInDelay + fadeInDuration),
+            fastForwarded
+        ]);
+        await this.fadeInNextCell();
+    }
+    addColumnTotal(playerID) {
+        const cells = Array.from(this.tbody.querySelectorAll(`.cell-text.displayed[player-id="${playerID}"]:not(.cell-total)`));
+        let total = 0;
+        cells.forEach(cell => {
+            const value = parseInt(cell.textContent || '0');
+            if (!isNaN(value))
+                total += value;
+        });
+        const totalCell = this.tbody.querySelector(`.cell-total[player-id="${playerID}"]`);
+        if (totalCell) {
+            totalCell.textContent = total.toString();
+            totalCell.classList.add('displayed');
+            totalCell.style.opacity = '1';
+        }
+    }
+    makeWinnersJump() {
+        let delay = 0;
+        for (let winner_id of this.winner_ids) {
+            this.game.bga.gameui.wait(delay).then(() => {
+                this.thead.querySelector(`.player-name-cell[player-id="${winner_id}"]`)?.classList.add('jumping-text');
+            });
+            delay += 100 + Math.random() * 50;
+        }
+    }
+    //the totals end on the real scores, so they always match BGA's ranking
+    setEndGamePlayerScores() {
+        for (let player_id in this.endGameScoring.scores) {
+            const score = this.endGameScoring.scores[player_id];
+            const totalCell = this.tbody.querySelector(`.cell-total[player-id="${player_id}"]`);
+            if (totalCell)
+                totalCell.textContent = score.toString();
+            this.game.bga.playerPanels.getScoreCounter(parseInt(player_id))?.toValue(score);
+        }
+    }
+    isInstantFadeIn() { return this.game.getGameStateName() === 'gameEnd'; }
+}
+
+class PrefHandler {
+    constructor(game, prefNameToIndex) {
+        this.game = game;
+        this.prefNameToIndex = prefNameToIndex;
+        this.oneClickPlay = false;
+        this.game.bga.userPreferences.onChange = (prefIndex, prefValue) => this.onGameUserPreferenceChanged(prefIndex, prefValue);
+        for (const prefName in this.prefNameToIndex) {
+            const prefIndex = this.prefNameToIndex[prefName];
+            this.onGameUserPreferenceChanged(prefIndex, this.game.bga.userPreferences.get(prefIndex), true);
+        }
+    }
+    //on page load (isInitialLoad) the state classes haven't received their args yet, so nothing is redrawn
+    onGameUserPreferenceChanged(prefIndex, prefValue, isInitialLoad = false) {
+        switch (prefIndex) {
+            case this.prefNameToIndex.one_click_play:
+                this.oneClickPlay = prefValue == 1;
+                if (!isInitialLoad)
+                    this.game.playCard.preferenceChanged();
+                break;
+        }
+    }
+    //game specific functions
+    //clicking a playable card plays it at once, with no Confirm step
+    isOneClickPlay() { return this.oneClickPlay; }
+}
+
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * Game.ts
+ */
 class Game {
     constructor(bga) {
         this.players = {};
         this.localCardIDCounter = 1;
-        console.log('riviera constructor');
         this.bga = bga;
         // Declare the State classes
         this.playCard = new PlayCard(this, bga);
@@ -1199,7 +1565,6 @@ class Game {
         "gamedatas" argument contains all datas retrieved by your "getAllDatas" PHP method.
     */
     setup(gamedatas) {
-        console.log("Starting game setup");
         this.gamedatas = gamedatas;
         document.body.setAttribute('data-player-count', Object.keys(gamedatas.players).length.toString());
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
@@ -1209,6 +1574,7 @@ class Game {
         `);
         this.myPlayerID = this.bga.players.getCurrentPlayerId();
         this.diceHandler = new DiceHandler(this, gamedatas.dice);
+        this.endGameScoringHandler = new EndGameScoringHandler(this);
         // Setting up player boards and played columns
         for (let player_id in gamedatas.players) {
             const { name, color, player_no, hand_count, round_status, last_chance_used } = this.gamedatas.players[player_id];
@@ -1225,12 +1591,19 @@ class Game {
             this.myself.getPlayedColumn().setMyColumn(true);
             this.handHandler = new HandHandler(this, gamedatas.cardsInMyHand);
         }
+        //a Grand Slam ends the game, so this only matters after F5 at the end
+        for (let player_id of gamedatas.grandSlamPlayerIds ?? [])
+            this.players[player_id]?.setGrandSlam();
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
         this.logMutationObserver = new LogMutationObserver(this);
         this.changeMindHandler = new ChangeMindHandler(this);
+        this.tooltipHandler = new TooltipHandler(this);
+        this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
+        this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();
+        if (gamedatas.hasOwnProperty('endGameScoring'))
+            this.endGameScoringHandler.displayEndGameScore(gamedatas.endGameScoring);
         // Setup game notifications to handle (see "setupNotifications" method below)
         this.setupNotifications();
-        console.log("Ending game setup");
     }
     ///////////////////////////////////////////////////
     //// Utility methods
@@ -1247,7 +1620,7 @@ class Game {
                 args.processed = true;
                 // list of special keys we want to replace with images
                 const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
-                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR'];
+                    'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'POWER_CANCELLED_LOG_STR', 'GAME_END_LOG_STR'];
                 for (let key of keys) {
                     if (key in args) {
                         if (key == 'NEW_ROUND_LOG_STR')
@@ -1280,6 +1653,8 @@ class Game {
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if (key == 'POWER_CANCELLED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerCancelled(args['player_id'], args['value'], args['card'] ?? null, args['die']).log_html;
+                        else if (key == 'GAME_END_LOG_STR')
+                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
                     }
                 }
             }
@@ -1313,6 +1688,8 @@ class Game {
         aCard.setAttribute('data-color', cardData.color);
         aCard.setAttribute('data-value', String(cardData.value));
         aCard.setAttribute('data-card-id', String(cardData.card_id));
+        if (POWER_CARD_VALUES.includes(cardData.value))
+            aCard.classList.add(TooltipHandler.getPowerCardClass(cardData.value)); //power tooltip
         return aCard;
     }
     createCardBackDiv() {
@@ -1323,7 +1700,9 @@ class Game {
     }
     createLastChanceDiv() {
         let aCard = document.createElement('div');
-        aCard.className = 'a-card';
+        aCard.className = 'a-card last-chance-card';
+        aCard.setAttribute('id', 'an-id-required-for-tooltips-' + this.localCardIDCounter);
+        this.localCardIDCounter++;
         aCard.setAttribute('data-card-kind', 'last-chance');
         return aCard;
     }
@@ -1398,9 +1777,13 @@ class Game {
         let pos = this.bga.gameui.getBoundingClientRectIgnoreZoom(node);
         return pos;
     }
+    onScreenWidthChange() {
+        this.handHandler?.recomputeCardSpacing();
+    }
     isDesktop() { return document.body.classList.contains('desktop_version'); }
     isMobile() { return document.body.classList.contains('mobile_version'); }
     isInterfaceLocked() { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
+    updateStatusText(statusText) { $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
     getGameStateName() { return this.gamedatas.gamestate.name; }
     getColorIndex(color) {
         for (const colorIndex in this.gamedatas.cardColors) {
@@ -1410,6 +1793,10 @@ class Game {
         return 0;
     }
     getStarsForValue(value) { return this.gamedatas.starsByValue[value] || 0; }
+    getColorName(color) {
+        const colorNames = { red: _('red'), green: _('green'), purple: _('purple'), blue: _('blue'), orange: _('orange') }; //same strings as CARD_COLOR_NAMES in material.inc.php
+        return colorNames[color];
+    }
     getPlayerColor(playerID) { return this.gamedatas.players[playerID]?.color; }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
     //a hand card was clicked: the current state handles the selection
@@ -1436,6 +1823,7 @@ class Game {
         toPlayer.setHandCount(toPlayer.getHandCount()); //a swap keeps hand sizes, this only redraws the backs
     }
     getMyPlayerID() { return this.myPlayerID; }
+    getPlayerOrder() { return this.gamedatas.playerorder; } //turn order, starting with myself
     //end utility
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
@@ -1448,7 +1836,6 @@ class Game {
 
     */
     setupNotifications() {
-        console.log('notifications subscriptions setup');
         // automatically listen to the notifications, based on the `notif_xxx` function on this class.
         // Uncomment the logger param to see debug information in the console about notifications.
         this.bga.notifications.setupPromiseNotifications({
@@ -1469,6 +1856,7 @@ class Game {
     }
     async notif_newHand(args) {
         this.handHandler?.setHand(args.cards);
+        this.tooltipHandler.addTooltipsToCards();
     }
     async notif_diceRolled(args) {
         this.diceHandler.updateDice(args.dice);
@@ -1487,6 +1875,7 @@ class Game {
         await Promise.all(args.reveals.map(reveal => this.animateReveal(reveal)));
         for (let player_id in args.hand_counts)
             this.players[player_id]?.setHandCount(args.hand_counts[player_id]);
+        this.tooltipHandler.addTooltipsToCards();
     }
     async animateReveal(reveal) {
         const player = this.players[reveal.player_id];
@@ -1565,6 +1954,7 @@ class Game {
         const otherPlayerID = iAmOwner ? args.target_id : args.owner_id;
         await this.handHandler.removeCards(cardsILose.map(card => card.card_id));
         await this.handHandler.addCards(cardsIGet, this.players[otherPlayerID]?.getHandCountElement() ?? null);
+        this.tooltipHandler.addTooltipsToCards();
     }
     //public: the owner and the victim already animated their private notification
     async notif_cardsSwappedPublic_POWER10(args) {
@@ -1581,6 +1971,7 @@ class Game {
             return;
         await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
         await this.handHandler.addCards(args.drawn ?? [], null);
+        this.tooltipHandler.addTooltipsToCards();
     }
     //public: hand sizes don't change, the log row is all there is
     async notif_cardsRedrawnPublic_POWER10(args) {
@@ -1590,6 +1981,10 @@ class Game {
     //the stopping player's reservation outline or golden die goes away
     async notif_powerCancelled(args) {
         this.diceHandler.updateDice(args.dice);
+    }
+    async notif_displayEndGameScoring(args) {
+        this.updateStatusText(_('Final scores'));
+        await this.endGameScoringHandler.displayEndGameScore(args.endGameScoring);
     }
 }
 Game.CARD_BACK_SLIDE_ANIM_TIME = 600;

@@ -13,6 +13,7 @@
   --die-size: min(2.8vw, 40px);
   --image-source-riviera-cards: url(img/riviera_cards.webp);
   --image-source-start-token: url(img/start_token.webp);
+  --image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
   --die-color-red: #c8322b;
   --die-color-green: #4f9a2a;
   --die-color-purple: #5f2d8c;
@@ -274,22 +275,75 @@ body .sliding-clone {
 }
 
 .status-card-icon {
+  position: relative;
   display: inline-flex;
   box-sizing: border-box;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   margin: 0 3px;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  border: 4px solid;
+  border: 3px solid;
   border-radius: 50%;
-  background: #07151a;
-  color: #e6a82e;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 27px;
-  font-weight: bold;
+  background: #05141a;
   line-height: 1;
+}
+.status-card-icon .status-card-icon-number {
+  display: block;
+  flex-shrink: 0;
+  height: 28px;
+  width: 33.7777777778px;
+  background-image: var(--image-source-card-icon-numbers);
+  background-size: 1200% 100%;
+  background-repeat: no-repeat;
+}
+.status-card-icon[data-value="1"] .status-card-icon-number {
+  background-position: 0% 0%;
+}
+.status-card-icon[data-value="2"] .status-card-icon-number {
+  background-position: 9.0909090909% 0%;
+}
+.status-card-icon[data-value="3"] .status-card-icon-number {
+  background-position: 18.1818181818% 0%;
+}
+.status-card-icon[data-value="4"] .status-card-icon-number {
+  background-position: 27.2727272727% 0%;
+}
+.status-card-icon[data-value="5"] .status-card-icon-number {
+  background-position: 36.3636363636% 0%;
+}
+.status-card-icon[data-value="6"] .status-card-icon-number {
+  background-position: 45.4545454545% 0%;
+}
+.status-card-icon[data-value="7"] .status-card-icon-number {
+  background-position: 54.5454545455% 0%;
+}
+.status-card-icon[data-value="8"] .status-card-icon-number {
+  background-position: 63.6363636364% 0%;
+}
+.status-card-icon[data-value="9"] .status-card-icon-number {
+  background-position: 72.7272727273% 0%;
+}
+.status-card-icon[data-value="10"] .status-card-icon-number {
+  background-position: 81.8181818182% 0%;
+}
+.status-card-icon[data-value="11"] .status-card-icon-number {
+  background-position: 90.9090909091% 0%;
+}
+.status-card-icon[data-value="12"] .status-card-icon-number {
+  background-position: 100% 0%;
+}
+.status-card-icon .status-card-icon-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .status-card-icon[data-color=red] {
@@ -1234,3 +1288,5 @@ body.current_player_is_active:not(.lockedInterface) #dice-container .a-die.selec
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

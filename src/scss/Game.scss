@@ -17,6 +17,7 @@
     --die-size: min(2.8vw, 40px);
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
+	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
 
     --die-color-red: #c8322b;
     --die-color-green: #4f9a2a;
@@ -95,7 +96,24 @@ body .sliding-clone{ position: absolute; z-index: 1000; margin: 0; pointer-event
     .a-card{ --my-card-width: 24px; border-radius: 3px; box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6); }
 }
 
-.status-card-icon{ display: inline-flex; box-sizing: border-box; width: 36px; height: 36px; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 4px solid; border-radius: 50%; background: #07151a; color: #e6a82e; font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: bold; line-height: 1; }
+//status bar card icon: a ring in the card's color around its number.
+//The number comes from img/card_icon_numbers.webp, a 1 x 12 strip of equal 76x63 frames (1 to 12, left to right; 10 to 12 are
+//wider glyphs inside the same frame width). Every glyph sits on the same baseline (about 52px tall), so one frame size fits all.
+//The frame is 22px tall: the glyph comes out about 18px, the height of the old 27px Georgia digits.
+//The frame background is opaque #05141a, so the ring is filled with that same navy
+$card-icon-number-frames: 12;
+$card-icon-number-frame-width: 76;
+$card-icon-number-frame-height: 63;
+$card-icon-number-height: 28px;
+.status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; width: 40px; height: 40px; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1;
+    .status-card-icon-number{ display: block; flex-shrink: 0; height: $card-icon-number-height; width: math.div($card-icon-number-height * $card-icon-number-frame-width, $card-icon-number-frame-height);
+        background-image: var(--image-source-card-icon-numbers); background-size: #{$card-icon-number-frames * 100%} 100%; background-repeat: no-repeat; }
+    @for $value from 1 through $card-icon-number-frames {
+        &[data-value="#{$value}"] .status-card-icon-number{ background-position: math.div(($value - 1) * 100%, $card-icon-number-frames - 1) 0%; }
+    }
+    //visually hidden, still read by screen readers
+    .status-card-icon-text{ position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}
 @each $color in $card-colors {
     .status-card-icon[data-color="#{$color}"]{ border-color: var(--die-color-#{$color}); }
 }
