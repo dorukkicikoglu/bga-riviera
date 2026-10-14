@@ -163,11 +163,16 @@ Every power:
 Deploy as before (`modules/`, `riviera.css`, `dbmodel.sql`, `*.jsonc`). The schema changed (new `round_scores` table) and `stats.jsonc` / `gamepreferences.jsonc` changed, so start a **new** table. Keep the browser console open and paste any error. M3 is tested in the same pass: run its section first.
 
 Tooltips:
-- [ ] Hovering a 1, 2, 9, 10 or 11 in my hand, in a column or in a log row shows its power (title with ★, timing, effect). Other values show nothing.
+- [ ] Hovering any card in my hand or in any played column, power card or not, shows the power reference: teal, three bold timing headings, five entries each with its icon on the left and the text wrapping around it.
+- [ ] Desktop: two columns (left: card 1, then cards 2 and 10; right: card 11, then card 9), about 640px wide at most. Phone or narrow window: one column, same order. The tooltip is not cut off (if it is, paste a screenshot: BGA may cap tooltip widths).
+- [ ] Hovering a 1, 2, 9, 10 or 11 highlights that card's entry (lighter background); other values highlight none.
+- [ ] All five icons are about two lines tall and none shows a sliver of its neighbor; card 10's is the wider one.
+- [ ] The reference reads the same in BGA's dark mode.
+- [ ] Log rows: a mini 1, 2, 9, 10 or 11 still shows its single-power tooltip (title with ★, timing, effect).
 - [ ] The Last Chance card (board and reveal row), Start token, hand backs, round status, column ★ and each die have tooltips.
 - [ ] A reserved die's tooltip names its owner (card 2) and loses that line once the reservation ends. A turned die says so (card 9). The gold die explains it only counts in a sum.
 - [ ] New cards get tooltips too: after a new round, after a reveal, after a card 10 swap or redraw.
-- [ ] Safari on a phone: no card tooltips, the power reference shows at the bottom of the page.
+- [ ] Safari on a phone: no card tooltips; the same power reference (one column, nothing highlighted) shows at the bottom of the page.
 
 Statistics (play a game to the end, then the Statistics tab):
 - [ ] Rounds and turns (dice rolls) are right.

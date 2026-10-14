@@ -1193,27 +1193,35 @@ class ChangeMindHandler {
     }
 }
 
-//every card value with a power; Game.createCardDiv gives those cards the power-card-POWER<n> class
+//every card value with a power; Game.createCardDiv gives those cards the power-card-POWER<n> class (used by the log row tooltips)
 const POWER_CARD_VALUES = [1, 2, 9, 10, 11];
 class TooltipHandler {
     constructor(game) {
         this.game = game;
+        this.powerReferenceHTMLByValue = {}; //0: no entry highlighted
         this.addTooltipsToCards();
         this.addTooltipsToBoards();
+        //log rows written before this handler existed; later rows come through LogMutationObserver
+        const logs = document.getElementById('logs');
+        if (logs)
+            this.addTooltipsToCardsIn(logs);
         for (let dieData of this.game.diceHandler.getDiceData())
             this.updateDieTooltip(dieData);
     }
-    //class tooltips only reach the cards already on the page, so this runs again whenever cards are created
+    //every card in the game area (my hand, every played column) shows the power reference, with the hovered card's power
+    //highlighted. Tooltips only reach the cards already on the page, so this runs again whenever cards are created
     addTooltipsToCards() {
         if (this.isSafariMobile()) {
             this.addTooltipToBottomForSafari();
             return;
         }
-        for (let value of POWER_CARD_VALUES)
-            this.game.bga.gameui.addTooltipHtmlToClass(TooltipHandler.getPowerCardClass(value), this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
+        document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card) => {
+            const value = parseInt(card.getAttribute('data-value'));
+            this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0), TooltipHandler.TOOLTIP_DELAY);
+        });
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
     }
-    //a new log row: only its own cards, so loading a long log doesn't query the whole page once per row
+    //a log row: its mini cards keep the single-power tooltip. Only that row is queried, so loading a long log stays cheap
     addTooltipsToCardsIn(container) {
         if (this.isSafariMobile())
             return;
@@ -1259,9 +1267,50 @@ class TooltipHandler {
             return;
         const safariMobilePowerReferenceContainer = document.createElement('div');
         safariMobilePowerReferenceContainer.className = 'safari-mobile-power-reference-container';
-        safariMobilePowerReferenceContainer.innerHTML = POWER_CARD_VALUES.map(value => this.getPowerTooltipHTML(value)).join('');
+        safariMobilePowerReferenceContainer.innerHTML = this.getPowerReferenceHTML(0);
         document.getElementById('game_play_area').appendChild(safariMobilePowerReferenceContainer);
     }
+    /**
+     * The power reference, laid out like the rulebook's powers page: entries grouped by timing, each with its icon
+     * (img/power_icons_sprite.webp) floated left. Two columns on desktop (left: card 1, then cards 2 and 10; right:
+     * card 11, then card 9), one on narrow screens. $highlightedValue's entry is highlighted; 0 highlights none.
+     * The text follows our BGA rules (SPEC.md), not the rulebook's wording.
+     */
+    getPowerReferenceHTML(highlightedValue) {
+        if (this.powerReferenceHTMLByValue[highlightedValue])
+            return this.powerReferenceHTMLByValue[highlightedValue];
+        const powerTexts = {
+            1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
+            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Cancelled if you stop.'),
+            10: _('Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead.'),
+            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Dropped if you stop.'),
+            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Lost if you stop.'),
+        };
+        const entryHTML = (value) => `
+            <div class="power-reference-entry highlighted-power-entry">
+                <span class="power-icon" data-power-value="${value}"></span><b>${_('Card ${value}:').replace('${value}', value.toString())}</b> ${powerTexts[value]}
+            </div>`;
+        const headingHTML = (heading) => `<div class="power-reference-heading">${heading}</div>`;
+        const referenceHTML = `
+            <div class="tooltip-wrapper power-reference">
+                <div class="power-reference-column">
+                    ${headingHTML(_('Power activated immediately after playing the card:'))}
+                    ${entryHTML(1)}
+                    ${headingHTML(_('Powers activated before the next dice roll:'))}
+                    ${entryHTML(2)}
+                    ${entryHTML(10)}
+                </div>
+                <div class="power-reference-column">
+                    ${entryHTML(11)}
+                    ${headingHTML(_('Power activated after the next dice roll and before playing a card:'))}
+                    ${entryHTML(9)}
+                </div>
+            </div>
+        `;
+        this.powerReferenceHTMLByValue[highlightedValue] = referenceHTML;
+        return referenceHTML;
+    }
+    //a single power, for the mini cards in log rows
     getPowerTooltipHTML(value) {
         const powerTexts = {
             1: { timing: _('Right away'), effect: _('Add one more playable card from your hand on the same dice. Another 1 lets you add again.') },
@@ -1296,7 +1345,8 @@ class TooltipHandler {
     isSafariMobile() { return document.body.classList.contains('safari-browser') && this.game.isMobile(); }
     static getPowerCardClass(value) { return 'power-card-POWER' + value; }
 }
-TooltipHandler.TOOLTIP_DELAY = 400;
+TooltipHandler.TOOLTIP_DELAY = 1000;
+TooltipHandler.GAME_AREA_CARDS_SELECTOR = '#my-hand-container .a-card[id], #played-columns-container .a-card[id]';
 
 //Fugu's end-game table: one row per round (stars banked, a bomb for a crash, a gold cell for a Grand Slam,
 //"-" for a round a Grand Slam cut short), then the total. Cells fade in one by one; a click fast-forwards

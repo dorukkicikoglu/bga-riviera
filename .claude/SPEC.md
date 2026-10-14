@@ -23,6 +23,8 @@ Column = `index % 10`, row = `floor(index / 10)`; `background-size: 1000% 700%`,
 
 `img/card_icon_numbers.webp` (912x63) draws the number inside the status bar card icon (a ring in the card's color): 12 equal 76x63 frames, numbers 1 to 12 left to right, all on the same baseline. Frame for value `v` = `v - 1`; `background-size: 1200% 100%`, `background-position: calc((v - 1) * 100% / 11) 0%`. Log rows show cards as mini cards, not this icon.
 
+`img/power_icons_sprite.webp` (380x63, transparent) holds the 5 power icons left to right: cards 1, 2, 9, 10, 11. Unequal boxes, measured: card 1 x 16 w 44, card 2 x 82 w 63, card 9 x 158 w 63, card 10 x 228 y 7 w 76 h 48, card 11 x 310 w 63 (the others are the full 63px tall).
+
 ### Stars per card value
 
 Same for every color. Put this table in `material.inc.php`.
@@ -115,6 +117,15 @@ Level 1 (report it in the Game Metadata Manager):
 - Card 11: random add or skip.
 - Card 10: random among skip and every target (2 random own cards); in the redraw fallback, random redraw or skip.
 
+## Power reference [BGA]
+
+Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. The hovered card's power, if any, is highlighted. The text follows our BGA rules, not the rulebook's wording:
+- Immediately after playing the card: card 1.
+- Before the next dice roll: card 2 (automatic, cancelled if you stop), card 10 (an opponent still in the round with at least 2 cards, otherwise discard and draw), card 11 (dropped if you stop).
+- After the next dice roll and before playing a card: card 9 (the golden or a reserved die can be turned, lost if you stop).
+
+Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
+
 ## Preferences [BGA]
 
 - "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included.
@@ -195,4 +206,5 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Alpha items: copyright header on every PHP and TS file, `console.log` removed, log text color forced dark for BGA's dark mode, `estimated_duration` 20. The Grand Slam glow now survives F5 (M2 known limit fixed).
      - Differs from the plan: `clickOrTap()` is not ported (the fast-forward hint is two whole translatable strings, since Fugu's `_()` of a built string can't be translated); the card-9 zombie builds its choices in `ModifyDie` (no shared helper, it is the only user); log rows get their card tooltips through `LogMutationObserver` (`addTooltipsToCardsIn`) instead of whole-page passes.
      - Unverified until Studio: `playerStats->set` on the never-initialized `lastChanceRound` (fallback: init it to 0); `getBestZombieChoice` (fallback: pick the max with `bga_rand` tie-breaks); BGA's dark mode selectors (only the log text color is forced).
+     - After M4: game-area cards show the power reference (see Power reference) instead of a per-card power tooltip; log mini cards keep the per-card one. Icons from `img/power_icons_sprite.webp`.
      - Not code, yours: the Game Metadata Manager (designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, banner, icon, display images, a transparent box image).

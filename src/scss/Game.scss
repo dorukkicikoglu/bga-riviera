@@ -1,5 +1,6 @@
 @use "sass:math";
 @use "sass:list";
+@use "sass:map";
 
 /**
  *------
@@ -18,6 +19,7 @@
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
 	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
+	--image-source-power-icons: url(img/power_icons_sprite.webp);
 
     --die-color-red: #c8322b;
     --die-color-green: #4f9a2a;
@@ -357,14 +359,64 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 	}
 }
 .mobile_version .tooltip-wrapper{ min-width: 250px; }
+
+//power reference (TooltipHandler.getPowerReferenceHTML): every game-area card, laid out like the rulebook's powers page.
+//Colors are explicit (teal and dark text sampled from the rulebook), so BGA's dark mode doesn't change them
+$power-reference-background: #13a6ba;
+$power-reference-text: #051121;
+.tooltip-wrapper.power-reference{ display: flex; gap: 18px; box-sizing: border-box; width: min(640px, 92vw); max-width: 640px; min-width: 0; padding: 12px 14px; background: $power-reference-background; color: $power-reference-text; outline: none; border-radius: 6px; font-size: 14px; line-height: 1.35; text-align: left;
+    .power-reference-column{ flex: 1 1 0; min-width: 0;
+        & + .power-reference-column{ padding-left: 18px; border-left: 1px solid rgba(5, 17, 33, 0.35); } //separator between the two columns
+    }
+    .power-reference-heading{ font-weight: bold; margin: 10px 0px 6px 0px;
+        &:first-child{ margin-top: 0px; }
+    }
+    //the icon floats left and the text wraps around it; flow-root keeps each float inside its entry.
+    //Entries are separated by spacing only, like the rulebook page (box styles reset explicitly, so no tooltip style can add one).
+    //Only the hovered card's power gets a box; the padding is on every entry so highlighting one doesn't move the text
+    .power-reference-entry{ display: flow-root; padding: 4px 6px; margin: 0px -6px 6px -6px; border: 1px solid transparent; border-radius: 8px; background: none; box-shadow: none; outline: none;
+        &.highlighted-power-entry{ background: rgba(255, 255, 255, 0.32); border-color: rgba(5, 17, 33, 0.45); }
+    }
+}
+//one column: the entries follow each other, so no separator
+@mixin power-reference-one-column(){ flex-direction: column; gap: 0px; width: min(340px, 92vw);
+    .power-reference-column + .power-reference-column{ padding-left: 0px; border-left: none; }
+}
+.mobile_version .tooltip-wrapper.power-reference{ @include power-reference-one-column(); }
+@media (max-width: 700px){
+    .tooltip-wrapper.power-reference{ @include power-reference-one-column(); }
+}
+.tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
+.dijitTooltipContainer:has(.power-reference){ max-width: none; } //in case BGA caps tooltip widths: the reference sets its own
+
+//img/power_icons_sprite.webp is 380x63 with a transparent background: 5 icons left to right (cards 1, 2, 9, 10, 11).
+//Boxes measured from the image (not equal frames: card 1 is narrower, card 10 wider and only 48px tall). Each icon is cut to
+//its own box and scaled to $power-icon-height, about two text lines, so card 10 is as tall as the others, like the rulebook
+$power-icon-sprite-width: 380;
+$power-icon-sprite-height: 63;
+$power-icon-height: 38px;
+$power-icons: (
+    1: (x: 16, y: 0, width: 44, height: 63),
+    2: (x: 82, y: 0, width: 63, height: 63),
+    9: (x: 158, y: 0, width: 63, height: 63),
+    10: (x: 228, y: 7, width: 76, height: 48),
+    11: (x: 310, y: 0, width: 63, height: 63),
+);
+.power-icon{ float: left; height: $power-icon-height; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat;
+    @each $value, $icon in $power-icons {
+        $scale: math.div($power-icon-height, map.get($icon, height));
+        &[data-power-value="#{$value}"]{ width: $scale * map.get($icon, width); background-size: $scale * $power-icon-sprite-width $scale * $power-icon-sprite-height; background-position: (-$scale * map.get($icon, x)) (-$scale * map.get($icon, y)); }
+    }
+}
+
 .round-status-tooltip div + div{ margin-top: 3px; }
 .round-status-tooltip .fa-play{ color: #2e8b2e; }
 .round-status-tooltip .fa-flag-checkered{ color: #1c4f72; }
 .round-status-tooltip .fa-bomb{ color: #a00000; }
 //Safari on mobile gets the power reference at the bottom of the page instead of tooltips
 .safari-mobile-power-reference-container{ display: none; }
-.mobile_version.safari-browser .safari-mobile-power-reference-container{ display: flex; flex-direction: column; gap: 14px; width: 390px; max-width: 100%; margin: 40px auto 0px auto; padding: 10px; box-sizing: border-box; background: var(--bg-gradient-tooltip); border-radius: 10px;
-    .tooltip-wrapper{ max-width: unset; margin: 0px; outline: none; background: none; padding: 0px; }
+.mobile_version.safari-browser .safari-mobile-power-reference-container{ display: block; width: fit-content; max-width: 100%; margin: 40px auto 0px auto;
+    .tooltip-wrapper.power-reference{ margin: 0px; }
 }
 //end tooltip
 
