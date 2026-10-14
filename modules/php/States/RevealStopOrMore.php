@@ -31,7 +31,9 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Applies every Stop choice and reveals all choices in one notification.
+     * Applies every Stop choice and reveals all choices in one notification. [BGA] Each player who stops banks the stars
+     * of their played column at once (score, "banks N stars" row, round_scores, stats): a stopped column can't change,
+     * so the stars are final. The 40-point check still waits for EndRound.
      * [BGA, confirmed with publisher] A player who stops doesn't benefit from their powers: card 2, 10 and 11 powers
      * from this turn now resolve only for owners who chose More, clockwise from the Start token holder, before the
      * next roll. Anyone still in (they chose More) means another turn; otherwise the round ends.
@@ -43,6 +45,7 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
         $choices = [];
         $stopNames = [];
         $moreNames = [];
+        $stoppingPlayerIDs = [];
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             if(!isset($choicesDB[$playerID]))
                 continue;
@@ -50,6 +53,7 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             $choices[$playerID] = $choicesDB[$playerID];
             if($choicesDB[$playerID] === 'stop'){
                 $stopNames[] = $this->game->getPlayerNameById($playerID);
+                $stoppingPlayerIDs[] = $playerID;
                 $this->game->bga->playerStats->inc('roundsStopped', 1, $playerID);
             } else $moreNames[] = $this->game->getPlayerNameById($playerID);
         }
@@ -65,6 +69,10 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             ]);
         }
 
+        $roundNumber = (int) $this->game->bga->globals->get('roundNumber');
+        foreach($stoppingPlayerIDs as $playerID)
+            $this->bankStars($playerID, $roundNumber);
+
         //with nobody left the round ends, and RoundSetup clears every pending power anyway
         if(count($this->game->getPlayerIDsInRound()) > 0){
             $this->game->powerManager->clearPreRollPowersOfPlayersOut();
@@ -72,5 +80,24 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
         }
 
         return EndRound::class;
+    }
+
+    //the stopper's column goes into their score now, clockwise from the Start token holder like the Stop/More row
+    private function bankStars(int $playerID, int $roundNumber): void {
+        $stars = $this->game->tableManager->getStarsInColumn($playerID);
+        $score = $this->game->bga->playerScore->inc($playerID, $stars, null); //null: no framework notif, starsBanked updates the counter
+
+        $this->game->tableManager->saveRoundScore($roundNumber, $playerID, 'stopped', $stars);
+        $this->game->bga->playerStats->inc('starsBanked', $stars, $playerID);
+        if($stars > (int) $this->game->bga->playerStats->get('bestRound', $playerID))
+            $this->game->bga->playerStats->set('bestRound', $stars, $playerID);
+
+        $this->bga->notify->all('starsBanked', '${STARS_BANKED_LOG_STR}', [
+            'preserve' => ['player_id', 'stars', 'score'],
+            'player_id' => $playerID,
+            'stars' => $stars,
+            'score' => $score,
+            'STARS_BANKED_LOG_STR' => $this->game->getPlayerNameById($playerID).' banks '.$stars.' stars',
+        ]);
     }
 }

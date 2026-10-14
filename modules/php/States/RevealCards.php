@@ -91,6 +91,7 @@ class RevealCards extends \Bga\GameFramework\States\GameState
             } else if($playChoice === 'crash'){
                 $this->game->DbQuery("UPDATE `player` SET `round_status` = 'crashed' WHERE `player_id` = $playerID");
                 $this->game->tableManager->discardPlayerCards($playerID);
+                $this->game->tableManager->saveRoundScore((int) $this->game->bga->globals->get('roundNumber'), $playerID, 'crashed', 0);
                 $this->game->bga->playerStats->inc('crashes', 1, $playerID);
 
                 $crashedPlayerIDs[] = $playerID;

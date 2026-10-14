@@ -64,9 +64,10 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * The highest banked score plus the stars in front of a player not crashed this round, out of WINNING_SCORE.
-     * Capped at 99: the game only reaches 100 when it really ends. Recomputed by RoundSetup (columns are empty, so it is
-     * the banked score) and RevealCards; not by EndRound, where a stopped player's column is banked but not cleared yet.
+     * The highest banked score plus the stars in front of a player still in the round, out of WINNING_SCORE. A stopped
+     * player's column is already in their score (banked at the Stop reveal), so it is not counted twice.
+     * Capped at 99: the game only reaches 100 when it really ends. Recomputed by RoundSetup and RevealCards; banking at a
+     * Stop doesn't change it (the stars only move from the column to the score).
      */
     public function getGameProgression()
     {
@@ -75,7 +76,7 @@ class Game extends \Bga\GameFramework\Table
 
         $bestScore = 0;
         foreach($playersDB as $playerID => $playerDB){
-            $columnStars = ($playerDB['round_status'] === 'crashed') ? 0 : ($starsInColumns[(int) $playerID] ?? 0);
+            $columnStars = ($playerDB['round_status'] === 'in') ? ($starsInColumns[(int) $playerID] ?? 0) : 0;
             $bestScore = max($bestScore, (int) $playerDB['player_score'] + $columnStars);
         }
 
@@ -252,12 +253,14 @@ class Game extends \Bga\GameFramework\Table
         $roundNumber = (int) $this->bga->globals->get('roundNumber');
         $playersDB = $this->getCollectionFromDB("SELECT `player_id`, `player_score`, `round_status` FROM `player`");
 
-        //the end-game table: the Grand Slam players get the jump to their new score, the round is cut short for everyone else
+        //the end-game table: the Grand Slam players get the jump to their new score; players still in had their round cut
+        //short. Players who stopped (banked at their Stop) or crashed earlier this round already have their row
         foreach($playersDB as $playerID => $playerDB){
             $playerID = (int) $playerID;
             if(in_array($playerID, $playerIDs, true))
                 $this->tableManager->saveRoundScore($roundNumber, $playerID, 'grand_slam', max(0, $grandSlamScore - (int) $playerDB['player_score']));
-            else $this->tableManager->saveRoundScore($roundNumber, $playerID, ($playerDB['round_status'] === 'crashed') ? 'crashed' : 'unfinished', 0);
+            else if($playerDB['round_status'] === 'in')
+                $this->tableManager->saveRoundScore($roundNumber, $playerID, 'unfinished', 0);
         }
 
         foreach($playerIDs as $playerID){

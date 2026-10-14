@@ -80,7 +80,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
 6. **Stop or More** **[BGA: simultaneous, differs from the rules, confirmed with publisher]**: every player still in the round chooses Stop or More at the same time (multiactive state).
    - Choices stay hidden until everyone has chosen; then all are revealed in one notification.
    - **Players can change their mind until the last player decides** (see "Change my mind" below).
-   - Stop: banks the stars of all cards in front of them, out for the rest of the round.
+   - Stop: banks the stars of all cards in front of them, out for the rest of the round. **[BGA]** The stars go into their score as soon as the Stop is revealed (score counter on the player boards updated at once, one "banks N ★" log row per stopper, clockwise from the Start token holder): a stopped column can't change, so they are final. The 40-point end check still waits for the end of the round.
    - More: stays in for the next turn.
    - **[BGA]** No auto-"More" preference: BGA forbids sending actions programmatically.
 7. **Powers of cards 2, 10 and 11** played this turn **[BGA, confirmed with publisher: differs from the rulebook, which resolves them before Stop or More]**: only for owners who chose More, player by player, clockwise from the Start token holder. Card 2 is automatic, card 11 is add/skip, card 10 needs a choice (own cards and one opponent who chose More, or the discard/draw fallback). Owners who stopped lose these powers. Card 9 waits for step 2 of the next turn.
@@ -101,12 +101,12 @@ Used in `PlayCard` (step 3) and `StopOrMore` (step 6). Build it once and reuse i
 
 ## Scoring and game end
 
-- At round end, each player who stopped adds their stars to their running score (`player_score`). Crashed players add 0.
-- If anyone has 40+ points after a round: highest score wins; ties share the win (equal `player_score`, no tiebreaker).
-- Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked once, after every reveal (card-1 chains included), before any power. The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Log: "<name> plays all 10 cards: Grand Slam!".
+- Each player who stops adds their stars to their running score (`player_score`) **[BGA]** when their Stop is revealed (turn step 6), not at the end of the round: the total is the same, players just see it sooner. Crashed players add 0.
+- If anyone has 40+ points at the end of a round: highest score wins; ties share the win (equal `player_score`, no tiebreaker). **[BGA]** Reaching 40 by stopping mid-round doesn't end the game until the round ends.
+- Grand Slam ends the game immediately with a sudden-death win for that player. **[BGA]** Checked once, after every reveal (card-1 chains included), before any power. The player's score becomes `max(100, highest other player's score + 1)` so BGA ranks them first; players who empty their hands on the same reveal all get that score and share the win. Players who stopped earlier in that round keep the stars they banked. Log: "<name> plays all 10 cards: Grand Slam!".
 - Otherwise start a new round. The Start token keeps passing in turn order.
-- **[BGA]** End-game display (Fugu-style table, fading in cell by cell, winners jumping): one row per round with the stars each player banked (a bomb for a crash, a gold cell for a Grand Slam, "-" for a round a Grand Slam cut short), then a Total row equal to `player_score`. Stored in a `round_scores` table. A game-end log row names the winner(s).
-- **[BGA]** Game progression: the highest `player_score` plus column stars among players not crashed this round, out of 40, capped at 99 until the game ends.
+- **[BGA]** End-game display (Fugu-style table, fading in cell by cell, winners jumping): one row per round with the stars each player banked (a bomb for a crash, a gold cell for a Grand Slam, "-" for a player still in when a Grand Slam cut the round short; a player who had already stopped shows the stars they banked), then a Total row equal to `player_score`. Stored in a `round_scores` table, each row written the moment the player's round result is final: at the Stop reveal (`stopped`), at the reveal (`crashed`), or at the Grand Slam (`grand_slam`, `unfinished`). A game-end log row names the winner(s).
+- **[BGA]** Game progression: the highest `player_score` plus column stars of players still in the round (a stopper's stars are already in their score), out of 40, capped at 99 until the game ends.
 
 ## Zombie mode [BGA]
 
@@ -156,8 +156,8 @@ Log mini cards keep a single-power tooltip. Safari on a phone shows the same ref
 - `SwapCards` (active player, 35: card 10 swap or discard/draw fallback)
 - `PassStartToken` (game)
 - `StopOrMore` (multiple active, with change-mind)
-- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification; if anyone chose More, walks their card 2/10/11 powers clockwise from the Start token holder, then `RollDice`; else `EndRound`)
-- `EndRound` (game: scoring, check 40)
+- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, then banks each stopper's stars; if anyone chose More, walks their card 2/10/11 powers clockwise from the Start token holder, then `RollDice`; else `EndRound`)
+- `EndRound` (game: 40-point check only; stars are banked at the Stop reveal)
 - `EndScore`
 
 ## Statistics (stats.jsonc)
@@ -210,4 +210,5 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Unverified until Studio: `playerStats->set` on the never-initialized `lastChanceRound` (fallback: init it to 0); `getBestZombieChoice` (fallback: pick the max with `bga_rand` tie-breaks); BGA's dark mode selectors (only the log text color is forced).
      - After M4: game-area cards show the power reference (see Power reference) instead of a per-card power tooltip; log mini cards keep the per-card one. Icons from `img/power_icons_sprite.webp`.
      - Power timing settled with Helvetiq (2026-10-14): cards 2, 10 and 11 resolve after Stop or More, only for owners who chose More, clockwise from the new Start token holder (`RevealStopOrMore` starts the walk, `RevealCards` goes straight to `PassStartToken`). This replaces M3's cancel-on-Stop: `added_golden_die_POWER11`, the `powerCancelled` notification, the `power-cancelled-log` row and the stat decrements are gone. A second 11 in the same turn is skipped silently.
+     - Banking at the Stop reveal (2026-10-14): `RevealStopOrMore` banks each stopper's stars at once (score, `starsBanked` row, `round_scores` `stopped` row, `starsBanked` / `bestRound` stats); `RevealCards` writes the `crashed` row; `EndRound` only does the 40-point check. A Grand Slam no longer turns an earlier stopper's round into "unfinished", and progression counts column stars only for players still in.
      - Not code, yours: the Game Metadata Manager (designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, banner, icon, display images, a transparent box image).

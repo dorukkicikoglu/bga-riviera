@@ -75,7 +75,7 @@ Stop or More:
 - [x] A stopped player is not active in the next card play ("Other players must choose a card").
 
 Round end and game end:
-- [x] When nobody is left in, each stopper gets a "banks N ★" row (apricot) and their score rises by N. Crashed players get nothing.
+- [x] When nobody is left in, each stopper gets a "banks N ★" row (apricot) and their score rises by N. Crashed players get nothing. (Changed after M4: banking now happens at the Stop reveal, see M4 > Banking.)
 - [x] A new round follows: "Round 2" row, fresh 10-card hand (fades in), every column empty, every status "In", every board "x 10". Used Last Chance cards stay gone.
 - [x] `debug_setScores(38)`, then play a round where someone stops with 2 ★ or more: the game ends after the round and the highest score wins. Equal scores share the win.
 - [x] Grand Slam: `debug_trimHands(1)`, then `debug_setDice` so my last card is valid, and play it. A gold row "<name> plays all 10 cards: Grand Slam!", my score becomes max(100, best other + 1), my board and column glow gold, and the game ends with me first.
@@ -199,7 +199,7 @@ End-game display:
 - [ ] `debug_setScores(38)`, then finish a round with someone banking 2 ★ or more: a gold "<name> wins with N ★" log row, then the table fades in cell by cell. Clicking anywhere fast-forwards. The winners' names jump.
 - [ ] One row per round: "N ★" when stopped, a bomb when crashed. The Total row equals the BGA score (after `debug_setScores` the round rows don't add up to it: expected).
 - [ ] Collapse and show buttons work. F5 at game end shows the table at once.
-- [ ] Grand Slam ending (`debug_trimHands(1)` + a playable card): the Grand Slam cell is gold with "+N", the other players show "-" for that round (a bomb if they crashed). After F5 the board and column glow is still there.
+- [ ] Grand Slam ending (`debug_trimHands(1)` + a playable card): the Grand Slam cell is gold with "+N", players still in show "-" for that round, a bomb if they crashed, and "N ★" if they had already stopped that round. After F5 the board and column glow is still there.
 - [ ] Two winners on equal scores: "<a>, <b> win with N ★" and both names jump.
 - [ ] Full replay to the end shows the table without errors.
 
@@ -210,8 +210,15 @@ Zombie (friendly mode, kick a player in each state; a 3-player table helps):
 - [ ] Kick a player while they are the active power owner in ModifyDie, ResolvePowers or SwapCards: the game never blocks. Over a few tries the zombie sometimes uses the power (turns a die, adds the golden die, swaps 2 cards with a real player) and sometimes skips.
 - [ ] A zombie swap with me: my hand changes and I get the private row with the real cards.
 
+Banking at the Stop reveal:
+- [ ] When the Stop/More row appears, each player who stopped gets a "banks N ★" row right after it (clockwise from the Start token holder), and their score on the player board rises by N at that moment, not at the end of the round.
+- [ ] At the end of the round no second "banks" row appears and nobody's score changes again.
+- [ ] A player who stops at 40 or more doesn't end the game while others are still in; the game ends when the round ends.
+- [ ] A Grand Slam later in the same round: the earlier stopper keeps the stars they banked, and the end table shows "N ★" for them in that round.
+- [ ] Stats: stars banked, best round and rounds stopped are right after a game where players stopped in different turns of the same round.
+
 Progression:
-- [ ] The progress bar moves during round 1 after each reveal, sits at the leader's banked score at each new round, and is 100 at game end.
+- [ ] The progress bar moves during round 1 after each reveal, sits at the leader's banked score at each new round, and is 100 at game end. It doesn't jump when a player stops (their stars move from the column to the score, not counted twice).
 
 Preference ("One-click card play" in the game preferences menu):
 - [ ] On: clicking a glowing card plays it at once, no Confirm button. Also for the cards added to a 1. Change my mind still works.

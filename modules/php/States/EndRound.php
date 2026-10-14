@@ -31,39 +31,11 @@ class EndRound extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Every player who stopped banks the stars of their played column; crashed players score 0.
-     * Each player's round goes into round_scores for the end-game table.
-     * Anyone at WINNING_SCORE or more ends the game (highest score wins, equal scores share the win).
-     * Game progression is recomputed by the next RoundSetup, once the banked columns are cleared.
+     * The round is over: nobody is still in. Stoppers already banked their stars when their Stop was revealed
+     * (RevealStopOrMore) and crashes are recorded at the reveal (RevealCards), so all that is left is the 40-point check:
+     * anyone at WINNING_SCORE or more ends the game (highest score wins, equal scores share the win).
      */
     function onEnteringState() {
-        $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
-        $roundNumber = (int) $this->game->bga->globals->get('roundNumber');
-        $stoppedPlayerIDs = array_map('intval', $this->game->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'stopped'", true));
-
-        foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
-            if(!in_array($playerID, $stoppedPlayerIDs, true)){
-                $this->game->tableManager->saveRoundScore($roundNumber, $playerID, 'crashed', 0);
-                continue;
-            }
-
-            $stars = $this->game->tableManager->getStarsInColumn($playerID);
-            $score = $this->game->bga->playerScore->inc($playerID, $stars, null); //null: no framework notif, starsBanked updates the counter
-
-            $this->game->tableManager->saveRoundScore($roundNumber, $playerID, 'stopped', $stars);
-            $this->game->bga->playerStats->inc('starsBanked', $stars, $playerID);
-            if($stars > (int) $this->game->bga->playerStats->get('bestRound', $playerID))
-                $this->game->bga->playerStats->set('bestRound', $stars, $playerID);
-
-            $this->bga->notify->all('starsBanked', '${STARS_BANKED_LOG_STR}', [
-                'preserve' => ['player_id', 'stars', 'score'],
-                'player_id' => $playerID,
-                'stars' => $stars,
-                'score' => $score,
-                'STARS_BANKED_LOG_STR' => $this->game->getPlayerNameById($playerID).' banks '.$stars.' stars',
-            ]);
-        }
-
         $maxScore = (int) $this->game->getUniqueValueFromDB("SELECT MAX(`player_score`) FROM `player`");
         if($maxScore >= WINNING_SCORE)
             return EndScore::class;
