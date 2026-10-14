@@ -36,7 +36,7 @@ class EndRound extends \Bga\GameFramework\States\GameState
      * anyone at WINNING_SCORE or more ends the game (highest score wins, equal scores share the win).
      */
     function onEnteringState() {
-        $maxScore = (int) $this->game->getUniqueValueFromDB("SELECT MAX(`player_score`) FROM `player`");
+        $maxScore = $this->game->bga->playerScore->getMax();
         if($maxScore >= WINNING_SCORE)
             return EndScore::class;
 

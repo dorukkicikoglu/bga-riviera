@@ -246,64 +246,60 @@ export class Game {
         return cardClone;
     }
 
-    public placeOnObject(mobileObj: HTMLDivElement, targetObj: HTMLDivElement, forceBoundingClientRect: boolean = false): void {
-        mobileObj.style.left = '0px';
-        mobileObj.style.top = '0px';
-
-        // Get current positions
-        const mobileWithinPageContent = document.getElementById('page-content').contains(mobileObj);
-        const targetWithinPageContent = document.getElementById('page-content').contains(targetObj);
-
-        let targetRect = mobileWithinPageContent ? this.getPos(targetObj) : targetObj.getBoundingClientRect();
-        let mobileRect = targetWithinPageContent ? this.getPos(mobileObj) : mobileObj.getBoundingClientRect();
-
-        if(forceBoundingClientRect){
-            targetRect = targetObj.getBoundingClientRect();
-            mobileRect = mobileObj.getBoundingClientRect();
-        }
-
-        // Calculate the difference in position
-        const deltaX = targetRect.left - mobileRect.left;
-        const deltaY = targetRect.top - mobileRect.top;
-
-        // Get current position values
-        const currentLeft = parseFloat(mobileObj.style.left || '0');
-        const currentTop = parseFloat(mobileObj.style.top || '0');
-
-        // Apply the position difference to current position
-        mobileObj.style.left = (currentLeft + deltaX) + 'px';
-        mobileObj.style.top = (currentTop + deltaY) + 'px';
-    }
     //slides element into the container `to`, starting from where `from` is now (from may be element itself).
     //A copy flies over the page while the real element waits hidden in `to`, like Fugu moves cards between containers.
     //With `to` null, element is already in its place (a card sorted into my hand) and only the copy moves.
+    //The copy also changes size on the way: it starts at the size `from` has on screen (a hand card, or the top mini card
+    //back of a player board) and lands exactly at the size and place of element, so nothing jumps at the end.
+    //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
+    //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
     public async animateSlide(element: HTMLDivElement, from: HTMLDivElement, to: HTMLDivElement | null, durationMs: number): Promise<void> {
+        const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
+
         const slidingClone = element.cloneNode(true) as HTMLDivElement;
         slidingClone.removeAttribute('id');
         slidingClone.classList.add('sliding-clone');
-        document.body.appendChild(slidingClone);
-        this.placeOnObject(slidingClone, from, true);
 
         element.style.visibility = 'hidden';
         if(to)
             to.appendChild(element);
+        const toRect = element.getBoundingClientRect();
 
-        const elementRect = element.getBoundingClientRect();
-        const cloneRect = slidingClone.getBoundingClientRect();
-        const targetLeft = parseFloat(slidingClone.style.left || '0') + (elementRect.left - cloneRect.left);
-        const targetTop = parseFloat(slidingClone.style.top || '0') + (elementRect.top - cloneRect.top);
+        document.body.appendChild(slidingClone);
+        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
+        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
+        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
+
+        //scaled to rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the
+        //copy, like a row of mini card backs, still sends it off from its middle
+        const transformOnto = (rect: DOMRect): string => {
+            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
+            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
+            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
+        };
+
+        slidingClone.style.transform = transformOnto(fromRect);
 
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
 
-        slidingClone.style.transition = `left ${durationMs}ms ease-in-out, top ${durationMs}ms ease-in-out`;
-        slidingClone.style.left = targetLeft + 'px';
-        slidingClone.style.top = targetTop + 'px';
+        slidingClone.style.transition = `transform ${durationMs}ms ease-in-out`;
+        slidingClone.style.transform = transformOnto(toRect);
 
         await this.bga.gameui.wait(durationMs);
 
         element.style.visibility = null;
         slidingClone.remove();
+    }
+
+    //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one
+    private getSlideSourceRect(from: HTMLDivElement): DOMRect {
+        if(!from.classList.contains('a-card')){
+            const cards = from.querySelectorAll('.a-card');
+            if(cards.length > 0)
+                return cards[cards.length - 1].getBoundingClientRect();
+        }
+        return from.getBoundingClientRect();
     }
     public rgbToHex(rgb: string): string { // Extract the numeric values using a regex
         const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -321,12 +317,8 @@ export class Game {
             })
             .join(''); // Combine into a single string
     }
-    public getPos(node: HTMLDivElement): DOMRect {
-        let pos = this.bga.gameui.getBoundingClientRectIgnoreZoom(node);
-        return pos;
-    }
     public onScreenWidthChange(): void { //BGA's resize hook (window resize, including orientation changes); also fires once at load
-        this.handHandler?.recomputeCardSpacing();
+        this.handHandler?.recomputeCardSpacingAfterResize();
     }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }

@@ -71,13 +71,14 @@ class Game extends \Bga\GameFramework\Table
      */
     public function getGameProgression()
     {
-        $playersDB = $this->getCollectionFromDB("SELECT `player_id`, `player_score`, `round_status` FROM `player`");
+        $roundStatuses = $this->getCollectionFromDB("SELECT `player_id`, `round_status` FROM `player`", true);
+        $scores = $this->bga->playerScore->getAll();
         $starsInColumns = $this->tableManager->getStarsInColumnByPlayer();
 
         $bestScore = 0;
-        foreach($playersDB as $playerID => $playerDB){
-            $columnStars = ($playerDB['round_status'] === 'in') ? ($starsInColumns[(int) $playerID] ?? 0) : 0;
-            $bestScore = max($bestScore, (int) $playerDB['player_score'] + $columnStars);
+        foreach($roundStatuses as $playerID => $roundStatus){
+            $columnStars = ($roundStatus === 'in') ? ($starsInColumns[(int) $playerID] ?? 0) : 0;
+            $bestScore = max($bestScore, ($scores[(int) $playerID] ?? 0) + $columnStars);
         }
 
         $progress = (int) floor(100 * $bestScore / WINNING_SCORE);
@@ -132,8 +133,10 @@ class Game extends \Bga\GameFramework\Table
 
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
-        $result["players"] = $this->getCollectionFromDb("SELECT `player_id`, `player_no`, `player_score` score, `round_status`, `last_chance_used` FROM `player`");
+        $result["players"] = $this->getCollectionFromDb("SELECT `player_id`, `player_no`, `round_status`, `last_chance_used` FROM `player`");
+        $scores = $this->bga->playerScore->getAll();
         foreach($result["players"] as $player_id => $row){
+            $result["players"][$player_id]['score'] = $scores[(int) $player_id] ?? 0;
             $result["players"][$player_id]['last_chance_used'] = ($row['last_chance_used'] == 'yes') ? true : false;
             $result["players"][$player_id]['hand_count'] = $cardsOnTable['handCounts'][$player_id] ?? 0; //hand counts are public, spectators get them too
         }
@@ -246,20 +249,21 @@ class Game extends \Bga\GameFramework\Table
      */
     public function applyGrandSlam(array $playerIDs): void {
         $playerIDs = array_map('intval', $playerIDs);
-        $playerIDList = implode(',', $playerIDs);
-        $highestOtherScore = (int) $this->getUniqueValueFromDB("SELECT COALESCE(MAX(`player_score`), 0) FROM `player` WHERE `player_id` NOT IN ($playerIDList)");
+        $scores = $this->bga->playerScore->getAll();
+        $otherScores = array_diff_key($scores, array_flip($playerIDs));
+        $highestOtherScore = empty($otherScores) ? 0 : max($otherScores);
         $grandSlamScore = max(GRAND_SLAM_MIN_SCORE, $highestOtherScore + 1);
 
         $roundNumber = (int) $this->bga->globals->get('roundNumber');
-        $playersDB = $this->getCollectionFromDB("SELECT `player_id`, `player_score`, `round_status` FROM `player`");
+        $roundStatuses = $this->getCollectionFromDB("SELECT `player_id`, `round_status` FROM `player`", true);
 
         //the end-game table: the Grand Slam players get the jump to their new score; players still in had their round cut
         //short. Players who stopped (banked at their Stop) or crashed earlier this round already have their row
-        foreach($playersDB as $playerID => $playerDB){
+        foreach($roundStatuses as $playerID => $roundStatus){
             $playerID = (int) $playerID;
             if(in_array($playerID, $playerIDs, true))
-                $this->tableManager->saveRoundScore($roundNumber, $playerID, 'grand_slam', max(0, $grandSlamScore - (int) $playerDB['player_score']));
-            else if($playerDB['round_status'] === 'in')
+                $this->tableManager->saveRoundScore($roundNumber, $playerID, 'grand_slam', max(0, $grandSlamScore - ($scores[$playerID] ?? 0)));
+            else if($roundStatus === 'in')
                 $this->tableManager->saveRoundScore($roundNumber, $playerID, 'unfinished', 0);
         }
 
@@ -278,11 +282,11 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Everything the end-game scoring table needs. Everyone at the top score wins (Grand Slam players and tied
-     * scores share the win). The Total row shows player_score itself, so it always matches BGA's ranking.
+     * scores share the win). The Total row shows each player's BGA score itself, so it always matches BGA's ranking.
      */
     public function getEndGameScoring(): array {
         $scores = [];
-        foreach($this->getCollectionFromDB("SELECT `player_id`, `player_score` FROM `player`", true) as $playerID => $score)
+        foreach($this->bga->playerScore->getAll() as $playerID => $score)
             $scores[(int) $playerID] = (int) $score;
 
         $winningScore = max($scores);
@@ -356,7 +360,7 @@ class Game extends \Bga\GameFramework\Table
     // sets every player's score
     #[Debug(reload: true)]
     public function debug_setScores(int $score = 38) {
-        self::DbQuery("UPDATE `player` SET `player_score` = $score");
+        $this->bga->playerScore->setAll($score, null); //null: no notif, the page reloads
     }
 
     // each player keeps $count random hand cards, the rest are discarded (to test Grand Slam)

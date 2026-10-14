@@ -23,11 +23,15 @@ export class HandHandler{
     private static readonly SELECTION_STATES = ['PlayCard', 'SwapCards'];
     private static readonly DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
     private static readonly MAX_CARD_OVERLAP = 0.7;
+    private static readonly MOBILE_HAND_SPAN_PERCENT = 99; //like Fugu: on mobile the hand spans 99% of its container's width
+    private static readonly MOBILE_MAX_CARD_OVERLAP = 0.85; //on mobile a card may cover this share of the one before
+    private static readonly RESIZE_DEBOUNCE_TIME = 100;
 
     private handContainer: HTMLDivElement;
     private cardsContainer: HTMLDivElement;
     private maxSelectedCards: number = 1;
     private handFadeInCount: number = 0;
+    private resizeDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(private game: Game, private handData: RivieraCard[]) {
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
@@ -58,10 +62,26 @@ export class HandHandler{
         this.recomputeCardSpacing();
     }
 
-    //cards overlap more when the hand would not fit on one row (narrow screens, mobile). Called by Game.onScreenWidthChange
-    //too, since the screen can change without the hand changing
+    //called by Game.onScreenWidthChange (BGA's resize hook, covers orientation changes too): the screen can change without
+    //the hand changing, so the spacing is recomputed on its own trigger too, debounced like Fugu's recomputeMobileCardSpacing
+    public recomputeCardSpacingAfterResize(): void{
+        if(this.resizeDebounceTimeout)
+            clearTimeout(this.resizeDebounceTimeout);
+
+        this.resizeDebounceTimeout = setTimeout(() => this.recomputeCardSpacing(), HandHandler.RESIZE_DEBOUNCE_TIME);
+    }
+
+    //the hand always fits on one row. Desktop: cards overlap more only when they wouldn't fit. Mobile: Fugu's spacing
     public recomputeCardSpacing(): void{
+        if(this.game.isMobile())
+            this.applyMobileCardSpacing();
+        else this.applyDesktopCardSpacing();
+    }
+
+    private applyDesktopCardSpacing(): void{
         const cards = this.getCardDivs();
+        cards.forEach(card => { card.style.marginLeft = null; card.style.marginRight = null; }); //left over from the mobile layout
+
         if(cards.length < 2 || this.cardsContainer.clientWidth === 0){
             this.cardsContainer.style.removeProperty('--hand-card-overlap');
             return;
@@ -71,6 +91,27 @@ export class HandHandler{
         const neededOverlap = (cardWidth * cards.length - this.cardsContainer.clientWidth) / (cards.length - 1);
         const overlap = Math.min(cardWidth * HandHandler.MAX_CARD_OVERLAP, Math.max(cardWidth * HandHandler.DEFAULT_CARD_OVERLAP, neededOverlap));
         this.cardsContainer.style.setProperty('--hand-card-overlap', `${-overlap}px`);
+    }
+
+    //Fugu's applyMobileCardSpacing: every card but the last gets the same negative margin-right, in % of the container,
+    //so the row (one line, every card at the same height) spans MOBILE_HAND_SPAN_PERCENT of it and stays centered. A short hand keeps the default overlap instead of
+    //spreading out. Widths come from offsetWidth / clientWidth, so transforms and BGA's mobile scaling don't affect them
+    private applyMobileCardSpacing(): void{
+        this.cardsContainer.style.removeProperty('--hand-card-overlap');
+
+        const cards = this.getCardDivs();
+        if(cards.length === 0 || this.cardsContainer.clientWidth === 0)
+            return;
+
+        const cardWidthPercent = cards[0].offsetWidth / this.cardsContainer.clientWidth * 100;
+        let marginPercent = (cards.length > 1) ? (HandHandler.MOBILE_HAND_SPAN_PERCENT - cards.length * cardWidthPercent) / (cards.length - 1) : 0;
+        marginPercent = Math.min(marginPercent, -cardWidthPercent * HandHandler.DEFAULT_CARD_OVERLAP);
+        marginPercent = Math.max(marginPercent, -cardWidthPercent * HandHandler.MOBILE_MAX_CARD_OVERLAP);
+
+        cards.forEach((card, i) => {
+            card.style.marginLeft = '0%';
+            card.style.marginRight = (i === cards.length - 1) ? '0%' : `${marginPercent.toFixed(3)}%`;
+        });
     }
 
     //sorted like the sprite: by color index, then value

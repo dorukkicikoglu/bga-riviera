@@ -556,6 +556,7 @@ class HandHandler {
         this.handData = handData;
         this.maxSelectedCards = 1;
         this.handFadeInCount = 0;
+        this.resizeDebounceTimeout = null;
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
         this.handContainer = document.querySelector('#my-hand-container');
         this.handContainer.classList.add('a-hand-container');
@@ -577,10 +578,23 @@ class HandHandler {
             this.insertCardToHand(cardData);
         this.recomputeCardSpacing();
     }
-    //cards overlap more when the hand would not fit on one row (narrow screens, mobile). Called by Game.onScreenWidthChange
-    //too, since the screen can change without the hand changing
+    //called by Game.onScreenWidthChange (BGA's resize hook, covers orientation changes too): the screen can change without
+    //the hand changing, so the spacing is recomputed on its own trigger too, debounced like Fugu's recomputeMobileCardSpacing
+    recomputeCardSpacingAfterResize() {
+        if (this.resizeDebounceTimeout)
+            clearTimeout(this.resizeDebounceTimeout);
+        this.resizeDebounceTimeout = setTimeout(() => this.recomputeCardSpacing(), HandHandler.RESIZE_DEBOUNCE_TIME);
+    }
+    //the hand always fits on one row. Desktop: cards overlap more only when they wouldn't fit. Mobile: Fugu's spacing
     recomputeCardSpacing() {
+        if (this.game.isMobile())
+            this.applyMobileCardSpacing();
+        else
+            this.applyDesktopCardSpacing();
+    }
+    applyDesktopCardSpacing() {
         const cards = this.getCardDivs();
+        cards.forEach(card => { card.style.marginLeft = null; card.style.marginRight = null; }); //left over from the mobile layout
         if (cards.length < 2 || this.cardsContainer.clientWidth === 0) {
             this.cardsContainer.style.removeProperty('--hand-card-overlap');
             return;
@@ -589,6 +603,23 @@ class HandHandler {
         const neededOverlap = (cardWidth * cards.length - this.cardsContainer.clientWidth) / (cards.length - 1);
         const overlap = Math.min(cardWidth * HandHandler.MAX_CARD_OVERLAP, Math.max(cardWidth * HandHandler.DEFAULT_CARD_OVERLAP, neededOverlap));
         this.cardsContainer.style.setProperty('--hand-card-overlap', `${-overlap}px`);
+    }
+    //Fugu's applyMobileCardSpacing: every card but the last gets the same negative margin-right, in % of the container,
+    //so the row (one line, every card at the same height) spans MOBILE_HAND_SPAN_PERCENT of it and stays centered. A short hand keeps the default overlap instead of
+    //spreading out. Widths come from offsetWidth / clientWidth, so transforms and BGA's mobile scaling don't affect them
+    applyMobileCardSpacing() {
+        this.cardsContainer.style.removeProperty('--hand-card-overlap');
+        const cards = this.getCardDivs();
+        if (cards.length === 0 || this.cardsContainer.clientWidth === 0)
+            return;
+        const cardWidthPercent = cards[0].offsetWidth / this.cardsContainer.clientWidth * 100;
+        let marginPercent = (cards.length > 1) ? (HandHandler.MOBILE_HAND_SPAN_PERCENT - cards.length * cardWidthPercent) / (cards.length - 1) : 0;
+        marginPercent = Math.min(marginPercent, -cardWidthPercent * HandHandler.DEFAULT_CARD_OVERLAP);
+        marginPercent = Math.max(marginPercent, -cardWidthPercent * HandHandler.MOBILE_MAX_CARD_OVERLAP);
+        cards.forEach((card, i) => {
+            card.style.marginLeft = '0%';
+            card.style.marginRight = (i === cards.length - 1) ? '0%' : `${marginPercent.toFixed(3)}%`;
+        });
     }
     //sorted like the sprite: by color index, then value
     getSortedHandData() {
@@ -735,6 +766,9 @@ HandHandler.SLIDE_ANIM_TIME = 600;
 HandHandler.SELECTION_STATES = ['PlayCard', 'SwapCards'];
 HandHandler.DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
 HandHandler.MAX_CARD_OVERLAP = 0.7;
+HandHandler.MOBILE_HAND_SPAN_PERCENT = 99; //like Fugu: on mobile the hand spans 99% of its container's width
+HandHandler.MOBILE_MAX_CARD_OVERLAP = 0.85; //on mobile a card may cover this share of the one before
+HandHandler.RESIZE_DEBOUNCE_TIME = 100;
 
 class DiceHandler {
     constructor(game, diceData) {
@@ -1730,52 +1764,50 @@ class Game {
         cardClone.classList.add('cloned-card');
         return cardClone;
     }
-    placeOnObject(mobileObj, targetObj, forceBoundingClientRect = false) {
-        mobileObj.style.left = '0px';
-        mobileObj.style.top = '0px';
-        // Get current positions
-        const mobileWithinPageContent = document.getElementById('page-content').contains(mobileObj);
-        const targetWithinPageContent = document.getElementById('page-content').contains(targetObj);
-        let targetRect = mobileWithinPageContent ? this.getPos(targetObj) : targetObj.getBoundingClientRect();
-        let mobileRect = targetWithinPageContent ? this.getPos(mobileObj) : mobileObj.getBoundingClientRect();
-        if (forceBoundingClientRect) {
-            targetRect = targetObj.getBoundingClientRect();
-            mobileRect = mobileObj.getBoundingClientRect();
-        }
-        // Calculate the difference in position
-        const deltaX = targetRect.left - mobileRect.left;
-        const deltaY = targetRect.top - mobileRect.top;
-        // Get current position values
-        const currentLeft = parseFloat(mobileObj.style.left || '0');
-        const currentTop = parseFloat(mobileObj.style.top || '0');
-        // Apply the position difference to current position
-        mobileObj.style.left = (currentLeft + deltaX) + 'px';
-        mobileObj.style.top = (currentTop + deltaY) + 'px';
-    }
     //slides element into the container `to`, starting from where `from` is now (from may be element itself).
     //A copy flies over the page while the real element waits hidden in `to`, like Fugu moves cards between containers.
     //With `to` null, element is already in its place (a card sorted into my hand) and only the copy moves.
+    //The copy also changes size on the way: it starts at the size `from` has on screen (a hand card, or the top mini card
+    //back of a player board) and lands exactly at the size and place of element, so nothing jumps at the end.
+    //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
+    //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
     async animateSlide(element, from, to, durationMs) {
+        const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
         const slidingClone = element.cloneNode(true);
         slidingClone.removeAttribute('id');
         slidingClone.classList.add('sliding-clone');
-        document.body.appendChild(slidingClone);
-        this.placeOnObject(slidingClone, from, true);
         element.style.visibility = 'hidden';
         if (to)
             to.appendChild(element);
-        const elementRect = element.getBoundingClientRect();
-        const cloneRect = slidingClone.getBoundingClientRect();
-        const targetLeft = parseFloat(slidingClone.style.left || '0') + (elementRect.left - cloneRect.left);
-        const targetTop = parseFloat(slidingClone.style.top || '0') + (elementRect.top - cloneRect.top);
+        const toRect = element.getBoundingClientRect();
+        document.body.appendChild(slidingClone);
+        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
+        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
+        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
+        //scaled to rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the
+        //copy, like a row of mini card backs, still sends it off from its middle
+        const transformOnto = (rect) => {
+            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
+            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
+            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
+        };
+        slidingClone.style.transform = transformOnto(fromRect);
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
-        slidingClone.style.transition = `left ${durationMs}ms ease-in-out, top ${durationMs}ms ease-in-out`;
-        slidingClone.style.left = targetLeft + 'px';
-        slidingClone.style.top = targetTop + 'px';
+        slidingClone.style.transition = `transform ${durationMs}ms ease-in-out`;
+        slidingClone.style.transform = transformOnto(toRect);
         await this.bga.gameui.wait(durationMs);
         element.style.visibility = null;
         slidingClone.remove();
+    }
+    //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one
+    getSlideSourceRect(from) {
+        if (!from.classList.contains('a-card')) {
+            const cards = from.querySelectorAll('.a-card');
+            if (cards.length > 0)
+                return cards[cards.length - 1].getBoundingClientRect();
+        }
+        return from.getBoundingClientRect();
     }
     rgbToHex(rgb) {
         const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -1792,12 +1824,8 @@ class Game {
         })
             .join(''); // Combine into a single string
     }
-    getPos(node) {
-        let pos = this.bga.gameui.getBoundingClientRectIgnoreZoom(node);
-        return pos;
-    }
     onScreenWidthChange() {
-        this.handHandler?.recomputeCardSpacing();
+        this.handHandler?.recomputeCardSpacingAfterResize();
     }
     isDesktop() { return document.body.classList.contains('desktop_version'); }
     isMobile() { return document.body.classList.contains('mobile_version'); }

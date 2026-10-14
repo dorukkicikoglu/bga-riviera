@@ -60,7 +60,7 @@ ALTER TABLE `player` ADD `pending_POWER11` ENUM('yes', 'no') NOT NULL DEFAULT 'n
 
 -- one row per player per round, for the end-game scoring table
 -- round_result: stopped banks stars, crashed scores 0, grand_slam ends the game, unfinished means a Grand Slam ended the round first
--- stars: points added to player_score that round (for grand_slam, the jump to the Grand Slam score)
+-- stars: points added to the player's score that round (for grand_slam, the jump to the Grand Slam score)
 CREATE TABLE IF NOT EXISTS `round_scores` (
   `round_number` TINYINT UNSIGNED NOT NULL,
   `player_id` INT UNSIGNED NOT NULL,

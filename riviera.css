@@ -41,8 +41,8 @@
 }
 
 .mobile_version {
-  --card-width: min(9vw, 90px);
-  --die-size: min(7vw, 34px);
+  --card-width: min(28.5vw, 150px);
+  --die-size: min(13.3vw, 55px);
 }
 
 body {
@@ -257,10 +257,14 @@ body {
 }
 
 body .sliding-clone {
-  position: absolute;
+  position: fixed;
+  left: 0px;
+  top: 0px;
   z-index: 1000;
   margin: 0;
   pointer-events: none;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .minimised-card-icon {
@@ -601,6 +605,7 @@ body .sliding-clone {
 #my-hand-container .cards-container {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 #my-hand-container .cards-container .a-card {
   margin-left: var(--hand-card-overlap, calc(var(--my-card-width) * -0.1));

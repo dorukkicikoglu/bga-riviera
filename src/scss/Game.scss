@@ -50,7 +50,9 @@
     --bg-gradient-tooltip-connector: linear-gradient(-120deg, #bfe0ef, #f5fbfd);
 }
 
-.mobile_version{ --card-width: min(9vw, 90px); --die-size: min(7vw, 34px); }
+//mobile, like Fugu: BGA lays the game out at least 740px wide (gameinfos game_interface_width) and scales it down to the
+//phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
+.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: min(13.3vw, 55px); }
 
 body{ background: linear-gradient(180deg, #3d8fc6 0%, #1f5f94 100%) fixed; background-color: #1f5f94; } //Riviera sea blue
 
@@ -90,8 +92,9 @@ $card-aspect: math.div(625, 424); //height / width of one frame
 	&.cloned-card{ position: absolute; z-index: 100; pointer-events: none; }
 }
 
-//the copy that flies between containers in Game.animateSlide
-body .sliding-clone{ position: absolute; z-index: 1000; margin: 0; pointer-events: none; }
+//the copy that flies between containers in Game.animateSlide: pinned to the viewport's top-left corner and moved and
+//scaled by its transform only, so it can start at the source's size and land at the destination's
+body .sliding-clone{ position: fixed; left: 0px; top: 0px; z-index: 1000; margin: 0; pointer-events: none; transform-origin: 0 0; will-change: transform; }
 
 .minimised-card-icon{ display: inline-block; vertical-align: middle; line-height: 0;
     .a-card{ --my-card-width: 24px; border-radius: 3px; box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6); }
@@ -167,8 +170,10 @@ $card-icon-number-height: 28px;
     position: relative; text-align: center; border: 1px solid var(--hand-owner-color); border-radius: 10px; margin-top: 30px; padding: 26px 10px 14px 10px;
     .my-hand-title{ color: var(--hand-owner-color); }
 
-    .cards-container{ display: flex; justify-content: center;
-        //HandHandler.recomputeCardSpacing sets a bigger overlap when the hand wouldn't fit on one row
+    .cards-container{ display: flex; justify-content: center; align-items: flex-start;
+        //every card on one line; only a selected or set-aside card moves (up). Desktop: HandHandler.recomputeCardSpacing
+        //sets a bigger overlap when the hand wouldn't fit on one row. Mobile: it sets each card's margins inline instead
+        //(Fugu's applyMobileCardSpacing), so the row spans the hand's width
         .a-card{ margin-left: var(--hand-card-overlap, calc(var(--my-card-width) * -0.1)); transition: transform 0.2s ease, filter 0.2s ease;
             &:first-child{ margin-left: 0px; }
 

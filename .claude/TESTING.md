@@ -33,7 +33,7 @@ Debug functions (Studio debug menu):
 
 Spectator and display:
 - [ ] A spectator sees every board (hand counts, Last Chance, status, Start token), every column and the dice, and no hand.
-- [ ] Mobile layout (or a narrow window): the hand still fits on one row; nothing overflows horizontally.
+- [ ] Mobile layout (or a narrow window): the hand still fits on one row; nothing overflows horizontally. (Replaced after M4: see M4 > Layout.)
 - [ ] No errors in the browser console on load or F5.
 
 ## Milestone 2: Core loop
@@ -225,7 +225,13 @@ Preference ("One-click card play" in the game preferences menu):
 - [ ] Off (default): select, then Confirm, as before. Switching it while choosing doesn't break the status bar.
 
 Layout:
-- [ ] Phone width (or a narrow window): my 10 cards fit on one row, overlapping more; they spread again when the window widens or cards leave.
+- [ ] Desktop, wide window: unchanged from before (same card and die sizes, hand on one straight row with a small overlap, columns on one row when they fit).
+- [ ] Desktop, narrow window: my 10 cards still fit on one straight row, overlapping more; they spread again when the window widens or cards leave.
+- [ ] On a phone (BGA mobile layout): my hand cards are large enough to read the number and stars; all of them sit on one horizontal line at the same height, overlapping more so the hand spans the full width with no horizontal scroll, and each card's number and stars stay visible. With fewer cards they keep a small overlap and stay centered (no spreading out). Rotating the phone respaces the hand.
+- [ ] On a phone: dice and played-column cards are readable too, in proportion to the hand; the columns wrap onto several rows.
+- [ ] On desktop and on a phone: only a selected card and a set-aside (chosen) card move, raised above the line; selecting, confirming, the playable glow and Change my mind still work.
+- [ ] Every card slide changes size smoothly and lands exactly at its destination's size, with no jump at the end, on desktop and on a phone: my card into my column; another player's card from their board's mini card back into their column; card 10 cards sliding in from the other player's board; card backs between boards (card 10 seen by a third player); the Start token between boards.
+- [ ] The new hand fade-in and card 10's fade-out / fade-in happen in place at the hand's size.
 - [ ] Status bar card icon ("Play [card]?", "Add [card]?", "You chose [cards]"): the number comes from `img/card_icon_numbers.webp`, gold on navy inside a ring of the card's color, same size as before; 10, 11 and 12 fit inside the ring; no square edge shows around the number. A screen reader reads "<value> <color>".
 - [ ] BGA dark mode: every log row stays readable (dark text on its pale background), including plain framework rows.
 
