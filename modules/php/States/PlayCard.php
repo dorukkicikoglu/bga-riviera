@@ -28,7 +28,7 @@ use Bga\Games\Riviera\Game;
  * RevealCards then applies them all at once.
  * [BGA] Card 1: confirming a 1 keeps the player active to add another playable card (same roll) or finish,
  * again after each extra 1. The whole chain is one pending choice: the extra cards are marked with
- * chain_position_POWER1, and Change my mind takes the whole chain back.
+ * chain_position_POWER1, and Undo takes the whole chain back.
  */
 class PlayCard extends GameState
 {
@@ -44,7 +44,7 @@ class PlayCard extends GameState
     }
 
     function onEnteringState() {
-        $this->game->changeMindManager->resetChoices(self::CHOICE_COLUMNS);
+        $this->game->undoManager->resetChoices(self::CHOICE_COLUMNS);
         $this->game->tableManager->clearChainPOWER1();
 
         $inRoundIDs = $this->game->getPlayerIDsInRound();
@@ -138,7 +138,7 @@ class PlayCard extends GameState
         if($lastChanceUsed === 'yes')
             throw new UserException(clienttranslate('You already used your Last Chance'));
 
-        $this->game->changeMindManager->recordChoice($currentPlayerId, ['play_choice' => 'last_chance', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('last_chance', null, [], false), RevealCards::class);
+        $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'last_chance', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('last_chance', null, [], false), RevealCards::class);
     }
 
     #[PossibleAction]
@@ -149,16 +149,16 @@ class PlayCard extends GameState
         if(count($this->game->tableManager->getPlayableCardIDs($currentPlayerId)) > 0)
             throw new UserException(clienttranslate('You can only crash when no card is playable'));
 
-        $this->game->changeMindManager->recordChoice($currentPlayerId, ['play_choice' => 'crash', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('crash', null, [], false), RevealCards::class);
+        $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'crash', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('crash', null, [], false), RevealCards::class);
     }
 
     //also takes a whole card-1 chain back, so the player chooses a first card again
     #[PossibleAction]
     #[CheckAction(false)]
-    public function actChangeMindPlayCard(int $currentPlayerId)
+    public function actUndoPlayCard(int $currentPlayerId)
     {
         $notifArgs = ['playableCardIDs' => $this->game->tableManager->getPlayableCardIDs($currentPlayerId)];
-        $this->game->changeMindManager->changeMind('actChangeMindPlayCard', $currentPlayerId, self::CHOICE_COLUMNS, 'playChoiceReverted', $notifArgs);
+        $this->game->undoManager->undo('actUndoPlayCard', $currentPlayerId, self::CHOICE_COLUMNS, 'playChoiceReverted', $notifArgs);
         $this->game->tableManager->clearChainPOWER1($currentPlayerId);
     }
 
@@ -176,14 +176,14 @@ class PlayCard extends GameState
         $choiceValues = ['play_choice' => 'card', 'play_choice_card_id' => $cardID];
 
         if($this->getCardValue($cardID) !== CHAIN_CARD_VALUE_POWER1){
-            $this->game->changeMindManager->recordChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, [], false), RevealCards::class);
+            $this->game->undoManager->recordChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, [], false), RevealCards::class);
             return false;
         }
 
         $nextPlayableCardIDs = array_values(array_diff($this->game->tableManager->getPlayableCardIDs($playerID), [$cardID]));
         $chainOpen = count($nextPlayableCardIDs) > 0;
 
-        $this->game->changeMindManager->savePendingChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, $nextPlayableCardIDs, $chainOpen));
+        $this->game->undoManager->savePendingChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, $nextPlayableCardIDs, $chainOpen));
         if(!$chainOpen) //nothing else to add: the chain finishes on its own
             $this->game->gamestate->setPlayerNonMultiactive($playerID, RevealCards::class);
 

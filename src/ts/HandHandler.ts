@@ -205,7 +205,7 @@ export class HandHandler{
             card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS, HandHandler.PLAYABLE_POWER_CARD_CLASS);
     }
 
-    //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Change my mind"
+    //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Undo"
     public setChosenCards(cardIDs: number[]): void{
         for(let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));

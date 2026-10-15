@@ -18,7 +18,7 @@ import { Game } from "../Game";
  *
  * Everyone still in the round secretly chooses a card (select, then confirm), or, only when no card is
  * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
- * "Change my mind" takes it back.
+ * "Undo" takes it back.
  * [BGA] Card 1: confirming a 1 keeps me active to add another playable card or finish, again after each extra 1.
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
  */
@@ -66,29 +66,31 @@ export class PlayCard {
     }
 
     private updateStatusBar(isCurrentPlayerActive: boolean): void {
+        const handHandler = this.game.handHandler;
+
         this.bga.statusBar.removeActionButtons();
-        this.game.handHandler?.clearSelectableCards();
+        handHandler?.clearSelectableCards();
         this.confirmButton = null;
 
-        if(!this.game.handHandler){
-            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+        //spectator, or a player who isn't choosing and has nothing pending
+        if(!handHandler || (!isCurrentPlayerActive && !this.pendingChoice)){
+            this.bga.statusBar.setTitle(_('Others must choose a card'));
             return;
         }
 
+        //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if(isCurrentPlayerActive && this.pendingChoice && this.chainOpen){
-            this.bga.statusBar.setTitle(_('${you} may add another card to your 1, or finish'));
-            this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
 
             //hidden until a card is selected, like Fugu's swap button
             this.confirmActionName = 'actAddChainCard_POWER1';
-            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked(this.confirmActionName), {id: 'add-chain-card-button'});
-            this.bga.statusBar.addActionButton(_('Finish'), () => this.bga.actions.performAction('actFinishChain_POWER1'), {id: 'finish-chain-button', color: 'secondary'});
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+            this.confirmButton = this.bga.statusBar.addActionButton(_('Add card'), () => this.confirmClicked(this.confirmActionName), {id: 'add-chain-card-button'});
+            this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actFinishChain_POWER1'), {id: 'finish-chain-button', color: 'secondary'});
+            this.game.undoHandler.addUndoButton('actUndoPlayCard');
             this.selectionChanged();
         } else if(isCurrentPlayerActive && !this.pendingChoice){
             if(this.playableCardIDs.length > 0){
-                this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
-                this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+                handHandler.setSelectableCards(this.playableCardIDs, 1, true);
 
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
@@ -100,12 +102,12 @@ export class PlayCard {
                 if(this.canUseLastChance)
                     this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), {id: 'last-chance-button'});
 
-                //no confirm dialog: Change my mind is the safety net until the last player has chosen
+                //no confirm dialog: Undo is the safety net until the last player has chosen
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), {id: 'crash-button', color: 'alert'});
             }
-        } else if(this.pendingChoice){
+        } else {
             if(this.pendingChoice.choice === 'card'){
-                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
             } else {
                 const pendingChoiceTitles: Record<Exclude<PlayChoice, 'card'>, string> = {
@@ -114,9 +116,7 @@ export class PlayCard {
                 };
                 this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
             }
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
-        } else {
-            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+            this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
     }
 
@@ -138,7 +138,13 @@ export class PlayCard {
         const isAddingToChain = this.pendingChoice !== null;
         if(selectedCard)
             this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
-        else this.bga.statusBar.setTitle(isAddingToChain ? _('${you} may add another card to your 1, or finish') : _('${you} must choose a card to play'));
+        else if(isAddingToChain){
+            //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
+            const chosenCardIDs = this.getChosenCardIDs();
+            const lastChosenCard = this.game.handHandler?.getCardData(chosenCardIDs[chosenCardIDs.length - 1]);
+            this.bga.statusBar.setTitle(_('${you} may play an extra card with ${card1}').replace('${card1}', this.getCardIconHTML(lastChosenCard)));
+        }
+        else this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
     }
 
     private confirmClicked(actionName: 'actPlayCard' | 'actAddChainCard_POWER1'): void {

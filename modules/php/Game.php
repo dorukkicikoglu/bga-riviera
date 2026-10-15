@@ -21,7 +21,7 @@ namespace Bga\Games\Riviera;
 use Bga\Games\Riviera\States\RoundSetup;
 use Bga\GameFramework\Components\Deck;
 use Bga\Games\Riviera\RIVTableManager;
-use Bga\Games\Riviera\RIVChangeMindManager;
+use Bga\Games\Riviera\RIVUndoManager;
 use Bga\Games\Riviera\RIVPowerManager;
 use Bga\GameFramework\Actions\Debug;
 
@@ -29,7 +29,7 @@ class Game extends \Bga\GameFramework\Table
 {
     public Deck $cardsDeck;
     public RIVTableManager $tableManager;
-    public RIVChangeMindManager $changeMindManager;
+    public RIVUndoManager $undoManager;
     public RIVPowerManager $powerManager;
     public array $userPrefs = array(
         'one_click_play' => 101,
@@ -59,7 +59,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->cardsDeck = $this->deckFactory->createDeck("cards");
         $this->tableManager = new RIVTableManager($this);
-        $this->changeMindManager = new RIVChangeMindManager($this);
+        $this->undoManager = new RIVUndoManager($this);
         $this->powerManager = new RIVPowerManager($this);
     }
 

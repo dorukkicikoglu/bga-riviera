@@ -8,7 +8,7 @@
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
  * -----
  *
- * RIVChangeMindManager.php
+ * RIVUndoManager.php
  */
 
 namespace Bga\Games\Riviera;
@@ -17,12 +17,12 @@ use Bga\Games\Riviera\Game;
 use Bga\GameFramework\UserException;
 
 /**
- * Change my mind, shared by the PlayCard and StopOrMore multiactive states.
+ * Undo, shared by the PlayCard and StopOrMore multiactive states.
  * A choice is only a pending value in the player's choice columns until the state's reveal state applies it,
  * so changing your mind just sets those columns back to NULL and re-activates you.
  * The last player to choose ends the state at once, which locks every choice in.
  */
-class RIVChangeMindManager{
+class RIVUndoManager{
     public Game $game;
 
     function __construct(Game $game) {
@@ -77,7 +77,7 @@ class RIVChangeMindManager{
      * The first column of $choiceColumns tells whether the player has a pending choice to take back.
      * A player still choosing (in the middle of a card-1 chain) can take it back too: re-activating them changes nothing.
      */
-    function changeMind(string $actionName, int $playerID, array $choiceColumns, string $notifName, array $notifArgs = []): void{
+    function undo(string $actionName, int $playerID, array $choiceColumns, string $notifName, array $notifArgs = []): void{
         $this->game->gamestate->checkPossibleAction($actionName);
 
         if($this->isPlayerZombie($playerID))

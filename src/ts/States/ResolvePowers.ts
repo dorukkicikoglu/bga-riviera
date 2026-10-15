@@ -29,7 +29,7 @@ export class ResolvePowers {
             return;
         }
 
-        this.bga.statusBar.setTitle(_('${you} may add the golden die to the next roll (card 11)'));
+        this.bga.statusBar.setTitle(_('${you} may give everyone an extra die on the next roll, usable only in sums (card 11)'));
         this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), {id: 'add-golden-die-button'});
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), {id: 'skip-power-button', color: 'secondary'});
     }

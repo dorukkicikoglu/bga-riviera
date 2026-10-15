@@ -22,7 +22,7 @@
 	--image-source-power-icons: url(img/power_icons_sprite.webp);
 
     --die-color-red: #c8322b;
-    --die-color-green: #4f9a2a;
+    --button-color-green: #2e8303;
     --die-color-purple: #5f2d8c;
     --die-color-blue: #1c4f72;
     --die-color-orange: #e8862b;
@@ -131,7 +131,12 @@ $card-icon-number-height: 28px;
     .status-card-icon[data-color="#{$color}"]{ border-color: var(--die-color-#{$color}); }
 }
 
-#more-button{ display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 33px; line-height: 1.2; white-space: normal; text-align: center; padding: 0 18px; }
+//keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
+//metrics, which grew the button: its span gets line-height 0 so it can't
+#stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
+    &:hover{ background: #437f24; border-color: #437f24; }
+    .button-star{ line-height: 0; }
+}
 
 //dice
 //.a-die lives outside #dice-container so logs can show small dice too

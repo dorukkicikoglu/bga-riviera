@@ -5,7 +5,7 @@
  *
  * Everyone still in the round secretly chooses a card (select, then confirm), or, only when no card is
  * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
- * "Change my mind" takes it back.
+ * "Undo" takes it back.
  * [BGA] Card 1: confirming a 1 keeps me active to add another playable card or finish, again after each extra 1.
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
  */
@@ -49,27 +49,28 @@ class PlayCard {
         this.updateStatusBar(isCurrentPlayerActive);
     }
     updateStatusBar(isCurrentPlayerActive) {
+        const handHandler = this.game.handHandler;
         this.bga.statusBar.removeActionButtons();
-        this.game.handHandler?.clearSelectableCards();
+        handHandler?.clearSelectableCards();
         this.confirmButton = null;
-        if (!this.game.handHandler) {
-            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+        //spectator, or a player who isn't choosing and has nothing pending
+        if (!handHandler || (!isCurrentPlayerActive && !this.pendingChoice)) {
+            this.bga.statusBar.setTitle(_('Others must choose a card'));
             return;
         }
+        //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if (isCurrentPlayerActive && this.pendingChoice && this.chainOpen) {
-            this.bga.statusBar.setTitle(_('${you} may add another card to your 1, or finish'));
-            this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
             //hidden until a card is selected, like Fugu's swap button
             this.confirmActionName = 'actAddChainCard_POWER1';
-            this.confirmButton = this.bga.statusBar.addActionButton(_('Add this card'), () => this.confirmClicked(this.confirmActionName), { id: 'add-chain-card-button' });
-            this.bga.statusBar.addActionButton(_('Finish'), () => this.bga.actions.performAction('actFinishChain_POWER1'), { id: 'finish-chain-button', color: 'secondary' });
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
+            this.confirmButton = this.bga.statusBar.addActionButton(_('Add card'), () => this.confirmClicked(this.confirmActionName), { id: 'add-chain-card-button' });
+            this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actFinishChain_POWER1'), { id: 'finish-chain-button', color: 'secondary' });
+            this.game.undoHandler.addUndoButton('actUndoPlayCard');
             this.selectionChanged();
         }
         else if (isCurrentPlayerActive && !this.pendingChoice) {
             if (this.playableCardIDs.length > 0) {
-                this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
-                this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+                handHandler.setSelectableCards(this.playableCardIDs, 1, true);
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
                 this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), { id: 'confirm-selected-card-button' });
@@ -79,13 +80,13 @@ class PlayCard {
                 this.bga.statusBar.setTitle(_('${you} cannot play any card'));
                 if (this.canUseLastChance)
                     this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), { id: 'last-chance-button' });
-                //no confirm dialog: Change my mind is the safety net until the last player has chosen
+                //no confirm dialog: Undo is the safety net until the last player has chosen
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), { id: 'crash-button', color: 'alert' });
             }
         }
-        else if (this.pendingChoice) {
+        else {
             if (this.pendingChoice.choice === 'card') {
-                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
             }
             else {
@@ -95,10 +96,7 @@ class PlayCard {
                 };
                 this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
             }
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindPlayCard');
-        }
-        else {
-            this.bga.statusBar.setTitle(_('Other players must choose a card'));
+            this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
     }
     //called through Game.handSelectionChanged when a card is selected or unselected
@@ -116,8 +114,14 @@ class PlayCard {
         const isAddingToChain = this.pendingChoice !== null;
         if (selectedCard)
             this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
+        else if (isAddingToChain) {
+            //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
+            const chosenCardIDs = this.getChosenCardIDs();
+            const lastChosenCard = this.game.handHandler?.getCardData(chosenCardIDs[chosenCardIDs.length - 1]);
+            this.bga.statusBar.setTitle(_('${you} may play an extra card with ${card1}').replace('${card1}', this.getCardIconHTML(lastChosenCard)));
+        }
         else
-            this.bga.statusBar.setTitle(isAddingToChain ? _('${you} may add another card to your 1, or finish') : _('${you} must choose a card to play'));
+            this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
     }
     confirmClicked(actionName) {
         const selectedCardID = this.game.handHandler?.getSelectedCardID();
@@ -174,7 +178,7 @@ class PlayCard {
 
 /**
  * [BGA] Simultaneous Stop or More: everyone still in the round chooses at the same time. The choice stays
- * pending until the last player has chosen, and "Change my mind" takes it back.
+ * pending until the last player has chosen, and "Undo" takes it back.
  */
 class StopOrMore {
     constructor(game, bga) {
@@ -201,10 +205,12 @@ class StopOrMore {
     onPlayerActivationChange(args, isCurrentPlayerActive) {
         this.bga.statusBar.removeActionButtons();
         if (isCurrentPlayerActive && this.game.myself) {
-            this.bga.statusBar.setTitle(_('${you} must choose: Stop or More'));
+            this.bga.statusBar.setTitle(_('${you} must choose an action'));
             const starsTotal = this.game.myself.getPlayedColumn().getStarsTotal();
-            this.bga.statusBar.addActionButton(_('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()), () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
-            this.bga.statusBar.addActionButton(_('More'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
+            //the ★ gets its own span so its fallback font can't make this button taller than the others (see #stop-button in Game.scss)
+            const stopLabel = _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
+            this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
+            this.bga.statusBar.addActionButton(_('Stay for More'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
         }
         else if (this.pendingChoice) {
             const pendingChoiceTitles = {
@@ -212,10 +218,10 @@ class StopOrMore {
                 more: _('${you} chose to continue. Waiting for other players'),
             };
             this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice]);
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindStopOrMore');
+            this.game.undoHandler.addUndoButton('actUndoStopOrMore');
         }
         else {
-            this.bga.statusBar.setTitle(_('Other players must choose: Stop or More'));
+            this.bga.statusBar.setTitle(_('Others must choose: Stop or More'));
         }
     }
     //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange
@@ -471,7 +477,7 @@ class ResolvePowers {
             this.bga.statusBar.setTitle(_('${actplayer} may add the golden die to the next roll (card 11)'));
             return;
         }
-        this.bga.statusBar.setTitle(_('${you} may add the golden die to the next roll (card 11)'));
+        this.bga.statusBar.setTitle(_('${you} may give everyone an extra die on the next roll, usable only in sums (card 11)'));
         this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), { id: 'skip-power-button', color: 'secondary' });
     }
@@ -1020,7 +1026,7 @@ class HandHandler {
         for (let card of this.getCardDivs())
             card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS, HandHandler.PLAYABLE_POWER_CARD_CLASS);
     }
-    //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Change my mind"
+    //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Undo"
     setChosenCards(cardIDs) {
         for (let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
@@ -1314,7 +1320,7 @@ class StartTokenHandler {
 StartTokenHandler.TILT = -7; //deg, the token's rotation on a board (tilted left); upright (0) in flight
 //the pass: a flight on a copy of the token, out of the player boards area (growing), a hold at the peak, then into the new board (shrinking back)
 StartTokenHandler.LIFT_DURATION = 520; //ms of phase 1, from the old board to the lift point: eases in leaving the board
-StartTokenHandler.PEAK_PAUSE = 100; //ms of real stillness at the lift point, at full size, between the two phases (0: no hold, no slowdown)
+StartTokenHandler.PEAK_PAUSE = 20; //ms of real stillness at the lift point, at full size, between the two phases (0: no hold, no slowdown)
 StartTokenHandler.PEAK_EASE_FULL_PAUSE = 300; //PEAK_PAUSE (ms) from which the lift fully eases into the hold and the landing out of it; shorter pauses ease proportionally less
 StartTokenHandler.LAND_DURATION = 520; //ms of phase 2, from the lift point to the new board: eases out arriving on it
 StartTokenHandler.STRAIGHTEN_FRACTION = 0.22; //share of phase 1, from its start, in which the token rotates from TILT to upright
@@ -1614,20 +1620,20 @@ class LogMutationObserver {
     }
 }
 
-//"Change my mind", shared by every multiactive state where a choice stays pending until the last player has chosen.
+//"Undo", shared by every multiactive state where a choice stays pending until the last player has chosen.
 //The player is inactive by then, so the action skips the active-player check (checkAction: false) and the
 //server checks the state itself (#[CheckAction(false)] + checkPossibleAction)
-class ChangeMindHandler {
+class UndoHandler {
     constructor(game) {
         this.game = game;
     }
-    addChangeMindButton(actionName) {
-        return this.game.bga.statusBar.addActionButton(_('Change my mind'), () => this.changeMindClicked(actionName), {
-            id: 'change-mind-button',
-            color: 'secondary',
+    addUndoButton(actionName) {
+        return this.game.bga.statusBar.addActionButton(_('Undo'), () => this.undoClicked(actionName), {
+            id: 'undo-button',
+            color: 'alert',
         });
     }
-    changeMindClicked(actionName) {
+    undoClicked(actionName) {
         if (!this.game.bga.actions.checkPossibleActions(actionName))
             return;
         this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
@@ -1932,7 +1938,7 @@ class Game {
             this.players[player_id]?.setGrandSlam();
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
         this.logMutationObserver = new LogMutationObserver(this);
-        this.changeMindHandler = new ChangeMindHandler(this);
+        this.undoHandler = new UndoHandler(this);
         this.tooltipHandler = new TooltipHandler(this);
         this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
         this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();

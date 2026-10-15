@@ -18,7 +18,7 @@ export class StartTokenHandler{
 
     //the pass: a flight on a copy of the token, out of the player boards area (growing), a hold at the peak, then into the new board (shrinking back)
     private static readonly LIFT_DURATION = 520; //ms of phase 1, from the old board to the lift point: eases in leaving the board
-    private static readonly PEAK_PAUSE = 100; //ms of real stillness at the lift point, at full size, between the two phases (0: no hold, no slowdown)
+    private static readonly PEAK_PAUSE = 20; //ms of real stillness at the lift point, at full size, between the two phases (0: no hold, no slowdown)
     private static readonly PEAK_EASE_FULL_PAUSE = 300; //PEAK_PAUSE (ms) from which the lift fully eases into the hold and the landing out of it; shorter pauses ease proportionally less
     private static readonly LAND_DURATION = 520; //ms of phase 2, from the lift point to the new board: eases out arriving on it
     private static readonly STRAIGHTEN_FRACTION = 0.22; //share of phase 1, from its start, in which the token rotates from TILT to upright

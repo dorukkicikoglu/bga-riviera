@@ -19,7 +19,7 @@ import { HandHandler } from "./HandHandler";
 import { DiceHandler } from "./DiceHandler";
 import { StartTokenHandler } from "./StartTokenHandler";
 import { LogMutationObserver } from "./LogMutationObserver";
-import { ChangeMindHandler } from "./ChangeMindHandler";
+import { UndoHandler } from "./UndoHandler";
 import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
 import { EndGameScoringHandler } from "./EndGameScoringHandler";
 import { PrefHandler } from "./PrefHandler";
@@ -45,7 +45,7 @@ export class Game {
     public diceHandler: DiceHandler;
     public startTokenHandler: StartTokenHandler;
     public logMutationObserver: LogMutationObserver;
-    public changeMindHandler: ChangeMindHandler;
+    public undoHandler: UndoHandler;
     public tooltipHandler: TooltipHandler;
     private endGameScoringHandler: EndGameScoringHandler;
     public prefHandler: PrefHandler;
@@ -122,7 +122,7 @@ export class Game {
 
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
         this.logMutationObserver = new LogMutationObserver(this);
-        this.changeMindHandler = new ChangeMindHandler(this);
+        this.undoHandler = new UndoHandler(this);
         this.tooltipHandler = new TooltipHandler(this);
         this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
         this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();

@@ -240,7 +240,7 @@ The M2 debug functions (`debug_setDice`, `debug_trimHands`, ...) are kept.
 - **Active, mid-chain:**
   - Title: "${you} may add a card to your 1".
   - The chosen cards are set aside and the next options glow.
-  - Select a card, then "Add this card" (hidden until a card is selected).
+  - Select a card, then "Add card" (hidden until a card is selected).
   - "Finish", and "Change my mind".
 - **Inactive with a pending choice:** "${you} chose [card icons]. Waiting for other players" + Change my mind.
 - **Otherwise:** M2.

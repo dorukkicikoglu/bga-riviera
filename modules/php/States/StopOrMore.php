@@ -39,7 +39,7 @@ class StopOrMore extends GameState
     }
 
     function onEnteringState() {
-        $this->game->changeMindManager->resetChoices(self::CHOICE_COLUMNS);
+        $this->game->undoManager->resetChoices(self::CHOICE_COLUMNS);
 
         $inRoundIDs = $this->game->getPlayerIDsInRound();
         if(empty($inRoundIDs)) //everyone crashed: the Start token still passes this turn
@@ -65,20 +65,20 @@ class StopOrMore extends GameState
     #[PossibleAction]
     public function actStop(int $currentPlayerId)
     {
-        $this->game->changeMindManager->recordChoice($currentPlayerId, ['stop_or_more_choice' => 'stop'], 'stopOrMoreChoiceConfirmed', ['choice' => 'stop'], RevealStopOrMore::class);
+        $this->game->undoManager->recordChoice($currentPlayerId, ['stop_or_more_choice' => 'stop'], 'stopOrMoreChoiceConfirmed', ['choice' => 'stop'], RevealStopOrMore::class);
     }
 
     #[PossibleAction]
     public function actMore(int $currentPlayerId)
     {
-        $this->game->changeMindManager->recordChoice($currentPlayerId, ['stop_or_more_choice' => 'more'], 'stopOrMoreChoiceConfirmed', ['choice' => 'more'], RevealStopOrMore::class);
+        $this->game->undoManager->recordChoice($currentPlayerId, ['stop_or_more_choice' => 'more'], 'stopOrMoreChoiceConfirmed', ['choice' => 'more'], RevealStopOrMore::class);
     }
 
     #[PossibleAction]
     #[CheckAction(false)]
-    public function actChangeMindStopOrMore(int $currentPlayerId)
+    public function actUndoStopOrMore(int $currentPlayerId)
     {
-        $this->game->changeMindManager->changeMind('actChangeMindStopOrMore', $currentPlayerId, self::CHOICE_COLUMNS, 'stopOrMoreChoiceReverted');
+        $this->game->undoManager->undo('actUndoStopOrMore', $currentPlayerId, self::CHOICE_COLUMNS, 'stopOrMoreChoiceReverted');
     }
 
     /**

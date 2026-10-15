@@ -13,8 +13,8 @@ Source: official rulebook (EN). Items marked **[BGA]** are deliberate choices fo
 - **Playable card**: a card in hand that is a valid play on the current dice (`getPlayableCardIDs()`): same value and color as one available die, or value equal to the sum of 2 available dice and color of one of them. An **available die** is one not reserved by another player.
 - **Play choice**: what a player still in picks in `PlayCard`: a card (`card`), Last Chance (`last_chance`) or Crash (`crash`). Pending until the reveal.
 - **Pending choice**: a play choice or Stop/More choice saved in `player` columns but not applied yet; only the reveal applies it.
-- **Set aside**: the look of chosen cards (first card and chain) raised in the hand until the reveal or Change my mind.
-- **Change my mind**: undoing your pending choice and choosing again, until the last player has chosen (`RIVChangeMindManager`, `ChangeMindHandler`).
+- **Set aside**: the look of chosen cards (first card and chain) raised in the hand until the reveal or Undo.
+- **Undo**: taking back your pending choice and choosing again, until the last player has chosen (`RIVUndoManager`, `UndoHandler`).
 - **Reveal**: the GAME state that applies every pending choice at once and sends one notification: the card reveal (`RevealCards`) and the Stop/More reveal (`RevealStopOrMore`). "The reveal" alone means the card reveal.
 - **Column**: a player's played cards this round (`card_location = 'played'`, ordered by `location_in_column`), stacked so only the top strip with stars shows. Its stars are the **column stars**.
 - **Round status**: `in` (still playing this round), `stopped` (chose Stop, stars banked, out until the next round) or `crashed` (out with 0 points this round, column and hand discarded). **Out of the round** = stopped or crashed.
@@ -102,16 +102,16 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
    Dice reserved by another player are unavailable to you.
    - **[BGA]** The server computes valid cards and only offers those. If none is valid, the only buttons are "Use Last Chance" (when available) and "Crash".
-   - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm" (one click with the "One-click card play" preference, see Preferences). "Crash" has no confirm dialog; Change my mind is the safety net.
-   - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Finish", again after each extra 1. If nothing more is playable, the chain finishes on its own. Change my mind rolls back the whole chain.
+   - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm" (one click with the "One-click card play" preference, see Preferences). "Crash" has no confirm dialog; Undo is the safety net.
+   - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Skip", again after each extra 1. If nothing more is playable, the chain finishes on its own. Undo rolls back the whole chain.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.
    - Crash: eliminated from the round, all played cards and hand are discarded, 0 points this round.
-   - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Change my mind" mechanism as Stop or More (step 5). The chosen card stays visibly set aside in their hand, and pressing "Change my mind" returns it and re-activates them.
+   - **[BGA]** The chosen card (or Last Chance / Crash) is not final until everyone has chosen: players can change their mind with the same "Undo" mechanism as Stop or More (step 5). The chosen card stays visibly set aside in their hand, and pressing "Undo" returns it and re-activates them.
    - Once everyone has chosen, all cards are revealed together.
 4. **Reveal and Grand Slam check**: all chosen cards are revealed together. **[BGA: once, after the reveal]** Anyone whose hand is now empty (all 10 cards played this round, card-1 chains included) wins instantly; the game ends with no power. Otherwise last turn's card 2 reservation and golden die are cleared.
 5. **Stop or More** **[BGA: simultaneous, differs from the rules, confirmed with publisher]**: every player still in the round chooses Stop or More at the same time (multiactive state).
    - Choices stay hidden until everyone has chosen; then all are revealed in one notification.
-   - **Players can change their mind until the last player decides** (see "Change my mind" below).
+   - **Players can change their mind until the last player decides** (see "Undo" below).
    - Stop: banks the stars of all cards in front of them, out for the rest of the round. **[BGA]** The stars go into their score as soon as the Stop is revealed (score counter on the player boards updated at once, one "banks N ★" log row per stopper, clockwise from the Start token holder): a stopped column can't change, so they are final. The 40-point end check still waits for the end of the round.
    - More: stays in for the next turn.
    - **[BGA]** No auto-"More" preference: BGA forbids sending actions programmatically.
@@ -121,11 +121,11 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
 
 Round ends when everyone has stopped or crashed.
 
-### Change my mind (shared mechanism)
+### Undo (shared mechanism)
 
 Used in `PlayCard` (step 3) and `StopOrMore` (step 5). Build it once and reuse it in both states.
 
-- After choosing, the player becomes inactive but still sees their choice and a "Change my mind" button.
+- After choosing, the player becomes inactive but still sees their choice and an "Undo" button.
 - Pressing it re-activates them (`setPlayersMultiactive([$playerId], '', false)`) and lets them choose again. Their previous choice is cleared on the server.
 - This action must be callable by a non-active player: on the client call it with `checkAction: false`, and on the server check the game state yourself instead of relying on the active-player check.
 - Starting point: `reference/yaxha-change-mind.md` (built before in Yaxha). Check it against the current framework first: server `#[CheckAction(false)]` attribute, client `bga.actions.performAction(..., { checkAction: false })` and `bga.actions.checkPossibleActions()`.
@@ -183,11 +183,11 @@ Log mini cards keep a single-power tooltip. Safari on a phone shows the same ref
 - `RoundSetup` (game)
 - `RollDice` (game)
 - `ModifyDie` (active player, 15, loops clockwise over card-9 owners still in the round)
-- `PlayCard` (multiple active, with change-mind)
+- `PlayCard` (multiple active, with Undo)
 - `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check, clears last turn's dice effects → `StopOrMore`)
 - `ResolvePowers` (active player, 30: card-11 add/skip, a second 11 is skipped when the golden die is already added; card 2 is applied while walking owners, card 10 goes to `SwapCards`)
 - `SwapCards` (active player, 35: card 10 swap or discard/draw fallback)
-- `StopOrMore` (multiple active, with change-mind; everyone crashed → `PassStartToken`)
+- `StopOrMore` (multiple active, with Undo; everyone crashed → `PassStartToken`)
 - `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, then banks each stopper's stars → `PassStartToken`)
 - `PassStartToken` (game, 40: passes the token; if anyone chose More, walks their card 2/10/11 powers clockwise from the new holder, then `RollDice`; else `EndRound`)
 - `EndRound` (game: 40-point check only; stars are banked at the Stop reveal)
@@ -209,21 +209,21 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Differs from the plan: no custom score `ebg.counter` (BGA's default score display is used; scores don't change until M2).
      - Deferred: new-round deal notification, roll, card play (M2); `ModalBoxHandler`, `PrefHandler`, `TooltipHandler`, `EndGameScoringHandler` (when first needed); mobile card spacing (M4).
      - Known limits: dice show blank faces until M2 rolls them; `debug_redeal` and `debug_playRandomCards` need F5 to show their result.
-2. **Core loop** (done, tested in Studio): roll, simultaneous play with valid-card highlighting and change-mind, reveal, Start token passing, simultaneous Stop/More with change-mind, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
+2. **Core loop** (done, tested in Studio): roll, simultaneous play with valid-card highlighting and Undo, reveal, Start token passing, simultaneous Stop/More with Undo, crash, Last Chance, round scoring, 40-point end, Grand Slam, Fugu-style logs (card and dice icons, one background color per log type) for every M2 notification. Playable without powers.
    - Notes:
      - Built: states `RollDice` (10), `PlayCard` (20), `RevealCards` (22), `PassStartToken` (40), `StopOrMore` (50), `RevealStopOrMore` (55), `EndRound` (60); `RoundSetup` now notifies `newRound` + a private `newHand`. Pending choices are `player` columns (`play_choice`, `play_choice_card_id`, `stop_or_more_choice`, `made_choice_this_state`); the chosen card stays in `hand` until `RevealCards`.
-     - Change my mind: `RIVChangeMindManager` (server) and `ChangeMindHandler.ts` (client), shared by `PlayCard` and `StopOrMore`.
+     - Undo: `RIVUndoManager` (server) and `UndoHandler.ts` (client), shared by `PlayCard` and `StopOrMore`.
      - Valid cards: `RIVTableManager::getPlayableCardIDs()` already honors `reserved_by_POWER2` and `in_use_by_POWER11`, so M3 only has to set those columns.
      - Client: `Game.animateSlide()` is the one slide animation (cards and Start token). Eight `createLog*` rows, each with its own `--bg-log-*` background.
      - Debug: `debug_setDice('2,3,5,6')`, `debug_setScores(38)`, `debug_trimHands(1)`; `debug_redeal()` now goes through `RoundSetup` notifications.
      - Zombies: random playable card, else Last Chance, else crash; Stop in Stop or More. M4 refines.
-     - Verified in Studio: `#[CheckAction(false)]` on a state-class method (Change my mind from an inactive player), and `getArgs()` `_private` reaching the client as `args._private`.
+     - Verified in Studio: `#[CheckAction(false)]` on a state-class method (Undo from an inactive player), and `getArgs()` `_private` reaching the client as `args._private`.
      - Known limits: the Grand Slam board highlight is not restored after F5 (the game is over by then); log rows are formatted on the client, so the server fallback text only shows if the client fails.
 3. **Powers** (done, awaiting Studio test): 1, 2, 11, 9, 10, built in one go (plan: `.claude/plans/milestone-3.md`, revision 2).
    - Notes:
      - Built: card-1 chain inside `PlayCard` (extra cards marked with `cards.chain_position_POWER1`, revealed with the first card in `RevealCards`). New active-player states `ModifyDie` (15, card 9), `ResolvePowers` (30, card 11) and `SwapCards` (35, card 10). State 25 (BonusPlay) is gone.
      - `RIVPowerManager`: `RevealCards` expires last turn's reservation and golden die, sets `pending_POWER2/9/10/11` from each player's last revealed card, then `goToNextPreRollPower()` walks owners clockwise from the Start token holder (card 2 applied inline, `changeActivePlayer()` + state for 10 and 11). `RollDice` uses `goToNextPOWER9Owner()` the same way.
-     - `RIVChangeMindManager::recordChoice()` is split: `savePendingChoice()` saves without deactivating (chain steps), and `changeMind()` can carry notification args. The private PlayCard notifications carry the next `playableCardIDs`, since a player who stays active gets no new args.
+     - `RIVUndoManager::recordChoice()` is split: `savePendingChoice()` saves without deactivating (chain steps), and `undo()` can carry notification args. The private PlayCard notifications carry the next `playableCardIDs`, since a player who stays active gets no new args.
      - Card 10 logs: private `cardsSwapped_POWER10` / `cardsRedrawn_POWER10` rows with the real cards for the players involved, public `...Public_POWER10` rows with card backs. The involved players hide the public row with a second `duplicate-log` tag.
      - Six new log types, each with its own `--bg-log-*`: `die-reserved-power2`, `golden-die-power11`, `die-modified-power9`, `cards-swapped-power10`, `cards-redrawn-power10`, `power-skipped`. The chain shows inside the existing reveal row.
      - Client: `ModifyDie.ts`, `ResolvePowers.ts`, `SwapCards.ts`. `HandHandler` selection is generic (`setSelectableCards(ids, max)`, `selectable-card` class, multi-select for card 10), `DiceHandler` has die selection, `animateSlide()` accepts `to = null` for an element already in place.

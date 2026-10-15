@@ -48,12 +48,12 @@ Valid cards (Studio debug menu):
 - [x] `debug_setDice('2,3,5,6')` (values go to the dice in color order; with 5 colors give 5 values). The glowing cards are exactly those matching one die (same color and value) or the sum of two dice (color of either die). Check a few by hand.
 - [x] Clicking a card that doesn't glow does nothing. Clicking a glowing card raises it, the title reads "Play [card]?" and a "Confirm" button shows; clicking it again unselects it and hides the button.
 
-Choice and Change my mind:
-- [x] "Confirm": the card stays in my hand, raised with a green outline. The status reads "You chose [card]. Waiting for other players" with a "Change my mind" button.
-- [x] "Change my mind": I'm active again, the check is gone, the cards glow again. I can pick a different card.
+Choice and Undo:
+- [x] "Confirm": the card stays in my hand, raised with a green outline. The status reads "You chose [card]. Waiting for other players" with an "Undo" button.
+- [x] "Undo": I'm active again, the check is gone, the cards glow again. I can pick a different card.
 - [x] The other player never sees which card I chose (only that I'm active or not). Their console/network shows no card id.
-- [x] F5 while my choice is pending: the checked card and "Change my mind" come back.
-- [x] A Change my mind sent after the last player chose fails quietly or with "This move is not authorized now" (the state has moved on).
+- [x] F5 while my choice is pending: the checked card and "Undo" come back.
+- [x] An Undo sent after the last player chose fails quietly or with "This move is not authorized now" (the state has moved on).
 
 Reveal:
 - [x] When the last player confirms, every chosen card slides at once into its column: mine from my hand, the others from their player board's card backs. Hand counts drop by 1, the ★ totals update.
@@ -63,14 +63,14 @@ No valid card, Last Chance, Crash:
 - [x] `debug_setDice` to values none of my cards match (e.g. `'1,1,1,1,1'` and check). Status: "You cannot play any card", with only "Use Last Chance" and "Crash" (red, no confirm dialog).
 - [x] "Use Last Chance", then reveal: my Last Chance card shrinks away from my board; the reveal row shows a mini Last Chance card for me. It stays gone after F5 and for other players. I'm still in the round.
 - [x] Next time I have no valid card, only "Crash" is offered.
-- [x] "Crash", then "Change my mind": undone. "Crash" again, then reveal: my column and hand fade out, my board shows 0 cards and "Crashed", my column is dimmed. A separate crash log row (coral, bomb icon) appears.
+- [x] "Crash", then "Undo": undone. "Crash" again, then reveal: my column and hand fade out, my board shows 0 cards and "Crashed", my column is dimmed. A separate crash log row (coral, bomb icon) appears.
 
 Start token:
 - [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, and sits on the board's corner with a curved two-phase flight, and since 2026-10-15 passes after the Stop/More reveal instead of after the card reveal, see M4 > Start token.)
 
 Stop or More:
-- [x] Status: "You must choose: Stop or More", buttons "Stop and bank N ★" (N = my ★ total) and "More".
-- [x] Choosing shows "You chose to stop / to continue. Waiting for other players" + "Change my mind", which works as in card play. F5 restores it.
+- [x] Status: "You may bank your stars or risk more", buttons "Stop and bank N ★" (N = my ★ total) and "Stay for More".
+- [x] Choosing shows "You chose to stop / to continue. Waiting for other players" + "Undo", which works as in card play. F5 restores it.
 - [x] Nobody sees choices before the last player decides. Then one log row (lavender) lists "Stop: ..." and "More: ...". Stoppers' boards show "Stopped".
 - [x] A stopped player is not active in the next card play ("Other players must choose a card").
 
@@ -88,7 +88,7 @@ Logs:
 Other:
 - [x] A spectator sees reveals, statuses, scores, the token and the dice, and never a hand or a pending choice.
 - [x] Kick a player (zombie) during card play and during Stop or More: the game does not block.
-- [x] If "Change my mind" fails with "This is not your turn" or similar on the server, `#[CheckAction(false)]` isn't honored on state-class methods: paste the error.
+- [x] If "Undo" fails with "This is not your turn" or similar on the server, `#[CheckAction(false)]` isn't honored on state-class methods: paste the error.
 
 ## Milestone 3: Powers
 
@@ -102,11 +102,11 @@ Card 1 / Grand Slam (`debug_POWER1()`: gives me two 1s and a 2, all playable):
 - [ ] The play button reads "Confirm".
 - [ ] I play a 1 and add a 5: both are revealed together with everyone else's cards, in that order in my column.
 - [ ] I play a 1, add a second 1, and am asked again; I add a third card: all three are revealed.
-- [ ] I play a 1 and press "Finish": only the 1 is revealed.
+- [ ] I play a 1 and press "Skip": only the 1 is revealed.
 - [ ] I play a 1 when no other card is playable: I'm not asked anything and my choice is final at once.
-- [ ] After a chain of three, I press "Change my mind": all three cards go back to my hand and I choose a first card again.
-- [ ] I press "Change my mind" in the middle of a chain (still choosing): the same thing happens.
-- [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "add a card or finish" prompt is back. Same after F5 once the chain is finished (waiting for others).
+- [ ] After a chain of three, I press "Undo": all three cards go back to my hand and I choose a first card again.
+- [ ] I press "Undo" in the middle of a chain (still choosing): the same thing happens.
+- [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "You may play an extra card with [1]" prompt (the 1 as a card icon) is back. Same after F5 once the chain is finished (waiting for others).
 - [ ] The other player only sees that I'm still choosing or done, and their network traffic shows no card id.
 - [ ] My chain ends on a 2, 10 or 11: that card's power resolves after Stop or More if I choose More. A chain that ends on a 1 triggers no other power.
 - [ ] The reveal log row shows the chain as card + card + card.
@@ -253,7 +253,7 @@ Progression:
 - [ ] The progress bar moves during round 1 after each reveal, sits at the leader's banked score at each new round, and is 100 at game end. It doesn't jump when a player stops (their stars move from the column to the score, not counted twice).
 
 Preference ("One-click card play" in the game preferences menu):
-- [ ] On: clicking a glowing card plays it at once, no Confirm button. Also for the cards added to a 1. Change my mind still works.
+- [ ] On: clicking a glowing card plays it at once, no Confirm button. Also for the cards added to a 1. Undo still works.
 - [ ] Off (default): select, then Confirm, as before. Switching it while choosing doesn't break the status bar.
 
 Layout:
@@ -261,7 +261,7 @@ Layout:
 - [ ] Desktop, narrow window: my 10 cards still fit on one straight row, overlapping more; they spread again when the window widens or cards leave.
 - [ ] On a phone (BGA mobile layout): my hand cards are large enough to read the number and stars; all of them sit on one horizontal line at the same height, overlapping more so the hand spans the full width with no horizontal scroll, and each card's number and stars stay visible. With fewer cards they keep a small overlap and stay centered (no spreading out). Rotating the phone respaces the hand.
 - [ ] On a phone: dice and played-column cards are readable too, in proportion to the hand; the columns wrap onto several rows.
-- [ ] On desktop and on a phone: only a selected card and a set-aside (chosen) card move, raised above the line; selecting, confirming, the playable glow and Change my mind still work.
+- [ ] On desktop and on a phone: only a selected card and a set-aside (chosen) card move, raised above the line; selecting, confirming, the playable glow and Undo still work.
 - [ ] Every card slide changes size smoothly and lands exactly at its destination's size, with no jump at the end, on desktop and on a phone: my card into my column; another player's card from their board's mini card back into their column; card 10 cards sliding in from the other player's board; card backs between boards (card 10 seen by a third player).
 - [ ] Card 10's fade-out / fade-in happens in place at the hand's size.
 - [ ] New round (`debug_redeal()` or a real new round, ending it with cards still in my hand), on desktop and on a phone, in this order: the previous columns clear; then, at the same time, the cards left in my hand slide left off-screen together (about 0.2 s, starting from exactly where they were, no jump) and my 10 new cards fly in one after the other, rightmost first and leftmost last, each from above the page and far to the left of its slot, all along the same path (shifted to their own slots), already at hand-card size, each landing in its final slot (about 1.3 s); the dice roll only once the last new card has landed. No card shifts during or after the deal.

@@ -13,7 +13,7 @@ import { Game } from "../Game";
 
 /**
  * [BGA] Simultaneous Stop or More: everyone still in the round chooses at the same time. The choice stays
- * pending until the last player has chosen, and "Change my mind" takes it back.
+ * pending until the last player has chosen, and "Undo" takes it back.
  */
 export class StopOrMore {
     private pendingChoice: StopOrMoreChoice | null = null;
@@ -43,20 +43,22 @@ export class StopOrMore {
         this.bga.statusBar.removeActionButtons();
 
         if(isCurrentPlayerActive && this.game.myself){
-            this.bga.statusBar.setTitle(_('${you} must choose: Stop or More'));
+            this.bga.statusBar.setTitle(_('${you} must choose an action'));
 
             const starsTotal = this.game.myself.getPlayedColumn().getStarsTotal();
-            this.bga.statusBar.addActionButton(_('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()), () => this.bga.actions.performAction('actStop'), {id: 'stop-button'});
-            this.bga.statusBar.addActionButton(_('More'), () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
+            //the ★ gets its own span so its fallback font can't make this button taller than the others (see #stop-button in Game.scss)
+            const stopLabel = _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
+            this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), {id: 'stop-button'});
+            this.bga.statusBar.addActionButton(_('Stay for More'), () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
         } else if(this.pendingChoice){
             const pendingChoiceTitles: Record<StopOrMoreChoice, string> = {
                 stop: _('${you} chose to stop. Waiting for other players'),
                 more: _('${you} chose to continue. Waiting for other players'),
             };
             this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice]);
-            this.game.changeMindHandler.addChangeMindButton('actChangeMindStopOrMore');
+            this.game.undoHandler.addUndoButton('actUndoStopOrMore');
         } else {
-            this.bga.statusBar.setTitle(_('Other players must choose: Stop or More'));
+            this.bga.statusBar.setTitle(_('Others must choose: Stop or More'));
         }
     }
 
