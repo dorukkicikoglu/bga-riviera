@@ -57,6 +57,10 @@ body {
   background-color: #1f5f94;
 }
 
+#game_play_area {
+  min-height: calc(100dvh / var(--bga-game-zoom, 1));
+}
+
 .a-card {
   position: relative;
   overflow: hidden;
