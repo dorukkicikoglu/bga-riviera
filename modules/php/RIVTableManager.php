@@ -138,11 +138,26 @@ class RIVTableManager{
     }
 
     /**
-     * Passes the Start token to the next player in turn order, regardless of their round status.
+     * [BGA] Passes the Start token clockwise to the next player still in the round, skipping players who stopped or
+     * crashed. If the holder is the only one still in, they keep it (no notification). If nobody is still in, it goes to
+     * the next player in turn order, as the rulebook says. A new round makes everyone "in" again, so it just carries on.
      */
     function passStartToken(): int{
         $currentStartPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
-        $nextStartPlayerID = $this->game->getPlayerAfter($currentStartPlayerID);
+        $nextPlayerID = $this->game->getPlayerAfter($currentStartPlayerID);
+        $playerIDsInRound = $this->game->getPlayerIDsInRound();
+
+        $nextStartPlayerID = $nextPlayerID;
+        foreach($this->getPlayerIDsInTurnOrderFrom($nextPlayerID) as $playerID){ //everyone after the holder, the holder last
+            if(in_array($playerID, $playerIDsInRound, true)){
+                $nextStartPlayerID = $playerID;
+                break;
+            }
+        }
+
+        if($nextStartPlayerID === $currentStartPlayerID)
+            return $currentStartPlayerID;
+
         $this->game->bga->globals->set('startPlayerId', $nextStartPlayerID);
 
         $startTokenLogStr = $this->game->getPlayerNameById($nextStartPlayerID).' receives the Start token';

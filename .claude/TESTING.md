@@ -66,7 +66,7 @@ No valid card, Last Chance, Crash:
 - [x] "Crash", then "Change my mind": undone. "Crash" again, then reveal: my column and hand fade out, my board shows 0 cards and "Crashed", my column is dimmed. A separate crash log row (coral, bomb icon) appears.
 
 Start token:
-- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed.
+- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, see M4 > Start token.)
 
 Stop or More:
 - [x] Status: "You must choose: Stop or More", buttons "Stop and bank N ★" (N = my ★ total) and "More".
@@ -220,6 +220,14 @@ Zombie (friendly mode, kick a player in each state; a 3-player table helps):
 - [ ] A zombie always stops, so its own 2, 9, 10 and 11 never resolve (no prompt, no row).
 - [ ] Kick a player while they are the active power owner in ModifyDie, ResolvePowers or SwapCards: the game never blocks. Over a few tries the zombie sometimes uses the power (turns a die, adds the golden die, swaps 2 cards with a real player) and sometimes skips.
 - [ ] A zombie swap with me: my hand changes and I get the private row with the real cards.
+
+Start token (skips players out of the round), on a 3- or 4-player table:
+- [ ] After a reveal the token skips players who stopped or crashed and slides to the next player clockwise who is still in, with its usual log row.
+- [ ] A player who crashes on this reveal is already skipped by this pass.
+- [ ] If the holder is the only player still in, the token stays with them: no slide and no log row.
+- [ ] If nobody is still in (everyone crashed on that reveal), it slides to the next player in turn order, as before.
+- [ ] At the start of a new round the token stays where it is and keeps passing from there; card powers (clockwise from the holder) and the Stop/More and banking order follow the new holder.
+- [ ] The Start token's tooltip says it passes to the next player still in the round.
 
 Banking at the Stop reveal:
 - [ ] When the Stop/More row appears, each player who stopped gets a "banks N ★" row right after it (clockwise from the Start token holder), and their score on the player board rises by N at that moment, not at the end of the round.

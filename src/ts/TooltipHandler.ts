@@ -65,7 +65,7 @@ export class TooltipHandler{
 
     //player boards and played columns: the parts that aren't self-explanatory
     private addTooltipsToBoards(){
-        this.game.bga.gameui.addTooltip('start-token', _('Start token: powers resolve clockwise from this player. It passes to the next player every turn.'), '', TooltipHandler.TOOLTIP_DELAY);
+        this.game.bga.gameui.addTooltip('start-token', _('Start token: powers resolve clockwise from this player. Every turn it passes to the next player still in the round.'), '', TooltipHandler.TOOLTIP_DELAY);
 
         for(let player_id in this.game.players){
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
