@@ -431,13 +431,7 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 .dijitTooltipContainer{
 	&:has(.tooltip-wrapper){ background: none; }
 }
-.tooltip-wrapper { outline: 0.5px solid #ffffff; min-width: 230px; max-width: 300px; background: var(--bg-gradient-tooltip); padding: 10px; margin: -6px -6px -6px -6px; color: #27271c;
-    .power-tooltip-title{ font-size: 20px; font-weight: bold; color: #1c4f72;
-        .power-tooltip-stars{ color: #b8860b; font-size: 16px; }
-    }
-    .power-tooltip-timing{ display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px; background: #1c4f72; color: #ffffff; font-size: 12px; font-weight: bold; }
-    .power-tooltip-text{ margin-top: 6px; font-size: 14px; line-height: 1.35; }
-}
+.tooltip-wrapper { outline: 0.5px solid #ffffff; min-width: 230px; max-width: 300px; background: var(--bg-gradient-tooltip); padding: 10px; margin: -6px -6px -6px -6px; color: #27271c; }
 .tundra:has(.tooltip-wrapper){ /* to change the color of the little tooltip arrow */
 	.dijitTooltip {
 		.dijitTooltipConnector{ overflow: hidden; background: none;
@@ -477,8 +471,18 @@ $power-reference-text: #051121;
 @media (max-width: 700px){
     .tooltip-wrapper.power-reference{ @include power-reference-one-column(); }
 }
+//a single power (TooltipHandler.getPowerTooltipHTML: log mini cards, status bar icons): one entry, one column wide
+.tooltip-wrapper.single-power-reference{ @include power-reference-one-column();
+    .power-reference-entry{ margin-bottom: 0px; }
+}
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
 .dijitTooltipContainer:has(.power-reference){ max-width: none; } //in case BGA caps tooltip widths: the reference sets its own
+//the status bar's card icon and power icon tooltips (Game.getStatusCardWithPowerHTML): the plain tooltip background and arrow
+//behind the power row, which keeps its play-area look: the highlight's translucent white laid over the reference's teal
+.tooltip-wrapper.power-reference.status-bar-power-tooltip{ background: var(--bg-gradient-tooltip); outline: 0.5px solid #ffffff; border-radius: 0px; color: #27271c;
+    .power-reference-entry.highlighted-power-entry{ background: linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)), $power-reference-background; color: $power-reference-text; }
+}
+.tundra:has(.status-bar-power-tooltip) .dijitTooltip .dijitTooltipConnector:after{ background: var(--bg-gradient-tooltip-connector); }
 
 //img/power_icons_sprite.webp is 380x63 with a transparent background: 5 icons left to right (cards 1, 2, 9, 10, 11).
 //Boxes measured from the image (not equal frames: card 1 is narrower, card 10 wider and only 48px tall). Each icon is cut to

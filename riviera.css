@@ -1242,30 +1242,6 @@ body .start-token.flying-start-token {
   margin: -6px -6px -6px -6px;
   color: #27271c;
 }
-.tooltip-wrapper .power-tooltip-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #1c4f72;
-}
-.tooltip-wrapper .power-tooltip-title .power-tooltip-stars {
-  color: #b8860b;
-  font-size: 16px;
-}
-.tooltip-wrapper .power-tooltip-timing {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: #1c4f72;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: bold;
-}
-.tooltip-wrapper .power-tooltip-text {
-  margin-top: 6px;
-  font-size: 14px;
-  line-height: 1.35;
-}
 
 .tundra:has(.tooltip-wrapper) { /* to change the color of the little tooltip arrow */ }
 .tundra:has(.tooltip-wrapper) .dijitTooltip .dijitTooltipConnector {
@@ -1371,12 +1347,40 @@ body .start-token.flying-start-token {
     border-left: none;
   }
 }
+.tooltip-wrapper.single-power-reference {
+  flex-direction: column;
+  gap: 0px;
+  width: min(340px, 92vw);
+}
+.tooltip-wrapper.single-power-reference .power-reference-column + .power-reference-column {
+  padding-left: 0px;
+  border-left: none;
+}
+.tooltip-wrapper.single-power-reference .power-reference-entry {
+  margin-bottom: 0px;
+}
+
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after {
   background: #13a6ba;
 }
 
 .dijitTooltipContainer:has(.power-reference) {
   max-width: none;
+}
+
+.tooltip-wrapper.power-reference.status-bar-power-tooltip {
+  background: var(--bg-gradient-tooltip);
+  outline: 0.5px solid #ffffff;
+  border-radius: 0px;
+  color: #27271c;
+}
+.tooltip-wrapper.power-reference.status-bar-power-tooltip .power-reference-entry.highlighted-power-entry {
+  background: linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)), #13a6ba;
+  color: #051121;
+}
+
+.tundra:has(.status-bar-power-tooltip) .dijitTooltip .dijitTooltipConnector:after {
+  background: var(--bg-gradient-tooltip-connector);
 }
 
 .power-icon {

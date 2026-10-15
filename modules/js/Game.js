@@ -962,7 +962,7 @@ class TooltipHandler {
         container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
-                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.matches('.status-card-icon, .power-icon') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
             else if (card.classList.contains('last-chance-card'))
                 this.game.bga.gameui.addTooltip(card.id, this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
         });
@@ -1013,6 +1013,45 @@ class TooltipHandler {
     getPowerReferenceHTML(highlightedValue) {
         if (this.powerReferenceHTMLByValue[highlightedValue])
             return this.powerReferenceHTMLByValue[highlightedValue];
+        const headingHTML = (heading) => `<div class="power-reference-heading">${heading}</div>`;
+        const referenceHTML = `
+            <div class="tooltip-wrapper power-reference">
+                <div class="power-reference-column">
+                    ${headingHTML(_('Power activated immediately after playing the card:'))}
+                    ${this.getPowerEntryHTML(1)}
+                    ${headingHTML(_('Powers activated before the next dice roll:'))}
+                    ${this.getPowerEntryHTML(2)}
+                    ${this.getPowerEntryHTML(10)}
+                </div>
+                <div class="power-reference-column">
+                    ${this.getPowerEntryHTML(11)}
+                    ${headingHTML(_('Power activated after the next dice roll and before playing a card:'))}
+                    ${this.getPowerEntryHTML(9)}
+                </div>
+            </div>
+        `;
+        this.powerReferenceHTMLByValue[highlightedValue] = referenceHTML;
+        return referenceHTML;
+    }
+    //a single power: the power reference's entry for it, on the same background. For the mini cards in log rows and the
+    //status bar's circular card icons and power icons. modifierClass: status-bar-power-tooltip for the status bar's icons
+    getPowerTooltipHTML(value, modifierClass = '') {
+        return `
+            <div class="tooltip-wrapper power-reference single-power-reference ${modifierClass}">
+                ${this.getPowerEntryHTML(value)}
+            </div>
+        `;
+    }
+    //one power's entry: its icon floated left, "Card N:" in bold, then its text. Shared by the power reference and the
+    //single-power tooltip, so both look the same
+    getPowerEntryHTML(value) {
+        return `
+            <div class="power-reference-entry highlighted-power-entry">
+                <span class="power-icon" data-power-value="${value}"></span><b>${_('Card ${value}:').replace('${value}', value.toString())}</b> ${this.getPowerText(value)}
+            </div>`;
+    }
+    //the only source of the power texts. They follow our BGA rules (SPEC.md), not the rulebook's wording
+    getPowerText(value) {
         const powerTexts = {
             1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
             2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Only if you choose More.'),
@@ -1020,49 +1059,7 @@ class TooltipHandler {
             11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Only if you choose More.'),
             9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
         };
-        const entryHTML = (value) => `
-            <div class="power-reference-entry highlighted-power-entry">
-                <span class="power-icon" data-power-value="${value}"></span><b>${_('Card ${value}:').replace('${value}', value.toString())}</b> ${powerTexts[value]}
-            </div>`;
-        const headingHTML = (heading) => `<div class="power-reference-heading">${heading}</div>`;
-        const referenceHTML = `
-            <div class="tooltip-wrapper power-reference">
-                <div class="power-reference-column">
-                    ${headingHTML(_('Power activated immediately after playing the card:'))}
-                    ${entryHTML(1)}
-                    ${headingHTML(_('Powers activated before the next dice roll:'))}
-                    ${entryHTML(2)}
-                    ${entryHTML(10)}
-                </div>
-                <div class="power-reference-column">
-                    ${entryHTML(11)}
-                    ${headingHTML(_('Power activated after the next dice roll and before playing a card:'))}
-                    ${entryHTML(9)}
-                </div>
-            </div>
-        `;
-        this.powerReferenceHTMLByValue[highlightedValue] = referenceHTML;
-        return referenceHTML;
-    }
-    //a single power, for the mini cards in log rows
-    getPowerTooltipHTML(value) {
-        const powerTexts = {
-            1: { timing: _('Right away'), effect: _('Add one more playable card from your hand on the same dice. Another 1 lets you add again.') },
-            2: { timing: _('After Stop or More, if you choose More'), effect: _('The die of this card\'s color is reserved for you on the next roll: opponents can\'t use it, alone or in a sum.') },
-            9: { timing: _('After the next roll'), effect: _('You may turn one die by 1 up or down (6 becomes 1, 1 becomes 6), for everyone. Each die can be turned once per roll. Only if you are still in the round.') },
-            10: { timing: _('After Stop or More, if you choose More'), effect: _('You may swap 2 cards of your choice for 2 random cards of an opponent who chose More. If none can be chosen, discard and draw instead.') },
-            11: { timing: _('After Stop or More, if you choose More'), effect: _('You may add the golden die to the next roll, for everyone. It only counts in a sum with a colored die and never gives its color.') },
-        };
-        const { timing, effect } = powerTexts[value];
-        const stars = '★'.repeat(this.game.getStarsForValue(value));
-        const tooltipHTML = `
-            <div class="tooltip-wrapper power-tooltip">
-                <div class="power-tooltip-title">${_('Card ${value}').replace('${value}', value.toString())} <span class="power-tooltip-stars">${stars}</span></div>
-                <div class="power-tooltip-timing">${timing}</div>
-                <div class="power-tooltip-text">${effect}</div>
-            </div>
-        `;
-        return tooltipHTML;
+        return powerTexts[value];
     }
     getLastChanceTooltipText() {
         return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');
