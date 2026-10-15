@@ -572,8 +572,6 @@ body .sliding-clone {
   padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
   min-height: var(--die-size);
   position: relative;
-  overflow-x: clip;
-  overflow-y: visible;
 }
 #dice-container .die-slot {
   position: relative;
@@ -630,6 +628,18 @@ body .sliding-clone {
 }
 #dice-container .a-die.previewed-die-power9 {
   filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700);
+}
+
+body .a-die.rolling-die {
+  position: fixed;
+  left: 0px;
+  top: 0px;
+  margin: 0px;
+  z-index: 1000;
+  pointer-events: none;
+  transform: none;
+  transform-origin: 50% 50%;
+  will-change: translate, rotate;
 }
 
 .status-die-icon {

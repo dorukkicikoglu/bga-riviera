@@ -176,10 +176,7 @@ $card-icon-number-height: 28px;
 //is 2px wider: the two gaps then look the same
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
     display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
-    //the roll-in starts past the right edge (DiceHandler.rollIn): clipped there, so the dice slide in from the game area's
-    //edge, never over the player boards, and never make the page scroll sideways on mobile. clip (not hidden) keeps the
-    //vertical axis visible (the lift above the row, the card-9 arrows, shadows) and makes no scroll container
-    position: relative; overflow-x: clip; overflow-y: visible;
+    position: relative; //for the fading copies
 
     .die-slot{ position: relative; }
     //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
@@ -204,6 +201,10 @@ $card-icon-number-height: 28px;
     //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview
     .a-die.previewed-die-power9{ filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700); }
 }
+//a die of the new roll flying in (DiceHandler.rollIn): fixed in <body>, above BGA's status bar, so nothing clips its entry
+//from the top right and it adds no scrollable overflow. Moved by translate, turned by rotate and sized by scale, around its
+//center; never transform
+body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-index: 1000; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate; }
 //the die in the card-9 confirm title: "Turn [die] 4 → 5?"
 .status-die-icon{ display: inline-block; vertical-align: middle; --die-size: 24px; margin: 0px 3px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
 //end dice

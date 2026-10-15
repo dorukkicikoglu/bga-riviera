@@ -277,12 +277,12 @@ Layout:
 - [ ] BGA dark mode: every log row stays readable (dark text on its pale background), including plain framework rows.
 
 Dice roll-in:
-- [ ] Roll-in: on every new roll each die slides in from the right edge of the game area, a little above its row, spinning (half a turn to a full turn, either way) and slowing into its slot with no bounce, in about half a second; the dice are slightly staggered, not one block. The faces flicker through a few random values and the real value is showing when each die stops (check against the dice log row).
+- [ ] Roll-in: on every new roll each die comes in from the top right at 45 degrees (as far right as up, starting above the dice area), spinning (half a turn to a full turn, either way) and slowing into its slot with no bounce, in about half a second; the dice are slightly staggered, not one block. The faces flicker through a few random values and the real value is showing when each die stops (check against the dice log row).
 - [ ] Fade-out at the same time: the previous roll's dice fade out (and shrink a little) in place while the new ones are already coming in; nothing waits for the fade. At a new round, last round's dice stay up through the deal, then fade as the new roll comes in.
 - [ ] Golden die fades out: after a turn with the golden die, it keeps its face through the reveal, Stop or More and the powers, then fades out with the others at the next roll (no new 11); it never vanishes instantly. With a new 11, it fades out and a new golden die rolls in with the others.
 - [ ] Card 9 doesn't re-roll: turning a die only gives that die a quick scale-in with its new value; no die slides or spins. The card 2 outline and the card 9 "±" badge show correctly on the dice once they have rolled in.
 - [ ] No animation on reload: F5 at any point shows the dice in place, no roll-in, no fade. Fast replay (and a hidden tab) changes the dice instantly.
-- [ ] On a phone: no sideways scroll or page widening while the dice come in; they appear from the right edge. On desktop they never fly over the player boards.
+- [ ] The entry is never hidden: the dice pass over BGA's status bar (and over the player boards on a phone), also when scrolled so the dice area is just under the status bar. No scrollbar appears or flickers while they fly, on desktop and on a phone, and the page never widens.
 - [ ] Nothing else (log rows, the card 9 prompt, the play prompt) starts before the last die has stopped.
 
 BGA alpha checklist:

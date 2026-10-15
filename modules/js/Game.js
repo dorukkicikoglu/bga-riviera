@@ -405,41 +405,54 @@ class DiceHandler {
             ]).then(() => fadingDie.remove());
         });
     }
-    //one die of the new roll, already at its final face and place: it starts off the container's right edge, a little
-    //above its row, turned ROLL_MIN_SPIN to ROLL_MAX_SPIN either way, and slides and spins into its slot. Only translate and
-    //rotate animate (never transform). fill 'backwards' keeps it off-screen during its delay. Random faces show on the way,
+    //one die of the new roll, already at its final face and place, hidden there while a copy flies in: the copy starts
+    //ROLL_DISTANCE die sizes right of the slot and as many above it, turned ROLL_MIN_SPIN to ROLL_MAX_SPIN either way, and
+    //slides and spins into the slot, where the real die shows again. The copy is position: fixed in <body> (.rolling-die),
+    //above BGA's status bar, so nothing clips its entry and it adds no scrollable overflow. It lives outside BGA's mobile
+    //scaling of the game area, so it is scaled (scale property, set once) to the die's on-screen size; only translate and
+    //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. Random faces show on the way,
     //the real one from ROLL_FACE_SETTLE_FRACTION of the travel
     async rollIn(aDie, dieData) {
-        const containerRect = this.diceContainer.getBoundingClientRect();
         const dieRect = aDie.getBoundingClientRect();
-        const zoom = this.getZoom(aDie); //screen px to the game area's px (BGA scales the game area down on mobile)
-        const dieSize = dieRect.width / zoom;
-        const startX = (containerRect.right - dieRect.left) / zoom + dieSize * DiceHandler.ROLL_START_GAP;
-        const startY = -dieSize * DiceHandler.ROLL_START_LIFT;
+        const cssSize = parseFloat(window.getComputedStyle(aDie).width) || dieRect.width;
+        const zoom = dieRect.width / cssSize;
+        //the copy turns and scales around its center, so its unscaled box sits centered on the die's on-screen box
+        const endX = dieRect.left + dieRect.width / 2 - cssSize / 2;
+        const endY = dieRect.top + dieRect.height / 2 - cssSize / 2;
+        const distance = dieRect.width * DiceHandler.ROLL_DISTANCE;
         const spinDirection = Math.random() < 0.5 ? -1 : 1;
         const spin = spinDirection * (DiceHandler.ROLL_MIN_SPIN + Math.random() * (DiceHandler.ROLL_MAX_SPIN - DiceHandler.ROLL_MIN_SPIN));
         const delay = Math.random() * DiceHandler.ROLL_MAX_DELAY;
-        const roll = aDie.animate([
-            { translate: `${startX}px ${startY}px`, rotate: `${spin}deg` },
-            { translate: '0px 0px', rotate: '0deg' },
+        const rollingDie = aDie.cloneNode(true);
+        rollingDie.removeAttribute('id');
+        rollingDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS, DiceHandler.PREVIEWED_CLASS_POWER9);
+        rollingDie.classList.add('rolling-die');
+        rollingDie.style.setProperty('--die-size', cssSize + 'px'); //the game area's die size, wherever --die-size is set
+        rollingDie.style.scale = zoom.toString();
+        document.body.appendChild(rollingDie);
+        aDie.style.visibility = 'hidden';
+        const roll = rollingDie.animate([
+            { translate: `${endX + distance}px ${endY - distance}px`, rotate: `${spin}deg` },
+            { translate: `${endX}px ${endY}px`, rotate: '0deg' },
         ], { duration: DiceHandler.ROLL_DURATION, delay: delay, easing: DiceHandler.ROLL_EASING, fill: 'backwards' });
         let face = this.getRandomFace(null);
-        aDie.setAttribute('data-value', face.toString());
+        rollingDie.setAttribute('data-value', face.toString());
         const faceInterval = DiceHandler.ROLL_DURATION * DiceHandler.ROLL_FACE_SETTLE_FRACTION / DiceHandler.ROLL_FACE_CHANGES;
         const faceTimers = [];
         for (let faceIndex = 1; faceIndex < DiceHandler.ROLL_FACE_CHANGES; faceIndex++) {
             faceTimers.push(window.setTimeout(() => {
                 face = this.getRandomFace(face);
-                aDie.setAttribute('data-value', face.toString());
+                rollingDie.setAttribute('data-value', face.toString());
             }, delay + faceIndex * faceInterval));
         }
-        faceTimers.push(window.setTimeout(() => this.applyDieData(aDie, dieData, true), delay + DiceHandler.ROLL_FACE_CHANGES * faceInterval));
+        faceTimers.push(window.setTimeout(() => rollingDie.setAttribute('data-value', dieData.value.toString()), delay + DiceHandler.ROLL_FACE_CHANGES * faceInterval));
         await Promise.race([
             roll.finished.catch(() => undefined),
             this.game.bga.gameui.wait(delay + DiceHandler.ROLL_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
         ]);
         faceTimers.forEach(faceTimer => window.clearTimeout(faceTimer));
-        this.applyDieData(aDie, dieData, true);
+        aDie.style.visibility = null;
+        rollingDie.remove();
     }
     getRandomFace(previousFace) {
         let face;
@@ -471,13 +484,12 @@ DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows i
 DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
 DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
 DiceHandler.DIE_FACES = 6;
-//roll-in (diceRolled): every die of the new roll slides in from past the dice container's right edge (the game area's;
-//Game.scss clips it there), spinning down to upright, while the previous roll's dice fade out in place, all at once
+//roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
+//shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once
 DiceHandler.ROLL_DURATION = 450; //ms of each die's travel
 DiceHandler.ROLL_MAX_DELAY = 80; //ms, each die starts after a random delay up to this, so the dice don't move as one block
 DiceHandler.ROLL_EASING = 'cubic-bezier(0.25, 0.8, 0.35, 1)'; //ease-out with no overshoot: the dice decelerate into place
-DiceHandler.ROLL_START_GAP = 0.5; //die sizes between the container's right edge and the die's left edge at the start, so its rotated corners are hidden too
-DiceHandler.ROLL_START_LIFT = 0.4; //die sizes above its slot at the start
+DiceHandler.ROLL_DISTANCE = 3; //die sizes (on screen) the die starts right of its slot, and as many above: D in translate(+D, -D). The dice container is about 1.6 die sizes tall, so every die starts above it
 DiceHandler.ROLL_MIN_SPIN = 180; //deg from upright at the start, in a random direction
 DiceHandler.ROLL_MAX_SPIN = 360; //deg
 DiceHandler.ROLL_FACE_CHANGES = 4; //random faces shown on the way, evenly spaced, before the real one
