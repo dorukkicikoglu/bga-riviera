@@ -170,7 +170,6 @@ interface DieReservedPOWER2Args {
 
 interface GoldenDieAddedPOWER11Args {
     player_id: number;
-    dice: RivieraDie[];
 }
 
 interface DieModifiedPOWER9Args {

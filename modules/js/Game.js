@@ -318,7 +318,8 @@ class DiceHandler {
         this.applyDieData(aDie, dieData);
         return aDie;
     }
-    //a die that has not been rolled yet (value null) shows a blank face
+    //a die with no value (the golden die between card 11 and the roll, or after it expires) is never displayed: Game.scss
+    //hides data-value="", so it appears with the roll that gives it a value
     applyDieData(aDie, dieData) {
         aDie.setAttribute('data-value', dieData.value === null ? '' : dieData.value.toString());
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
@@ -341,7 +342,9 @@ class DiceHandler {
             this.game.tooltipHandler?.updateDieTooltip(dieData);
             const previousValue = aDie.getAttribute('data-value');
             this.applyDieData(aDie, dieData);
-            if (previousValue !== aDie.getAttribute('data-value'))
+            //a die losing its value is hidden at once: an animation on a hidden die never ends, and its leftover class would replay
+            const newValue = aDie.getAttribute('data-value');
+            if (previousValue !== newValue && newValue !== '')
                 this.playChangeAnimation(aDie);
         }
     }
@@ -1519,13 +1522,13 @@ class LogMutationObserver {
     }
     createLogGoldenDiePOWER11(player_id) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
+        //no die drawn: the golden die has no value until the next roll, and a die never shows without one
         const goldenDieText = player_id === this.game.getMyPlayerID()
-            ? _('${you} add ${die} to the next roll').replace('${you}', playerNameHTML)
-            : _('${playerName} adds ${die} to the next roll').replace('${playerName}', playerNameHTML);
-        const goldenDie = { color: 'gold', value: null, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+            ? _('${you} add the golden die to the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} adds the golden die to the next roll').replace('${playerName}', playerNameHTML);
         let logHTML = `
             <div class="golden-die-row">
-                ${goldenDieText.replace('${die}', this.getMiniDieHTML(goldenDie))}
+                ${goldenDieText}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');
     }
@@ -2315,8 +2318,8 @@ class Game {
     async notif_dieReserved_POWER2(args) {
         this.diceHandler.updateDice(args.dice);
     }
+    //the log row only: the golden die appears with the next roll (diceRolled), once it has a value
     async notif_goldenDieAdded_POWER11(args) {
-        this.diceHandler.updateDice(args.dice);
     }
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);

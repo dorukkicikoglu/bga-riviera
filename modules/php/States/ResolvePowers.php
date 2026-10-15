@@ -55,11 +55,11 @@ class ResolvePowers extends GameState
         $this->game->powerManager->clearPendingPower($activePlayerId, 11);
         $this->game->bga->playerStats->inc('powerUsed_POWER11', 1, $activePlayerId);
 
+        //log row only, no dice: the golden die has no value until the next roll, which shows it with the colored dice
         $goldenDieLogStr = $this->game->getPlayerNameById($activePlayerId).' adds the golden die to the next roll';
         $this->bga->notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [
             'preserve' => ['player_id'],
             'player_id' => $activePlayerId,
-            'dice' => $this->game->tableManager->getDice(),
             'GOLDEN_DIE_POWER11_LOG_STR' => $goldenDieLogStr,
         ]);
 

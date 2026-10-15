@@ -536,7 +536,7 @@ body .sliding-clone {
   visibility: visible;
 }
 .a-die[data-value=""] {
-  opacity: 0.55;
+  display: none;
 }
 .a-die:not([data-reserved-by-power2=""]) {
   outline: 3px solid var(--reserver-color);

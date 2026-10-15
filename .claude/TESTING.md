@@ -123,7 +123,8 @@ Card 2 (`debug_POWER2()`, then More):
 
 Card 11 (`debug_POWER11()`, then More):
 - [ ] After the Stop or More reveal (not before) the status bar reads "You may use [11]" (my 11 as a circular card icon in its color) with "Add golden die" / "Skip"; the other player and a spectator see "<my name> may use [11]". Hovering the icon shows the card 11 power tooltip, for everyone.
-- [ ] "Add golden die": a blank gold die appears and a champagne log row. It is rolled next turn and works only in a sum, never for its own color.
+- [ ] "Add golden die": only a champagne log row ("adds the golden die to the next roll", no die drawn); no die appears in the dice container yet. It is rolled next turn and works only in a sum, never for its own color.
+- [ ] golden die never appears without pips; it appears with the roll.
 - [ ] It is gone after that turn's reveal, unless a new 11 is added after that turn's Stop or More, in which case it comes back and is rolled again.
 - [ ] "Skip" logs a slate "does not use" row.
 - [ ] If I choose Stop instead: I'm never asked, no golden die, no row.

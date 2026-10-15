@@ -240,14 +240,14 @@ export class LogMutationObserver{
 
     public createLogGoldenDiePOWER11(player_id: number): LogRowData {
         const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
+        //no die drawn: the golden die has no value until the next roll, and a die never shows without one
         const goldenDieText = player_id === this.game.getMyPlayerID()
-            ? _('${you} add ${die} to the next roll').replace('${you}', playerNameHTML)
-            : _('${playerName} adds ${die} to the next roll').replace('${playerName}', playerNameHTML);
+            ? _('${you} add the golden die to the next roll').replace('${you}', playerNameHTML)
+            : _('${playerName} adds the golden die to the next roll').replace('${playerName}', playerNameHTML);
 
-        const goldenDie: RivieraDie = { color: 'gold', value: null, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         let logHTML = `
             <div class="golden-die-row">
-                ${goldenDieText.replace('${die}', this.getMiniDieHTML(goldenDie))}
+                ${goldenDieText}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');

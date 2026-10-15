@@ -560,8 +560,8 @@ export class Game {
         this.diceHandler.updateDice(args.dice);
     }
 
+    //the log row only: the golden die appears with the next roll (diceRolled), once it has a value
     public async notif_goldenDieAdded_POWER11(args: GoldenDieAddedPOWER11Args) {
-        this.diceHandler.updateDice(args.dice);
     }
 
     public async notif_dieModified_POWER9(args: DieModifiedPOWER9Args) {

@@ -135,7 +135,8 @@ export class DiceHandler{
         return aDie;
     }
 
-    //a die that has not been rolled yet (value null) shows a blank face
+    //a die with no value (the golden die between card 11 and the roll, or after it expires) is never displayed: Game.scss
+    //hides data-value="", so it appears with the roll that gives it a value
     private applyDieData(aDie: HTMLDivElement, dieData: RivieraDie): void {
         aDie.setAttribute('data-value', dieData.value === null ? '' : dieData.value.toString());
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
@@ -164,7 +165,9 @@ export class DiceHandler{
             const previousValue = aDie.getAttribute('data-value');
             this.applyDieData(aDie, dieData);
 
-            if(previousValue !== aDie.getAttribute('data-value'))
+            //a die losing its value is hidden at once: an animation on a hidden die never ends, and its leftover class would replay
+            const newValue = aDie.getAttribute('data-value');
+            if(previousValue !== newValue && newValue !== '')
                 this.playChangeAnimation(aDie);
         }
     }
