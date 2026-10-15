@@ -410,8 +410,8 @@ class DiceHandler {
     //slides and spins into the slot, where the real die shows again. The copy is position: fixed in <body> (.rolling-die),
     //above BGA's status bar, so nothing clips its entry and it adds no scrollable overflow. It lives outside BGA's mobile
     //scaling of the game area, so it is scaled (scale property, set once) to the die's on-screen size; only translate and
-    //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. Random faces show on the way,
-    //the real one from ROLL_FACE_SETTLE_FRACTION of the travel
+    //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. The face changes each time the
+    //rotation passes a multiple of FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel
     async rollIn(aDie, dieData) {
         const dieRect = aDie.getBoundingClientRect();
         const cssSize = parseFloat(window.getComputedStyle(aDie).width) || dieRect.width;
@@ -420,8 +420,7 @@ class DiceHandler {
         const endX = dieRect.left + dieRect.width / 2 - cssSize / 2;
         const endY = dieRect.top + dieRect.height / 2 - cssSize / 2;
         const distance = dieRect.width * DiceHandler.ROLL_DISTANCE;
-        const spinDirection = Math.random() < 0.5 ? -1 : 1;
-        const spin = spinDirection * (DiceHandler.ROLL_MIN_SPIN + Math.random() * (DiceHandler.ROLL_MAX_SPIN - DiceHandler.ROLL_MIN_SPIN));
+        const spin = this.getRandomSpin();
         const delay = Math.random() * DiceHandler.ROLL_MAX_DELAY;
         const rollingDie = aDie.cloneNode(true);
         rollingDie.removeAttribute('id');
@@ -435,17 +434,18 @@ class DiceHandler {
             { translate: `${endX + distance}px ${endY - distance}px`, rotate: `${spin}deg` },
             { translate: `${endX}px ${endY}px`, rotate: '0deg' },
         ], { duration: DiceHandler.ROLL_DURATION, delay: delay, easing: DiceHandler.ROLL_EASING, fill: 'backwards' });
-        let face = this.getRandomFace(null);
-        rollingDie.setAttribute('data-value', face.toString());
-        const faceInterval = DiceHandler.ROLL_DURATION * DiceHandler.ROLL_FACE_SETTLE_FRACTION / DiceHandler.ROLL_FACE_CHANGES;
+        //one face per FACE_TURN the die turns before FACE_LOCK_FRACTION, the last one the real value
+        const faceChangeTimes = this.getFaceChangeTimes(spin);
+        const faces = this.getTumbleFaces(faceChangeTimes.length, dieData.value);
+        rollingDie.setAttribute('data-value', faces[0].toString());
+        //scheduled on the animation's own clock once it has started (its currentTime includes the delay)
         const faceTimers = [];
-        for (let faceIndex = 1; faceIndex < DiceHandler.ROLL_FACE_CHANGES; faceIndex++) {
-            faceTimers.push(window.setTimeout(() => {
-                face = this.getRandomFace(face);
-                rollingDie.setAttribute('data-value', face.toString());
-            }, delay + faceIndex * faceInterval));
-        }
-        faceTimers.push(window.setTimeout(() => rollingDie.setAttribute('data-value', dieData.value.toString()), delay + DiceHandler.ROLL_FACE_CHANGES * faceInterval));
+        roll.ready.then(() => {
+            const elapsed = Number(roll.currentTime ?? 0);
+            faceChangeTimes.forEach((faceChangeTime, faceIndex) => {
+                faceTimers.push(window.setTimeout(() => rollingDie.setAttribute('data-value', faces[faceIndex + 1].toString()), Math.max(0, delay + faceChangeTime - elapsed)));
+            });
+        }).catch(() => undefined);
         await Promise.race([
             roll.finished.catch(() => undefined),
             this.game.bga.gameui.wait(delay + DiceHandler.ROLL_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
@@ -454,12 +454,64 @@ class DiceHandler {
         aDie.style.visibility = null;
         rollingDie.remove();
     }
-    getRandomFace(previousFace) {
-        let face;
-        do {
-            face = Math.floor(Math.random() * DiceHandler.DIE_FACES) + 1;
-        } while (face === previousFace);
-        return face;
+    //ROLL_MIN_SPIN to ROLL_MAX_SPIN degrees either way, reduced so the die turns at most MAX_SPIN_AFTER_LOCK degrees once
+    //its face is locked (the rotation left at FACE_LOCK_FRACTION is spin * (1 - eased progress there))
+    getRandomSpin() {
+        const spinLeftShareAtLock = 1 - DiceHandler.getRollProgress(DiceHandler.FACE_LOCK_FRACTION);
+        const maxSpin = Math.min(DiceHandler.ROLL_MAX_SPIN, DiceHandler.MAX_SPIN_AFTER_LOCK / Math.max(spinLeftShareAtLock, 0.0001));
+        const minSpin = Math.min(DiceHandler.ROLL_MIN_SPIN, maxSpin);
+        const spinDirection = Math.random() < 0.5 ? -1 : 1;
+        return spinDirection * (minSpin + Math.random() * (maxSpin - minSpin));
+    }
+    //ms into the travel at which the rotation, spin * (1 - eased progress), passes each multiple of FACE_TURN before
+    //FACE_LOCK_FRACTION, in order. The start angle itself is not a change
+    getFaceChangeTimes(spin) {
+        const absSpin = Math.abs(spin);
+        const spinLeftAtLock = absSpin * (1 - DiceHandler.getRollProgress(DiceHandler.FACE_LOCK_FRACTION));
+        const faceChangeTimes = [];
+        for (let turn = Math.ceil(absSpin / DiceHandler.FACE_TURN - 1) * DiceHandler.FACE_TURN; turn >= spinLeftAtLock && turn > 0; turn -= DiceHandler.FACE_TURN) {
+            if (turn >= absSpin)
+                continue;
+            faceChangeTimes.push(DiceHandler.getRollTimeFraction(1 - turn / absSpin) * DiceHandler.ROLL_DURATION);
+        }
+        return faceChangeTimes;
+    }
+    //the faces shown during a tumble with faceChangeCount changes: random, never the same twice in a row, ending on the real
+    //value (shown from the start when there is no change)
+    getTumbleFaces(faceChangeCount, realValue) {
+        const faces = [];
+        for (let faceIndex = 0; faceIndex < faceChangeCount; faceIndex++) {
+            const excludedFaces = [faces[faceIndex - 1], ...(faceIndex === faceChangeCount - 1 ? [realValue] : [])];
+            let face;
+            do {
+                face = Math.floor(Math.random() * DiceHandler.DIE_FACES) + 1;
+            } while (excludedFaces.includes(face));
+            faces.push(face);
+        }
+        faces.push(realValue);
+        return faces;
+    }
+    //the roll's cubic-bezier (ROLL_EASING_POINTS): eased progress at a time fraction, and the time fraction of an eased
+    //progress. Both axes are monotone (control points within 0..1), so bisection on the curve's parameter solves either
+    static getRollProgress(timeFraction) {
+        const [x1, y1, x2, y2] = DiceHandler.ROLL_EASING_POINTS;
+        return DiceHandler.bezierAxis(y1, y2, DiceHandler.solveBezierParameter(x1, x2, timeFraction));
+    }
+    static getRollTimeFraction(progress) {
+        const [x1, y1, x2, y2] = DiceHandler.ROLL_EASING_POINTS;
+        return DiceHandler.bezierAxis(x1, x2, DiceHandler.solveBezierParameter(y1, y2, progress));
+    }
+    static bezierAxis(p1, p2, t) { return 3 * (1 - t) * (1 - t) * t * p1 + 3 * (1 - t) * t * t * p2 + t * t * t; }
+    static solveBezierParameter(p1, p2, value) {
+        let low = 0, high = 1;
+        for (let iteration = 0; iteration < 30; iteration++) {
+            const middle = (low + high) / 2;
+            if (DiceHandler.bezierAxis(p1, p2, middle) < value)
+                low = middle;
+            else
+                high = middle;
+        }
+        return (low + high) / 2;
     }
     //on-screen px per px of the game area (below 1 when BGA scales it down on mobile). The unrounded computed width, not
     //offsetWidth, which rounds and drifts by a pixel
@@ -488,12 +540,14 @@ DiceHandler.DIE_FACES = 6;
 //shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once
 DiceHandler.ROLL_DURATION = 450; //ms of each die's travel
 DiceHandler.ROLL_MAX_DELAY = 80; //ms, each die starts after a random delay up to this, so the dice don't move as one block
-DiceHandler.ROLL_EASING = 'cubic-bezier(0.25, 0.8, 0.35, 1)'; //ease-out with no overshoot: the dice decelerate into place
+DiceHandler.ROLL_EASING_POINTS = [0.25, 0.8, 0.35, 1]; //x1, y1, x2, y2 of the roll's cubic-bezier: ease-out with no overshoot, the dice decelerate into place
+DiceHandler.ROLL_EASING = `cubic-bezier(${DiceHandler.ROLL_EASING_POINTS.join(', ')})`; //the faces follow the rotation through this same curve (getRollProgress)
 DiceHandler.ROLL_DISTANCE = 3; //die sizes (on screen) the die starts right of its slot, and as many above: D in translate(+D, -D). The dice container is about 1.6 die sizes tall, so every die starts above it
 DiceHandler.ROLL_MIN_SPIN = 180; //deg from upright at the start, in a random direction
 DiceHandler.ROLL_MAX_SPIN = 360; //deg
-DiceHandler.ROLL_FACE_CHANGES = 4; //random faces shown on the way, evenly spaced, before the real one
-DiceHandler.ROLL_FACE_SETTLE_FRACTION = 0.7; //share of the travel after which the die shows its real value, so it is right when it stops
+DiceHandler.FACE_TURN = 90; //deg: the face changes each time the rotation passes a multiple of this, as if a new side rolled up
+DiceHandler.FACE_LOCK_FRACTION = 0.6; //share of the travel time from which the face is the real value: no change while the die slows down
+DiceHandler.MAX_SPIN_AFTER_LOCK = 90; //deg the die may still turn after FACE_LOCK_FRACTION; a bigger start spin is reduced to keep to it
 DiceHandler.FADE_OUT_DURATION = 300; //ms of the previous roll's dice fading out
 DiceHandler.FADE_OUT_SCALE = 0.85; //their size at the end of the fade
 DiceHandler.FINISH_SAFETY_MARGIN = 300; //ms after an animation's duration at which it counts as done anyway, should it never report finished
