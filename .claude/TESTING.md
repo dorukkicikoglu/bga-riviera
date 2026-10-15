@@ -76,7 +76,7 @@ Stop or More:
 
 Round end and game end:
 - [x] When nobody is left in, each stopper gets a "banks N ★" row (apricot) and their score rises by N. Crashed players get nothing. (Changed after M4: banking now happens at the Stop reveal, see M4 > Banking.)
-- [x] A new round follows: "Round 2" row, fresh 10-card hand (fades in), every column empty, every status "In", every board "x 10". Used Last Chance cards stay gone.
+- [x] A new round follows: "Round 2" row, fresh 10-card hand (fades in), every column empty, every status "In", every board "x 10". Used Last Chance cards stay gone. (Changed after M4: the hand is dealt card by card, see M4 > Layout.)
 - [x] `debug_setScores(38)`, then play a round where someone stops with 2 ★ or more: the game ends after the round and the highest score wins. Equal scores share the win.
 - [x] Grand Slam: `debug_trimHands(1)`, then `debug_setDice` so my last card is valid, and play it. A gold row "<name> plays all 10 cards: Grand Slam!", my score becomes max(100, best other + 1), my board and column glow gold, and the game ends with me first.
 - [x] Grand Slam by two players on the same reveal: both get that score and share the win.
@@ -178,7 +178,7 @@ Every power:
 Display fixes made during M3:
 - [ ] Dice pips are round and all the same size for every value, in the dice area and in log rows (mini dice), on desktop and mobile.
 - [ ] The Start token is the black pawn image, on its board and as a mini token in its log rows.
-- [ ] Confirming a card, or adding one to a 1, doesn't replay the hand's fade-in: the other cards stay still. Same in the round after a new hand was dealt.
+- [ ] Confirming a card, or adding one to a 1, doesn't replay the hand's fade-in (the deal since M4): the other cards stay still. Same in the round after a new hand was dealt.
 
 ## Milestone 4: Polish
 
@@ -250,7 +250,13 @@ Layout:
 - [ ] On a phone: dice and played-column cards are readable too, in proportion to the hand; the columns wrap onto several rows.
 - [ ] On desktop and on a phone: only a selected card and a set-aside (chosen) card move, raised above the line; selecting, confirming, the playable glow and Change my mind still work.
 - [ ] Every card slide changes size smoothly and lands exactly at its destination's size, with no jump at the end, on desktop and on a phone: my card into my column; another player's card from their board's mini card back into their column; card 10 cards sliding in from the other player's board; card backs between boards (card 10 seen by a third player); the Start token between boards.
-- [ ] The new hand fade-in and card 10's fade-out / fade-in happen in place at the hand's size.
+- [ ] Card 10's fade-out / fade-in happens in place at the hand's size.
+- [ ] New round (`debug_redeal()` or a real new round, ending it with cards still in my hand), on desktop and on a phone, in this order: the previous columns clear; then, at the same time, the cards left in my hand slide left off-screen together (about 0.2 s, starting from exactly where they were, no jump) and my 10 new cards fly in one after the other, rightmost first and leftmost last, each from above the page and far to the left of its slot, all along the same path (shifted to their own slots), already at hand-card size, each landing in its final slot (about 1.3 s); the dice roll only once the last new card has landed. No card shifts during or after the deal.
+- [ ] Through the sweep and the deal the dice keep last round's values (never blank); they change, with their change animation, only when the roll comes after the deal. A spectator sees the same dice behavior (no sweep, no deal).
+- [ ] A player who crashed in the last round (empty hand) gets no sweep, just the deal.
+- [ ] Scrolled down when the new round starts: the cards come from above the visible area (their start isn't visible), and still land in the right slots.
+- [ ] F5 during or after the deal: the hand is simply there, no deal. A spectator sees no deal; every player board's card backs update to "x 10".
+- [ ] After the deal, the playable glow, selecting and confirming work as usual, and confirming doesn't replay any deal or fade-in.
 - [ ] Status bar card icon ("Play [card]?", "Add [card]?", "You chose [cards]"): the number comes from `img/card_icon_numbers.webp`, gold on navy inside a ring of the card's color, same size as before; 10, 11 and 12 fit inside the ring; no square edge shows around the number. A screen reader reads "<value> <color>".
 - [ ] BGA dark mode: every log row stays readable (dark text on its pale background), including plain framework rows.
 

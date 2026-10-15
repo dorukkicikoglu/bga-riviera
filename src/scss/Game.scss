@@ -212,7 +212,6 @@ $card-icon-number-height: 28px;
             &.card-fading-in{ animation: card-fade-in 0.4s ease; }
         }
         &.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: translateY(20px); }
-        &.cards-fading-in .a-card{ animation: card-fade-in 0.5s ease; }
     }
 }
 

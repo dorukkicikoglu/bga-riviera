@@ -253,20 +253,42 @@ export class Game {
     //back of a player board) and lands exactly at the size and place of element, so nothing jumps at the end.
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
+    //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
-    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement, to: HTMLDivElement | null, durationMs: number): Promise<void> {
+    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement | DOMRect, to: HTMLDivElement | null, durationMs: number, easing: string = 'ease-in-out'): Promise<void> {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
-
-        const slidingClone = element.cloneNode(true) as HTMLDivElement;
-        slidingClone.removeAttribute('id');
-        slidingClone.classList.add('sliding-clone');
+        const slidingClone = this.createSlidingClone(element);
 
         element.style.visibility = 'hidden';
         if(to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
 
+        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+
+        element.style.visibility = null;
+    }
+
+    //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
+    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round)
+    public async animateSlideAway(element: HTMLDivElement, toRect: DOMRect, durationMs: number, easing: string = 'ease-in-out'): Promise<void> {
+        const fromRect = element.getBoundingClientRect();
+        const slidingClone = this.createSlidingClone(element);
+
+        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+    }
+
+    private createSlidingClone(element: HTMLDivElement): HTMLDivElement {
+        const slidingClone = element.cloneNode(true) as HTMLDivElement;
+        slidingClone.removeAttribute('id');
+        slidingClone.classList.add('sliding-clone');
+        slidingClone.style.removeProperty('visibility'); //element may already wait hidden in its slot (the new hand's deal)
         document.body.appendChild(slidingClone);
+        return slidingClone;
+    }
+
+    //moves the copy from fromRect to toRect (both on screen), then removes it
+    private async moveSlidingClone(slidingClone: HTMLDivElement, fromRect: DOMRect, toRect: DOMRect, durationMs: number, easing: string): Promise<void> {
         const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
         const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
         const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
@@ -283,17 +305,18 @@ export class Game {
 
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
 
-        slidingClone.style.transition = `transform ${durationMs}ms ease-in-out`;
+        slidingClone.style.transition = `transform ${durationMs}ms ${easing}`;
         slidingClone.style.transform = transformOnto(toRect);
 
         await this.bga.gameui.wait(durationMs);
 
-        element.style.visibility = null;
         slidingClone.remove();
     }
 
     //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one
-    private getSlideSourceRect(from: HTMLDivElement): DOMRect {
+    private getSlideSourceRect(from: HTMLDivElement | DOMRect): DOMRect {
+        if(from instanceof DOMRect)
+            return from;
         if(!from.classList.contains('a-card')){
             const cards = from.querySelectorAll('.a-card');
             if(cards.length > 0)
@@ -400,13 +423,13 @@ export class Game {
             player.setRoundStatus('in');
             player.setHandCount(args.hand_counts[player_id] ?? 0);
         }
-        this.diceHandler.updateDice(args.dice);
+        //args.dice (blank, not rolled yet) is not shown: last round's dice stay up through the deal, until diceRolled
 
         await Promise.all(columnsCleared);
     }
 
     public async notif_newHand(args: NewHandArgs) {
-        this.handHandler?.setHand(args.cards);
+        await this.handHandler?.setHand(args.cards); //old cards sweep out, then the new ones are dealt
         this.tooltipHandler.addTooltipsToCards();
     }
 

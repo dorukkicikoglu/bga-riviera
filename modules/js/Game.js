@@ -731,7 +731,6 @@ class HandHandler {
         this.game = game;
         this.handData = handData;
         this.maxSelectedCards = 1;
-        this.handFadeInCount = 0;
         this.resizeDebounceTimeout = null;
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
         this.handContainer = document.querySelector('#my-hand-container');
@@ -912,20 +911,40 @@ class HandHandler {
         this.cardsContainer.innerHTML = '';
         this.cardsContainer.classList.remove('cards-fading-out');
     }
-    //a new round's hand
-    //the fade-in class must come off once it has played: left on, card-fade-in stays every card's fallback animation
-    //and replays whenever another animation stops applying (the playable glow when I confirm a card, for example)
-    setHand(handData) {
-        this.cardsContainer.classList.remove(HandHandler.HAND_FADE_IN_CLASS);
+    //a new round's hand: the cards left from the previous round sweep out left as copies while the new hand is dealt card
+    //by card. The final hand is laid out first (sorted and spaced) with every card hidden in its slot, then a copy of each card flies
+    //in, rightmost first, and the real card shows when its copy lands, so no card moves during or after the deal. Every card
+    //starts DEAL_X_OFFSET to the left of its slot, at the same page y DEAL_START_Y (the document's, not the viewport's:
+    //scrolled down, the start is off-screen). Resolves when the last card has landed
+    async setHand(handData) {
+        const sweep = this.sweepOutCards(); //empties the hand at once, the deal doesn't wait for the copies
         this.handData = handData;
         this.displayHand();
-        void this.cardsContainer.offsetWidth; //restart the animation if it's already running
-        this.cardsContainer.classList.add(HandHandler.HAND_FADE_IN_CLASS);
-        const handFadeInID = ++this.handFadeInCount; //a newer hand restarts the fade-in: only its own timer may end it
-        this.game.bga.gameui.wait(HandHandler.HAND_FADE_IN_ANIM_TIME).then(() => {
-            if (handFadeInID === this.handFadeInCount)
-                this.cardsContainer.classList.remove(HandHandler.HAND_FADE_IN_CLASS);
+        const cards = this.getCardDivs();
+        cards.forEach(card => card.style.visibility = 'hidden');
+        const deals = [];
+        for (let i = cards.length - 1; i >= 0; i--) {
+            if (i < cards.length - 1)
+                await this.game.bga.gameui.wait(HandHandler.DEAL_STAGGER);
+            const pageTop = document.documentElement.getBoundingClientRect().top; //the page's top on screen, read per card in case of a scroll
+            const cardRect = cards[i].getBoundingClientRect();
+            const startLeft = cardRect.left - window.innerWidth * HandHandler.DEAL_X_OFFSET;
+            const startTop = pageTop + HandHandler.DEAL_START_Y - cardRect.height;
+            const startRect = new DOMRect(startLeft, startTop, cardRect.width, cardRect.height);
+            deals.push(this.game.animateSlide(cards[i], startRect, null, HandHandler.DEAL_DURATION, HandHandler.DEAL_EASING));
+        }
+        await Promise.all([sweep, ...deals]);
+    }
+    //every card in my hand is lifted out as a copy at its place on screen and the hand is emptied at once; the copies
+    //slide left together until they are off the screen's left side
+    async sweepOutCards() {
+        const sweeps = this.getCardDivs().map(card => {
+            const cardRect = card.getBoundingClientRect();
+            const offScreenRect = new DOMRect(-cardRect.width - 20, cardRect.top, cardRect.width, cardRect.height); //20px more for the drop shadow
+            return this.game.animateSlideAway(card, offScreenRect, HandHandler.OLD_HAND_SWEEP_DURATION, HandHandler.OLD_HAND_SWEEP_EASING);
         });
+        this.cardsContainer.innerHTML = '';
+        await Promise.all(sweeps);
     }
     getCardDivs() { return Array.from(this.cardsContainer.querySelectorAll('.a-card')); }
     getCardDiv(cardID) { return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
@@ -936,8 +955,15 @@ HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
 HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.FADE_ANIM_TIME = 400;
-HandHandler.HAND_FADE_IN_CLASS = 'cards-fading-in';
-HandHandler.HAND_FADE_IN_ANIM_TIME = 500; //card-fade-in on .cards-fading-in in Game.scss
+//new hand (setHand): the previous round's leftover cards sweep out left while the new hand is dealt right to left,
+//every new card travelling the same path, shifted to its own slot
+HandHandler.OLD_HAND_SWEEP_DURATION = 200; //ms the leftover cards take to slide left off-screen, all together, as the deal starts
+HandHandler.OLD_HAND_SWEEP_EASING = 'ease-in'; //CSS timing function of the sweep
+HandHandler.DEAL_X_OFFSET = 1.2; //a card starts this share of the window width to the left of its slot
+HandHandler.DEAL_START_Y = 0; //page (document) y, in px, of every card's bottom edge at the start: 0 = just above the top of the page
+HandHandler.DEAL_DURATION = 400; //ms each card slides for
+HandHandler.DEAL_STAGGER = 100; //ms between the starts of two cards (a bit less than DEAL_DURATION: 1 or 2 cards move at once)
+HandHandler.DEAL_EASING = 'ease-out'; //CSS timing function of each card's slide
 HandHandler.SLIDE_ANIM_TIME = 600;
 HandHandler.SELECTION_STATES = ['PlayCard', 'SwapCards'];
 HandHandler.DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
@@ -1852,17 +1878,35 @@ class Game {
     //back of a player board) and lands exactly at the size and place of element, so nothing jumps at the end.
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
+    //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
-    async animateSlide(element, from, to, durationMs) {
+    async animateSlide(element, from, to, durationMs, easing = 'ease-in-out') {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
-        const slidingClone = element.cloneNode(true);
-        slidingClone.removeAttribute('id');
-        slidingClone.classList.add('sliding-clone');
+        const slidingClone = this.createSlidingClone(element);
         element.style.visibility = 'hidden';
         if (to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
+        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+        element.style.visibility = null;
+    }
+    //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
+    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round)
+    async animateSlideAway(element, toRect, durationMs, easing = 'ease-in-out') {
+        const fromRect = element.getBoundingClientRect();
+        const slidingClone = this.createSlidingClone(element);
+        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+    }
+    createSlidingClone(element) {
+        const slidingClone = element.cloneNode(true);
+        slidingClone.removeAttribute('id');
+        slidingClone.classList.add('sliding-clone');
+        slidingClone.style.removeProperty('visibility'); //element may already wait hidden in its slot (the new hand's deal)
         document.body.appendChild(slidingClone);
+        return slidingClone;
+    }
+    //moves the copy from fromRect to toRect (both on screen), then removes it
+    async moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing) {
         const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
         const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
         const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
@@ -1875,14 +1919,15 @@ class Game {
         };
         slidingClone.style.transform = transformOnto(fromRect);
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
-        slidingClone.style.transition = `transform ${durationMs}ms ease-in-out`;
+        slidingClone.style.transition = `transform ${durationMs}ms ${easing}`;
         slidingClone.style.transform = transformOnto(toRect);
         await this.bga.gameui.wait(durationMs);
-        element.style.visibility = null;
         slidingClone.remove();
     }
     //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one
     getSlideSourceRect(from) {
+        if (from instanceof DOMRect)
+            return from;
         if (!from.classList.contains('a-card')) {
             const cards = from.querySelectorAll('.a-card');
             if (cards.length > 0)
@@ -1979,11 +2024,11 @@ class Game {
             player.setRoundStatus('in');
             player.setHandCount(args.hand_counts[player_id] ?? 0);
         }
-        this.diceHandler.updateDice(args.dice);
+        //args.dice (blank, not rolled yet) is not shown: last round's dice stay up through the deal, until diceRolled
         await Promise.all(columnsCleared);
     }
     async notif_newHand(args) {
-        this.handHandler?.setHand(args.cards);
+        await this.handHandler?.setHand(args.cards); //old cards sweep out, then the new ones are dealt
         this.tooltipHandler.addTooltipsToCards();
     }
     async notif_diceRolled(args) {

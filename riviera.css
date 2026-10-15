@@ -697,9 +697,6 @@ body .sliding-clone {
   opacity: 0;
   transform: translateY(20px);
 }
-#my-hand-container .cards-container.cards-fading-in .a-card {
-  animation: card-fade-in 0.5s ease;
-}
 
 body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card {
   cursor: pointer;
