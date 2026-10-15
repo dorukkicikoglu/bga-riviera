@@ -20,6 +20,12 @@
   --die-color-purple: #5f2d8c;
   --die-color-blue: #1c4f72;
   --die-color-orange: #e8862b;
+  --card-glow-color: #FFD700;
+  --card-glow-peak-color: #ffd483;
+  --card-glow-duration: 3s;
+  --power-card-glow-color: #fff6dc;
+  --power-card-glow-peak-color: #ffffff;
+  --power-card-glow-duration: 4.2s;
   --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
   --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
   --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
@@ -700,10 +706,17 @@ body .sliding-clone {
 
 body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card {
   cursor: pointer;
-  animation: selectable-card-glow-pulse 3s ease-in-out infinite;
+  --glow-color: var(--card-glow-color);
+  --glow-peak-color: var(--card-glow-peak-color);
+  animation: selectable-card-glow-pulse var(--card-glow-duration) ease-in-out infinite;
+}
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card.playable-power-card {
+  --glow-color: var(--power-card-glow-color);
+  --glow-peak-color: var(--power-card-glow-peak-color);
+  animation-duration: var(--power-card-glow-duration);
 }
 body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-container .cards-container .a-card.selectable-card {
-  animation: mobile-selectable-card-glow-pulse 3s ease-in-out infinite;
+  animation-name: mobile-selectable-card-glow-pulse;
 }
 
 #played-columns-container {
@@ -1415,24 +1428,24 @@ body .start-token.flying-start-token {
 
 @keyframes selectable-card-glow-pulse {
   0% {
-    box-shadow: 0 0 5px 5px #FFD700;
+    box-shadow: 0 0 5px 5px var(--glow-color);
   }
   50% {
-    box-shadow: 0 0 11px 11px #ffd483;
+    box-shadow: 0 0 11px 11px var(--glow-peak-color);
   }
   100% {
-    box-shadow: 0 0 5px 5px #FFD700;
+    box-shadow: 0 0 5px 5px var(--glow-color);
   }
 }
 @keyframes mobile-selectable-card-glow-pulse {
   0% {
-    box-shadow: 0 0 4px 4px #FFD700;
+    box-shadow: 0 0 4px 4px var(--glow-color);
   }
   50% {
-    box-shadow: 0 0 8px 8px #ffd483;
+    box-shadow: 0 0 8px 8px var(--glow-peak-color);
   }
   100% {
-    box-shadow: 0 0 4px 4px #FFD700;
+    box-shadow: 0 0 4px 4px var(--glow-color);
   }
 }
 @keyframes card-fade-in {
@@ -1466,5 +1479,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

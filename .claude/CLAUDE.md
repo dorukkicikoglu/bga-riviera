@@ -35,7 +35,7 @@ Mirror these specifically:
 ## Layout (client)
 
 - **Background**: sea blue gradient on `body` (Fugu sets its background on `body` too).
-- **Playable cards** glow; unplayable cards keep their normal look (no grey-out).
+- **Playable cards** glow; unplayable cards keep their normal look (no grey-out). Most glow gold (`--card-glow-color` / `--card-glow-peak-color`, pulse `--card-glow-duration` 3s); playable power cards (1, 2, 9, 10, 11) glow light cream with a slower pulse (`--power-card-glow-color` / `--power-card-glow-peak-color`, `--power-card-glow-duration` 4.2s), so they differ by rhythm as well as color. The variables sit in `:root` in `Game.scss`. Only PlayCard's selections (first card and card-1 chain) get the power glow (`setSelectableCards(ids, 1, true)` adds `playable-power-card`); card 10's swap selection stays gold on every card. Same on mobile (only the glow size differs). Selection, set-aside and chosen-card styles are unchanged.
 - **Game area order**, top to bottom: dice container, my hand, then one row of every player's played column (mine first, then turn order), wrapping onto more rows when they don't fit (always on mobile).
 - Every player's played cards are visible (stacked vertically, overlapping so only the top strip with stars shows, as in the rules).
 - **Player boards** (BGA side panels) show the number of cards in hand, visible to everyone including spectators: with 6 cards or fewer, one small card-back div per card, overlapping, like my game Odin; with more than 6, a single card back followed by "x N". The Last Chance card sits to the right of the card backs and disappears once used. Also show round status (in / stopped / crashed) and the Start token.

@@ -27,6 +27,15 @@
     --die-color-blue: #1c4f72;
     --die-color-orange: #e8862b;
 
+    //playable card glow (PlayCard): gold for most cards; playable power cards (1, 2, 9, 10, 11) glow light cream with a slower pulse,
+    //so they stand out by rhythm as well as color. Card 10's swap selection keeps the gold glow on every card
+    --card-glow-color: #FFD700;
+    --card-glow-peak-color: #ffd483;
+    --card-glow-duration: 3s;
+    --power-card-glow-color: #fff6dc;
+    --power-card-glow-peak-color: #ffffff;
+    --power-card-glow-duration: 4.2s;
+
     //one background per log type, each a pale take on a card color or the coast, light enough for the default dark log text
     --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
     --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
@@ -216,8 +225,10 @@ $card-icon-number-height: 28px;
 }
 
 body.current_player_is_active:not(.lockedInterface){
-    #my-hand-container .cards-container .a-card.selectable-card{ cursor: pointer; animation: selectable-card-glow-pulse 3s ease-in-out infinite; }
-    &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation: mobile-selectable-card-glow-pulse 3s ease-in-out infinite; }
+    #my-hand-container .cards-container .a-card.selectable-card{ cursor: pointer; --glow-color: var(--card-glow-color); --glow-peak-color: var(--card-glow-peak-color); animation: selectable-card-glow-pulse var(--card-glow-duration) ease-in-out infinite;
+        &.playable-power-card{ --glow-color: var(--power-card-glow-color); --glow-peak-color: var(--power-card-glow-peak-color); animation-duration: var(--power-card-glow-duration); }
+    }
+    &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation-name: mobile-selectable-card-glow-pulse; }
 }
 
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
@@ -488,16 +499,17 @@ $power-icons: (
 }
 //end tooltip
 
+//colours come from the card's --glow-color / --glow-peak-color (gold, or cream on a playable power card)
 @keyframes selectable-card-glow-pulse {
-  0% { box-shadow: 0 0 5px 5px #FFD700; }
-  50% { box-shadow: 0 0 11px 11px #ffd483; }
-  100% { box-shadow: 0 0 5px 5px #FFD700; }
+  0% { box-shadow: 0 0 5px 5px var(--glow-color); }
+  50% { box-shadow: 0 0 11px 11px var(--glow-peak-color); }
+  100% { box-shadow: 0 0 5px 5px var(--glow-color); }
 }
 
 @keyframes mobile-selectable-card-glow-pulse {
-  0% { box-shadow: 0 0 4px 4px #FFD700; }
-  50% { box-shadow: 0 0 8px 8px #ffd483; }
-  100% { box-shadow: 0 0 4px 4px #FFD700; }
+  0% { box-shadow: 0 0 4px 4px var(--glow-color); }
+  50% { box-shadow: 0 0 8px 8px var(--glow-peak-color); }
+  100% { box-shadow: 0 0 4px 4px var(--glow-color); }
 }
 
 @keyframes card-fade-in {

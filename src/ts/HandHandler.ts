@@ -11,11 +11,13 @@
  */
 import { Game } from "./Game";
 import { PlayedColumnHandler } from "./PlayedColumnHandler";
+import { POWER_CARD_VALUES } from "./TooltipHandler";
 
 export class HandHandler{
     private static readonly SELECTED_CARD_CLASS = 'selected-hand-card';
     private static readonly CHOSEN_CARD_CLASS = 'chosen-card';
     private static readonly SELECTABLE_CARD_CLASS = 'selectable-card';
+    private static readonly PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
     private static readonly FADE_ANIM_TIME = 400;
     //new hand (setHand): the previous round's leftover cards sweep out left while the new hand is dealt right to left,
     //every new card travelling the same path, shifted to its own slot
@@ -185,19 +187,22 @@ export class HandHandler{
         return this.handData.find(card => card.card_id === cardID) ?? null;
     }
 
-    //selectable cards glow, the others keep their normal look
-    public setSelectableCards(selectableCardIDs: number[], maxSelectedCards: number = 1): void{
+    //selectable cards glow, the others keep their normal look. isPlay: the cards are playable cards, so power cards get their own glow
+    public setSelectableCards(selectableCardIDs: number[], maxSelectedCards: number = 1, isPlay: boolean = false): void{
         this.clearSelection();
         this.maxSelectedCards = maxSelectedCards;
 
-        for(let card of this.getCardDivs())
-            card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, selectableCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
+        for(let card of this.getCardDivs()){
+            const isSelectable = selectableCardIDs.includes(parseInt(card.getAttribute('data-card-id')));
+            card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, isSelectable);
+            card.classList.toggle(HandHandler.PLAYABLE_POWER_CARD_CLASS, isSelectable && isPlay && POWER_CARD_VALUES.includes(parseInt(card.getAttribute('data-value'))));
+        }
     }
 
     public clearSelectableCards(): void{
         this.clearSelection();
         for(let card of this.getCardDivs())
-            card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS);
+            card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS, HandHandler.PLAYABLE_POWER_CARD_CLASS);
     }
 
     //the cards chosen this turn (a first card, then any card-1 chain) stay set aside in the hand until the reveal, or until "Change my mind"

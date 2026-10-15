@@ -77,7 +77,7 @@ export class PlayCard {
 
         if(isCurrentPlayerActive && this.pendingChoice && this.chainOpen){
             this.bga.statusBar.setTitle(_('${you} may add another card to your 1, or finish'));
-            this.game.handHandler.setSelectableCards(this.playableCardIDs);
+            this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
 
             //hidden until a card is selected, like Fugu's swap button
             this.confirmActionName = 'actAddChainCard_POWER1';
@@ -88,7 +88,7 @@ export class PlayCard {
         } else if(isCurrentPlayerActive && !this.pendingChoice){
             if(this.playableCardIDs.length > 0){
                 this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
-                this.game.handHandler.setSelectableCards(this.playableCardIDs);
+                this.game.handHandler.setSelectableCards(this.playableCardIDs, 1, true);
 
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
