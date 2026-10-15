@@ -2404,8 +2404,11 @@ class Game {
     setupNotifications() {
         // automatically listen to the notifications, based on the `notif_xxx` function on this class.
         // Uncomment the logger param to see debug information in the console about notifications.
+        //minDuration: BGA holds every notification with log text for 500ms by default, even when nothing animates (the
+        //Stop/More reveal, each "banks N ★" row). A notification now lasts as long as its handler awaits a real animation
         this.bga.notifications.setupPromiseNotifications({
-        // logger: console.log
+            minDuration: 1,
+            // logger: console.log
         });
     }
     // Add the notification handlers
