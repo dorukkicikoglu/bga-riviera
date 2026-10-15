@@ -817,7 +817,6 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   align-items: center;
   justify-content: space-between;
   margin-top: 6px;
-  min-height: 30px;
 }
 .riviera-player-board .player-board-status-row .round-status-indicator {
   font-size: 13px;
@@ -832,11 +831,6 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .riviera-player-board .player-board-status-row .round-status-indicator[data-round-status=crashed] {
   color: #a00000;
 }
-.riviera-player-board .player-board-status-row .start-token-slot {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-}
 
 .riviera-player-board.grand-slam-player-board {
   border-radius: 6px;
@@ -844,16 +838,60 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 }
 
 .start-token {
+  position: relative;
   box-sizing: border-box;
-  width: 30px;
-  height: 30px;
-  background: var(--image-source-start-token) center/contain no-repeat;
+  width: 34px;
+  height: 34px;
+  --start-token-outline-width: 3.5px;
 }
 .start-token.mini-start-token {
   display: inline-block;
   vertical-align: middle;
   width: 14px;
   height: 14px;
+  --start-token-outline-width: 1.4px;
+}
+.start-token .start-token-pawn {
+  position: absolute;
+  inset: 0;
+  background: var(--image-source-start-token) center/contain no-repeat;
+}
+.start-token .start-token-outline {
+  --ring-radius: var(--start-token-outline-width);
+  position: absolute;
+  inset: calc(-1 * var(--ring-radius));
+  pointer-events: none;
+  background-color: var(--start-token-color, #000000);
+  -webkit-mask-image: var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token);
+  mask-image: var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token), var(--image-source-start-token);
+  -webkit-mask-position: calc(50% + var(--ring-radius) * 1) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * 0.9238795325) calc(50% + var(--ring-radius) * 0.3826834324), calc(50% + var(--ring-radius) * 0.7071067812) calc(50% + var(--ring-radius) * 0.7071067812), calc(50% + var(--ring-radius) * 0.3826834324) calc(50% + var(--ring-radius) * 0.9238795325), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * 1), calc(50% + var(--ring-radius) * -0.3826834324) calc(50% + var(--ring-radius) * 0.9238795325), calc(50% + var(--ring-radius) * -0.7071067812) calc(50% + var(--ring-radius) * 0.7071067812), calc(50% + var(--ring-radius) * -0.9238795325) calc(50% + var(--ring-radius) * 0.3826834324), calc(50% + var(--ring-radius) * -1) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * -0.9238795325) calc(50% + var(--ring-radius) * -0.3826834324), calc(50% + var(--ring-radius) * -0.7071067812) calc(50% + var(--ring-radius) * -0.7071067812), calc(50% + var(--ring-radius) * -0.3826834324) calc(50% + var(--ring-radius) * -0.9238795325), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * -1), calc(50% + var(--ring-radius) * 0.3826834324) calc(50% + var(--ring-radius) * -0.9238795325), calc(50% + var(--ring-radius) * 0.7071067812) calc(50% + var(--ring-radius) * -0.7071067812), calc(50% + var(--ring-radius) * 0.9238795325) calc(50% + var(--ring-radius) * -0.3826834324), calc(50% + var(--ring-radius) * 0.5) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * 0.3535533906) calc(50% + var(--ring-radius) * 0.3535533906), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * 0.5), calc(50% + var(--ring-radius) * -0.3535533906) calc(50% + var(--ring-radius) * 0.3535533906), calc(50% + var(--ring-radius) * -0.5) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * -0.3535533906) calc(50% + var(--ring-radius) * -0.3535533906), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * -0.5), calc(50% + var(--ring-radius) * 0.3535533906) calc(50% + var(--ring-radius) * -0.3535533906);
+  mask-position: calc(50% + var(--ring-radius) * 1) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * 0.9238795325) calc(50% + var(--ring-radius) * 0.3826834324), calc(50% + var(--ring-radius) * 0.7071067812) calc(50% + var(--ring-radius) * 0.7071067812), calc(50% + var(--ring-radius) * 0.3826834324) calc(50% + var(--ring-radius) * 0.9238795325), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * 1), calc(50% + var(--ring-radius) * -0.3826834324) calc(50% + var(--ring-radius) * 0.9238795325), calc(50% + var(--ring-radius) * -0.7071067812) calc(50% + var(--ring-radius) * 0.7071067812), calc(50% + var(--ring-radius) * -0.9238795325) calc(50% + var(--ring-radius) * 0.3826834324), calc(50% + var(--ring-radius) * -1) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * -0.9238795325) calc(50% + var(--ring-radius) * -0.3826834324), calc(50% + var(--ring-radius) * -0.7071067812) calc(50% + var(--ring-radius) * -0.7071067812), calc(50% + var(--ring-radius) * -0.3826834324) calc(50% + var(--ring-radius) * -0.9238795325), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * -1), calc(50% + var(--ring-radius) * 0.3826834324) calc(50% + var(--ring-radius) * -0.9238795325), calc(50% + var(--ring-radius) * 0.7071067812) calc(50% + var(--ring-radius) * -0.7071067812), calc(50% + var(--ring-radius) * 0.9238795325) calc(50% + var(--ring-radius) * -0.3826834324), calc(50% + var(--ring-radius) * 0.5) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * 0.3535533906) calc(50% + var(--ring-radius) * 0.3535533906), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * 0.5), calc(50% + var(--ring-radius) * -0.3535533906) calc(50% + var(--ring-radius) * 0.3535533906), calc(50% + var(--ring-radius) * -0.5) calc(50% + var(--ring-radius) * 0), calc(50% + var(--ring-radius) * -0.3535533906) calc(50% + var(--ring-radius) * -0.3535533906), calc(50% + var(--ring-radius) * 0) calc(50% + var(--ring-radius) * -0.5), calc(50% + var(--ring-radius) * 0.3535533906) calc(50% + var(--ring-radius) * -0.3535533906);
+  -webkit-mask-size: auto calc(100% - 2 * var(--ring-radius));
+  mask-size: auto calc(100% - 2 * var(--ring-radius));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+body .start-token.flying-start-token {
+  position: fixed;
+  left: 0px;
+  top: 0px;
+  margin: 0;
+  z-index: 1000;
+  pointer-events: none;
+  transform: none;
+  transform-origin: 50% 50%;
+  will-change: translate, rotate, scale;
+}
+
+.start-token-anchor {
+  position: relative;
+}
+.start-token-anchor > #start-token {
+  position: absolute;
+  top: -2px;
+  left: -15px;
+  z-index: 10;
 }
 
 .log .roundedbox, .gamelogreview {

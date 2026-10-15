@@ -144,7 +144,7 @@ Log mini cards keep a single-power tooltip. Safari on a phone shows the same ref
 
 - Hand count: 6 cards or fewer, one small card back per card; more than 6, one card back followed by "x N". Visible to everyone, spectators included.
 - Last Chance card to the right of the card backs; it disappears once used.
-- Round status (in / stopped / crashed) and the Start token. The token is a single element that slides from board to board when it passes.
+- Round status (in / stopped / crashed) and the Start token. The token is a single element on the top-left corner of its owner's board, over the board content and taking no layout space. When it passes it lifts out of the boards area (to the side of the boards column on desktop, down to 40% of the screen on mobile), growing to 200%, holds still for a moment at the peak, then curves into the new owner's corner, shrinking back. No flight on F5.
 
 ## BGA states (suggestion, refine with Fugu's patterns)
 

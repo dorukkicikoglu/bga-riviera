@@ -257,21 +257,60 @@ body.current_player_is_active:not(.lockedInterface){
             &[data-used="true"]{ display: none; }
         }
     }
-    .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px; min-height: 30px;
+    .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px;
         .round-status-indicator{ font-size: 13px; white-space: nowrap;
             &[data-round-status="in"] i{ color: #2e8b2e; }
             &[data-round-status="stopped"] i{ color: #1c4f72; }
             &[data-round-status="crashed"]{ color: #a00000; }
         }
-        .start-token-slot{ width: 30px; height: 30px; flex-shrink: 0; }
     }
 }
 
 .riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
 
-//#start-token and the mini token in log rows: img/start_token.webp (a black pawn, portrait) fitted inside the box
-.start-token{ box-sizing: border-box; width: 30px; height: 30px; background: var(--image-source-start-token) center / contain no-repeat;
-    &.mini-start-token{ display: inline-block; vertical-align: middle; width: 14px; height: 14px; }
+//#start-token, its flying copy and the mini token in log rows: img/start_token.webp (a black pawn, portrait) fitted inside the
+//box, over a stroke in its owner's color (--start-token-color, set inline from the player color).
+//No filter: the stroke is a layer bigger than the token by its width on every side, masked by the pawn's silhouette (the
+//token image as a CSS mask) several times, each copy shifted in its own direction: 16 by the width and 8 by half of it (so
+//thin parts like the neck leave no gap), and the union of the copies is the pawn grown by the width all around.
+//Masks paint once; the flight only moves the copy
+$start-token-ring-shifts: (1: 16, 0.5: 8); //share of the ring's radius: number of copies spread evenly around
+@function start-token-ring-masks(){
+    $images: ();
+    $positions: ();
+    @each $share, $count in $start-token-ring-shifts {
+        @for $i from 0 to $count {
+            $angle: math.div(360deg * $i, $count);
+            $dx: math.cos($angle) * $share;
+            $dy: math.sin($angle) * $share;
+            $images: list.append($images, var(--image-source-start-token), comma);
+            $positions: list.append($positions, calc(50% + var(--ring-radius) * #{$dx}) calc(50% + var(--ring-radius) * #{$dy}), comma);
+        }
+    }
+    @return (images: $images, positions: $positions);
+}
+$start-token-masks: start-token-ring-masks();
+
+.start-token{ position: relative; box-sizing: border-box; width: 34px; height: 34px;
+    --start-token-outline-width: 3.5px; //the stroke in the owner's color
+    &.mini-start-token{ display: inline-block; vertical-align: middle; width: 14px; height: 14px;
+        --start-token-outline-width: 1.4px; //the same look, scaled to the 14px token
+    }
+
+    .start-token-pawn{ position: absolute; inset: 0; background: var(--image-source-start-token) center / contain no-repeat; }
+    .start-token-outline{ --ring-radius: var(--start-token-outline-width); position: absolute; inset: calc(-1 * var(--ring-radius)); pointer-events: none; background-color: var(--start-token-color, #000000);
+        //each copy of the silhouette is the pawn's size: as tall as the token (the portrait pawn fills its height), aspect kept
+        -webkit-mask-image: map.get($start-token-masks, images); mask-image: map.get($start-token-masks, images);
+        -webkit-mask-position: map.get($start-token-masks, positions); mask-position: map.get($start-token-masks, positions);
+        -webkit-mask-size: auto calc(100% - 2 * var(--ring-radius)); mask-size: auto calc(100% - 2 * var(--ring-radius));
+        -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    }
+}
+//the Start token's flying copy (StartTokenHandler.createFlyingCopy): pinned to the viewport's top-left corner and placed only
+//by the separate translate, rotate and scale properties (animated by StartTokenHandler), around its center. Never `transform`
+body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; margin: 0; z-index: 1000; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate, scale; }
+.start-token-anchor{ position: relative;
+    > #start-token{ position: absolute; top: -2px; left: -15px; z-index: 10; }
 }
 //end player board
 

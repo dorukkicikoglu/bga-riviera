@@ -650,7 +650,8 @@ class PlayerHandler {
         this.playedColumn = new PlayedColumnHandler(this.game, this, this.playedCardsData);
         this.setRoundStatus(this.roundStatus);
     }
-    //every player board, spectators included, shows the hand count, Last Chance, round status and a slot for the Start token
+    //every player board, spectators included, shows the hand count, Last Chance and round status. The Start token is not in
+    //this content: it sits on the top-left corner of the whole BGA player board (startTokenAnchor) and takes no layout space
     createPlayerBoardContainer() {
         this.playerBoardContainer = document.createElement('div');
         this.playerBoardContainer.classList.add('riviera-player-board');
@@ -661,14 +662,15 @@ class PlayerHandler {
             </div>
             <div class="player-board-status-row">
                 <div class="round-status-indicator"></div>
-                <div class="start-token-slot"></div>
             </div>
         `;
-        this.game.bga.playerPanels.getElement(this.playerID).appendChild(this.playerBoardContainer);
+        const playerPanel = this.game.bga.playerPanels.getElement(this.playerID);
+        playerPanel.appendChild(this.playerBoardContainer);
         this.handCountBacks = this.playerBoardContainer.querySelector('.hand-count-backs');
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
-        this.startTokenSlot = this.playerBoardContainer.querySelector('.start-token-slot');
+        this.startTokenAnchor = playerPanel.closest('.player-board') ?? playerPanel; //BGA's whole board around our panel
+        this.startTokenAnchor.classList.add('start-token-anchor');
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
         this.roundStatusIndicator.id = 'round-status-' + this.playerID;
@@ -720,7 +722,7 @@ class PlayerHandler {
     getPlayerColor() { return this.playerColor; }
     getHandCount() { return this.handCount; }
     getPlayedColumn() { return this.playedColumn; }
-    getStartTokenSlot() { return this.startTokenSlot; }
+    getStartTokenAnchor() { return this.startTokenAnchor; }
     getHandCountElement() { return this.handCountBacks; }
 }
 PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
@@ -979,27 +981,195 @@ class StartTokenHandler {
         this.startToken = document.createElement('div');
         this.startToken.id = 'start-token';
         this.startToken.className = 'start-token';
-        const startTokenSlot = this.game.players[this.startPlayerID]?.getStartTokenSlot();
-        if (startTokenSlot)
-            startTokenSlot.appendChild(this.startToken);
+        this.startToken.style.rotate = this.getTilt(); //never `transform` on the token or its copy: see moveTo
+        this.startToken.innerHTML = StartTokenHandler.LAYERS_HTML;
+        StartTokenHandler.setOutlineColor(this.startToken, this.getPlayerColorCSS(this.startPlayerID));
+        const startTokenAnchor = this.game.players[this.startPlayerID]?.getStartTokenAnchor();
+        if (startTokenAnchor)
+            startTokenAnchor.appendChild(this.startToken);
     }
-    //slides the token from its current player board to playerID's, the same way cards move between containers
+    //the token flies from its current player board's corner to playerID's on a position:fixed copy, so it shows wherever
+    //the page is scrolled: one Web Animations API animation over the whole curved path, the lift and the landing each eased
+    //in and out, with a hold at the peak between them. Resolves when the copy has landed and the real token shows on the new board.
+    //Movement, rotation and size each have their own CSS property (translate, rotate, scale), on the token and on its copy
+    //alike, and `transform` is never used for either: when the board tilt lived in `transform`, the copy inherited it and
+    //every on-screen measurement of the copy came out rotated, so the whole flight was off
     async moveTo(playerID) {
-        const targetSlot = this.game.players[playerID]?.getStartTokenSlot();
-        if (!targetSlot)
+        const targetAnchor = this.game.players[playerID]?.getStartTokenAnchor();
+        if (!targetAnchor)
             return;
+        const fromColor = this.getPlayerColorCSS(this.startPlayerID);
+        const toColor = this.getPlayerColorCSS(playerID);
         this.startPlayerID = playerID;
-        if (this.startToken.parentElement === targetSlot)
+        const sourceAnchor = this.startToken.parentElement;
+        if (sourceAnchor === targetAnchor)
             return;
-        if (!this.startToken.parentElement) { //nothing to slide from
-            targetSlot.appendChild(this.startToken);
+        if (!sourceAnchor || !this.game.bga.gameui.bgaAnimationsActive()) { //nothing to fly from, or no animations (fast replay, hidden tab)
+            targetAnchor.appendChild(this.startToken);
+            StartTokenHandler.setOutlineColor(this.startToken, toColor);
             return;
         }
-        await this.game.animateSlide(this.startToken, this.startToken, targetSlot, StartTokenHandler.SLIDE_ANIM_TIME);
+        const fromRect = this.getUntiltedRect(); //real on-screen places, even off-screen
+        const flyingCopy = this.createFlyingCopy();
+        const placeOnScreen = this.getFlyingCopyPlacement(flyingCopy);
+        this.startToken.style.visibility = 'hidden';
+        targetAnchor.appendChild(this.startToken);
+        StartTokenHandler.setOutlineColor(this.startToken, toColor); //hidden until the copy lands
+        const toRect = this.getUntiltedRect();
+        const from = this.getCenter(fromRect);
+        const to = this.getCenter(toRect);
+        const liftHeight = fromRect.height * StartTokenHandler.LIFT_SCALE;
+        const sideways = this.areBoardsBesideGameArea(sourceAnchor);
+        const lift = this.getLiftPoint(sourceAnchor, targetAnchor, from, to, liftHeight);
+        //two quadratic curves meeting at the lift point in the same direction, so the path has no corner there. Boards beside
+        //the game area: the token passes the lift point moving up or down (a C, out sideways and back); boards above it: moving
+        //sideways (a U, down and back up). Each curve's control point sits on that line through the lift point, at a distance
+        //proportional to its phase's duration
+        const liftShare = StartTokenHandler.LIFT_DURATION / (StartTokenHandler.LIFT_DURATION + StartTokenHandler.LAND_DURATION);
+        const direction = sideways
+            ? { x: 0, y: Math.sign(to.y - from.y) || 1 }
+            : { x: Math.sign(to.x - from.x) || Math.sign(window.innerWidth / 2 - from.x) || 1, y: 0 };
+        const span = Math.max(sideways ? Math.abs(to.y - from.y) : Math.abs(to.x - from.x), StartTokenHandler.MIN_CURVE_SPAN);
+        const liftControl = { x: lift.x - direction.x * span * liftShare, y: lift.y - direction.y * span * liftShare };
+        const landControl = { x: lift.x + direction.x * span * (1 - liftShare), y: lift.y + direction.y * span * (1 - liftShare) };
+        //where the copy is at a point of a phase (phaseProgress 0 to 1, already eased). At the start of the lift and the end of
+        //the landing it sits exactly on the real token: same center, same untilted height, same TILT
+        const placementAt = (isLifting, phaseProgress) => {
+            const point = isLifting ? this.getCurvePoint(from, liftControl, lift, phaseProgress) : this.getCurvePoint(lift, landControl, to, phaseProgress);
+            const height = isLifting
+                ? fromRect.height + (liftHeight - fromRect.height) * phaseProgress
+                : liftHeight + (toRect.height - liftHeight) * phaseProgress;
+            const tiltBackStart = 1 - StartTokenHandler.TILT_BACK_FRACTION;
+            const tilt = isLifting
+                ? StartTokenHandler.TILT * (1 - Math.min(1, phaseProgress / StartTokenHandler.STRAIGHTEN_FRACTION))
+                : StartTokenHandler.TILT * Math.max(0, (phaseProgress - tiltBackStart) / StartTokenHandler.TILT_BACK_FRACTION);
+            return placeOnScreen(point, height, tilt);
+        };
+        //keyframes evenly spread in time, linear between them, eased here per phase: the lift eases in leaving the board and
+        //the landing eases out arriving, while around the peak they ease into and out of the hold only as much as PEAK_PAUSE
+        //calls for (peakEasing 0: through the peak at full speed; 1: to rest and from rest). The hold itself is two equal
+        //keyframes at the peak, exactly PEAK_PAUSE ms apart
+        const peakEasing = Math.min(1, StartTokenHandler.PEAK_PAUSE / StartTokenHandler.PEAK_EASE_FULL_PAUSE);
+        const durationMs = StartTokenHandler.LIFT_DURATION + StartTokenHandler.PEAK_PAUSE + StartTokenHandler.LAND_DURATION;
+        const landStart = (StartTokenHandler.LIFT_DURATION + StartTokenHandler.PEAK_PAUSE) / durationMs; //offset where the landing starts
+        const keyframes = [];
+        for (let i = 0; i <= StartTokenHandler.KEYFRAMES_PER_PHASE; i++) {
+            const t = i / StartTokenHandler.KEYFRAMES_PER_PHASE;
+            keyframes.push({ offset: t * StartTokenHandler.LIFT_DURATION / durationMs, ...placementAt(true, this.easeLift(t, peakEasing)) });
+        }
+        for (let i = 0; i <= StartTokenHandler.KEYFRAMES_PER_PHASE; i++) { //its first keyframe ends the hold at the lift point
+            const t = i / StartTokenHandler.KEYFRAMES_PER_PHASE;
+            keyframes.push({ offset: landStart + t * (1 - landStart), ...placementAt(false, this.easeLand(t, peakEasing)) });
+        }
+        keyframes[keyframes.length - 1].offset = 1; //exactly, whatever the rounding
+        Object.assign(flyingCopy.style, placementAt(true, 0)); //in place before the animation's first frame
+        const flightTiming = { duration: durationMs, easing: 'linear', fill: 'forwards' };
+        const flight = flyingCopy.animate(keyframes, flightTiming);
+        //the stroke keeps the old owner's color through the lift and the hold, and blends into the new owner's through the
+        //landing, done as it lands. Only that layer's background-color animates
+        flyingCopy.querySelector('.start-token-outline')?.animate([
+            { offset: 0, backgroundColor: fromColor },
+            { offset: landStart, backgroundColor: fromColor },
+            { offset: 1, backgroundColor: toColor },
+        ], flightTiming);
+        await Promise.race([
+            flight.finished.catch(() => undefined),
+            this.game.bga.gameui.wait(durationMs + StartTokenHandler.FINISH_SAFETY_MARGIN),
+        ]);
+        this.startToken.style.visibility = null;
+        flyingCopy.remove();
     }
+    //the copy for the flight: in <body>, pinned to the viewport's top-left corner (.flying-start-token), with none of the
+    //token's own translate, rotate or scale, so its first measurement is its untransformed box
+    createFlyingCopy() {
+        const flyingCopy = this.startToken.cloneNode(true);
+        flyingCopy.removeAttribute('id');
+        flyingCopy.style.removeProperty('visibility');
+        flyingCopy.style.removeProperty('rotate');
+        flyingCopy.classList.add('flying-start-token');
+        document.body.appendChild(flyingCopy);
+        return flyingCopy;
+    }
+    //returns the translate, scale and rotate that put the copy's center on an on-screen point, at an on-screen height and
+    //tilt. The copy rotates and scales around its center, so the three never depend on each other. Its measured zoom
+    //converts screen px into its own px (it lives outside BGA's mobile scaling of the page)
+    getFlyingCopyPlacement(flyingCopy) {
+        const baseRect = flyingCopy.getBoundingClientRect(); //untransformed, at the viewport's top-left corner
+        const baseCenter = this.getCenter(baseRect);
+        const cssWidth = parseFloat(getComputedStyle(flyingCopy).width); //unrounded, unlike offsetWidth
+        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
+        return (center, height, tilt) => ({
+            translate: `${(center.x - baseCenter.x) / zoom}px ${(center.y - baseCenter.y) / zoom}px`,
+            scale: `${(baseRect.height > 0) ? height / baseRect.height : 1}`,
+            rotate: `${tilt}deg`,
+        });
+    }
+    //where the token lifts to, in viewport coordinates, so the lift shows even when the boards are scrolled out of view
+    getLiftPoint(sourceAnchor, targetAnchor, from, to, liftHeight) {
+        const margin = liftHeight / 2 + StartTokenHandler.VIEWPORT_MARGIN;
+        const clamp = (value, max) => Math.min(Math.max(value, margin), Math.max(margin, max - margin));
+        if (this.areBoardsBesideGameArea(sourceAnchor)) { //out of the boards column, toward the game area
+            const sourceRect = sourceAnchor.getBoundingClientRect();
+            const targetRect = targetAnchor.getBoundingClientRect();
+            const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
+            const x = (sourceRect.left >= gameAreaRect.left)
+                ? Math.min(sourceRect.left, targetRect.left) - StartTokenHandler.DESKTOP_LIFT_DISTANCE
+                : Math.max(sourceRect.right, targetRect.right) + StartTokenHandler.DESKTOP_LIFT_DISTANCE;
+            return { x: clamp(x, window.innerWidth), y: clamp((from.y + to.y) / 2, window.innerHeight) };
+        }
+        return { x: clamp((from.x + to.x) / 2, window.innerWidth), y: window.innerHeight * StartTokenHandler.MOBILE_LIFT_Y };
+    }
+    //decided by where the boards are, not by the screen width: beside the game area (desktop) when they don't share any
+    //horizontal range with it, above it (mobile) otherwise
+    areBoardsBesideGameArea(anchor) {
+        const boardRect = anchor.getBoundingClientRect();
+        const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
+        return boardRect.left >= gameAreaRect.right - 1 || boardRect.right <= gameAreaRect.left + 1;
+    }
+    //the token's on-screen box without its tilt (a rotated box measures bigger); its center is the same either way
+    getUntiltedRect() {
+        this.startToken.style.rotate = 'none';
+        const rect = this.startToken.getBoundingClientRect();
+        this.startToken.style.rotate = this.getTilt();
+        return rect;
+    }
+    getCurvePoint(from, control, to, t) {
+        return {
+            x: (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * control.x + t * t * to.x,
+            y: (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * control.y + t * t * to.y,
+        };
+    }
+    //the stroke's color: the token's --start-token-color, read by .start-token-outline
+    static setOutlineColor(token, color) { token.style.setProperty('--start-token-color', color); }
+    getPlayerColorCSS(playerID) { return '#' + (this.game.getPlayerColor(playerID) ?? '000000'); }
+    getTilt() { return `${StartTokenHandler.TILT}deg`; }
+    //quadratic easings for the two phases, blended by peakEasing (0 to 1) between ease-in (lift) or ease-out (landing) and
+    //ease-in-out. At peakEasing 0 the lift ends at speed 2 and the landing starts at speed 2 (per unit of its own time); the
+    //path's control points scale with each phase's duration, so the token crosses the peak at one steady speed, no jerk
+    easeLift(t, peakEasing) { return (1 - peakEasing) * t * t + peakEasing * this.easeInOutQuad(t); }
+    easeLand(t, peakEasing) { return (1 - peakEasing) * (1 - (1 - t) * (1 - t)) + peakEasing * this.easeInOutQuad(t); }
+    easeInOutQuad(t) { return (t < 0.5) ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t); }
+    getCenter(rect) { return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; }
     getStartPlayerID() { return this.startPlayerID; }
 }
-StartTokenHandler.SLIDE_ANIM_TIME = 600;
+StartTokenHandler.TILT = -7; //deg, the token's rotation on a board (tilted left); upright (0) in flight
+//the pass: a flight on a copy of the token, out of the player boards area (growing), a hold at the peak, then into the new board (shrinking back)
+StartTokenHandler.LIFT_DURATION = 520; //ms of phase 1, from the old board to the lift point: eases in leaving the board
+StartTokenHandler.PEAK_PAUSE = 100; //ms of real stillness at the lift point, at full size, between the two phases (0: no hold, no slowdown)
+StartTokenHandler.PEAK_EASE_FULL_PAUSE = 300; //PEAK_PAUSE (ms) from which the lift fully eases into the hold and the landing out of it; shorter pauses ease proportionally less
+StartTokenHandler.LAND_DURATION = 520; //ms of phase 2, from the lift point to the new board: eases out arriving on it
+StartTokenHandler.STRAIGHTEN_FRACTION = 0.22; //share of phase 1, from its start, in which the token rotates from TILT to upright
+StartTokenHandler.TILT_BACK_FRACTION = 0.22; //share of phase 2, up to its end, in which it rotates back to TILT, done as it lands
+StartTokenHandler.LIFT_SCALE = 2; //size of the token at the lift point, relative to its size on a board
+StartTokenHandler.DESKTOP_LIFT_DISTANCE = 140; //px from the boards column's inner edge to the token's center at the lift point (boards beside the game area)
+StartTokenHandler.MOBILE_LIFT_Y = 0.4; //share of the viewport height of the lift point (boards above the game area)
+StartTokenHandler.VIEWPORT_MARGIN = 10; //px the lifted token keeps from the viewport's edges
+StartTokenHandler.MIN_CURVE_SPAN = 120; //px, the least the path swings through the lift point, so boards right next to each other still get a curve
+StartTokenHandler.KEYFRAMES_PER_PHASE = 24; //points sampled along each phase for the animation's keyframes (a fixed count, computed once per pass)
+StartTokenHandler.FINISH_SAFETY_MARGIN = 300; //ms after the flight's duration at which the pass ends anyway, should the animation never report finished
+//the token's layers, bottom to top: the stroke in its owner's color, the pawn (see .start-token in Game.scss).
+//Shared with the mini token in log rows
+StartTokenHandler.LAYERS_HTML = '<div class="start-token-outline"></div><div class="start-token-pawn"></div>';
 
 class LogMutationObserver {
     constructor(game) {
@@ -1140,7 +1310,7 @@ class LogMutationObserver {
             : _('${playerName} receives the Start token').replace('${playerName}', playerNameHTML);
         let logHTML = `
             <div class="start-token-row">
-                <div class="start-token mini-start-token"></div>&nbsp;${startTokenText}
+                <div class="start-token mini-start-token" style="--start-token-color: #${this.game.getPlayerColor(player_id) ?? '000000'}">${StartTokenHandler.LAYERS_HTML}</div>&nbsp;${startTokenText}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'start-token-log');
     }
@@ -1907,22 +2077,26 @@ class Game {
     }
     //moves the copy from fromRect to toRect (both on screen), then removes it
     async moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing) {
-        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
-        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
-        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
-        //scaled to rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the
-        //copy, like a row of mini card backs, still sends it off from its middle
-        const transformOnto = (rect) => {
-            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
-            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
-            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
-        };
+        const transformOnto = this.getSlidingCloneTransform(slidingClone);
         slidingClone.style.transform = transformOnto(fromRect);
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
         slidingClone.style.transition = `transform ${durationMs}ms ${easing}`;
         slidingClone.style.transform = transformOnto(toRect);
         await this.bga.gameui.wait(durationMs);
         slidingClone.remove();
+    }
+    //returns the transform that puts the copy (a fresh createSlidingClone, untransformed) onto an on-screen rect: scaled to
+    //rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the copy, like a row
+    //of mini card backs, still sends it off from its middle. The copy converts screen px with its own measured zoom
+    getSlidingCloneTransform(slidingClone) {
+        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
+        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
+        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
+        return (rect) => {
+            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
+            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
+            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
+        };
     }
     //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one
     getSlideSourceRect(from) {

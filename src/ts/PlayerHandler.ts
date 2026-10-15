@@ -20,7 +20,7 @@ export class PlayerHandler{
     private handCountBacks: HTMLDivElement;
     private lastChanceIndicator: HTMLDivElement;
     private roundStatusIndicator: HTMLDivElement;
-    private startTokenSlot: HTMLDivElement;
+    private startTokenAnchor: HTMLDivElement;
     private playedColumn: PlayedColumnHandler;
 
 	constructor(private game: Game, private playerID: number, private playerName: string, private playerColor: string, private playerNo: number, private handCount: number, private roundStatus: RoundStatus, private lastChanceUsed: boolean, private playedCardsData: PlayedCard[]) {
@@ -33,7 +33,8 @@ export class PlayerHandler{
         this.setRoundStatus(this.roundStatus);
 	}
 
-    //every player board, spectators included, shows the hand count, Last Chance, round status and a slot for the Start token
+    //every player board, spectators included, shows the hand count, Last Chance and round status. The Start token is not in
+    //this content: it sits on the top-left corner of the whole BGA player board (startTokenAnchor) and takes no layout space
     private createPlayerBoardContainer(){
         this.playerBoardContainer = document.createElement('div');
         this.playerBoardContainer.classList.add('riviera-player-board');
@@ -44,16 +45,17 @@ export class PlayerHandler{
             </div>
             <div class="player-board-status-row">
                 <div class="round-status-indicator"></div>
-                <div class="start-token-slot"></div>
             </div>
         `;
 
-        this.game.bga.playerPanels.getElement(this.playerID).appendChild(this.playerBoardContainer);
+        const playerPanel = this.game.bga.playerPanels.getElement(this.playerID);
+        playerPanel.appendChild(this.playerBoardContainer);
 
         this.handCountBacks = this.playerBoardContainer.querySelector('.hand-count-backs');
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
-        this.startTokenSlot = this.playerBoardContainer.querySelector('.start-token-slot');
+        this.startTokenAnchor = (playerPanel.closest('.player-board') as HTMLDivElement) ?? playerPanel; //BGA's whole board around our panel
+        this.startTokenAnchor.classList.add('start-token-anchor');
 
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
@@ -118,6 +120,6 @@ export class PlayerHandler{
     public getPlayerColor(): string { return this.playerColor; }
     public getHandCount(): number { return this.handCount; }
     public getPlayedColumn(): PlayedColumnHandler { return this.playedColumn; }
-    public getStartTokenSlot(): HTMLDivElement { return this.startTokenSlot; }
+    public getStartTokenAnchor(): HTMLDivElement { return this.startTokenAnchor; }
     public getHandCountElement(): HTMLDivElement { return this.handCountBacks; }
 }

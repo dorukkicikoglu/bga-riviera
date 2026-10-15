@@ -10,6 +10,7 @@
  * LogMutationObserver.ts
  */
 import { Game } from "./Game";
+import { StartTokenHandler } from "./StartTokenHandler";
 
 interface LogRowData { //this is used to return strings containing log-class-tag divs
     log_html: string;
@@ -184,7 +185,7 @@ export class LogMutationObserver{
 
         let logHTML = `
             <div class="start-token-row">
-                <div class="start-token mini-start-token"></div>&nbsp;${startTokenText}
+                <div class="start-token mini-start-token" style="--start-token-color: #${this.game.getPlayerColor(player_id) ?? '000000'}">${StartTokenHandler.LAYERS_HTML}</div>&nbsp;${startTokenText}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'start-token-log');

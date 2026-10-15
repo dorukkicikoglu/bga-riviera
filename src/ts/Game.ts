@@ -289,17 +289,7 @@ export class Game {
 
     //moves the copy from fromRect to toRect (both on screen), then removes it
     private async moveSlidingClone(slidingClone: HTMLDivElement, fromRect: DOMRect, toRect: DOMRect, durationMs: number, easing: string): Promise<void> {
-        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
-        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
-        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
-
-        //scaled to rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the
-        //copy, like a row of mini card backs, still sends it off from its middle
-        const transformOnto = (rect: DOMRect): string => {
-            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
-            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
-            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
-        };
+        const transformOnto = this.getSlidingCloneTransform(slidingClone);
 
         slidingClone.style.transform = transformOnto(fromRect);
 
@@ -311,6 +301,21 @@ export class Game {
         await this.bga.gameui.wait(durationMs);
 
         slidingClone.remove();
+    }
+
+    //returns the transform that puts the copy (a fresh createSlidingClone, untransformed) onto an on-screen rect: scaled to
+    //rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the copy, like a row
+    //of mini card backs, still sends it off from its middle. The copy converts screen px with its own measured zoom
+    private getSlidingCloneTransform(slidingClone: HTMLDivElement): (rect: DOMRect) => string {
+        const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
+        const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
+        const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
+
+        return (rect: DOMRect): string => {
+            const scale = (baseRect.height > 0) ? rect.height / baseRect.height : 1;
+            const left = rect.left + (rect.width - baseRect.width * scale) / 2;
+            return `translate(${(left - baseRect.left) / zoom}px, ${(rect.top - baseRect.top) / zoom}px) scale(${scale})`;
+        };
     }
 
     //a player board's hand count is a row of mini card backs: a card leaving it starts from the top one

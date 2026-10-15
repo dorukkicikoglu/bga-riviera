@@ -66,7 +66,7 @@ No valid card, Last Chance, Crash:
 - [x] "Crash", then "Change my mind": undone. "Crash" again, then reveal: my column and hand fade out, my board shows 0 cards and "Crashed", my column is dimmed. A separate crash log row (coral, bomb icon) appears.
 
 Start token:
-- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, see M4 > Start token.)
+- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, and sits on the board's corner with a curved two-phase flight, see M4 > Start token.)
 
 Stop or More:
 - [x] Status: "You must choose: Stop or More", buttons "Stop and bank N ★" (N = my ★ total) and "More".
@@ -229,6 +229,15 @@ Start token (skips players out of the round), on a 3- or 4-player table:
 - [ ] At the start of a new round the token stays where it is and keeps passing from there; card powers (clockwise from the holder) and the Stop/More and banking order follow the new holder.
 - [ ] The Start token's tooltip says it passes to the next player still in the round.
 
+Start token placement and flight (`debug_passStartToken()` passes it at will):
+- [ ] The token sits on the top-left corner of its owner's whole player board, over the board content (slightly over the corner, not clipped). The board's rows don't leave room for it, and no board changes height or shifts when the token arrives or leaves.
+- [ ] Desktop (boards in a column beside the game area): the token lifts out to the side of the boards column, toward the game area (about 140px past it), growing to 2x, holds still at the peak for exactly `PEAK_PAUSE` ms, then curves back into the new owner's corner, shrinking back to its size. With `PEAK_PAUSE` 0 it sweeps through the peak at full speed with no slowdown; longer pauses ease into and out of the hold more (fully from 300 ms).
+- [ ] Mobile (boards stacked above the game area): the token lifts down to about 40% of the screen height, growing, then curves back up into the new board, shrinking.
+- [ ] Scrolled down so the boards are out of view (on mobile, or a short desktop window): the lift still shows on screen, coming from and going back to the boards' real places off-screen.
+- [ ] A narrow desktop window where BGA puts the boards above the game area uses the mobile (downward) flight; a wide one uses the sideways flight.
+- [ ] The next log row / state only comes once the token has landed; the real token is then on the new board with its tooltip. F5: the token is on the right board, no flight. In-game replay animates the same way; fast replay just moves it.
+- [ ] The mini token in log rows is unchanged.
+
 Banking at the Stop reveal:
 - [ ] When the Stop/More row appears, each player who stopped gets a "banks N ★" row right after it (clockwise from the Start token holder), and their score on the player board rises by N at that moment, not at the end of the round.
 - [ ] At the end of the round no second "banks" row appears and nobody's score changes again.
@@ -249,7 +258,7 @@ Layout:
 - [ ] On a phone (BGA mobile layout): my hand cards are large enough to read the number and stars; all of them sit on one horizontal line at the same height, overlapping more so the hand spans the full width with no horizontal scroll, and each card's number and stars stay visible. With fewer cards they keep a small overlap and stay centered (no spreading out). Rotating the phone respaces the hand.
 - [ ] On a phone: dice and played-column cards are readable too, in proportion to the hand; the columns wrap onto several rows.
 - [ ] On desktop and on a phone: only a selected card and a set-aside (chosen) card move, raised above the line; selecting, confirming, the playable glow and Change my mind still work.
-- [ ] Every card slide changes size smoothly and lands exactly at its destination's size, with no jump at the end, on desktop and on a phone: my card into my column; another player's card from their board's mini card back into their column; card 10 cards sliding in from the other player's board; card backs between boards (card 10 seen by a third player); the Start token between boards.
+- [ ] Every card slide changes size smoothly and lands exactly at its destination's size, with no jump at the end, on desktop and on a phone: my card into my column; another player's card from their board's mini card back into their column; card 10 cards sliding in from the other player's board; card backs between boards (card 10 seen by a third player).
 - [ ] Card 10's fade-out / fade-in happens in place at the hand's size.
 - [ ] New round (`debug_redeal()` or a real new round, ending it with cards still in my hand), on desktop and on a phone, in this order: the previous columns clear; then, at the same time, the cards left in my hand slide left off-screen together (about 0.2 s, starting from exactly where they were, no jump) and my 10 new cards fly in one after the other, rightmost first and leftmost last, each from above the page and far to the left of its slot, all along the same path (shifted to their own slots), already at hand-card size, each landing in its final slot (about 1.3 s); the dice roll only once the last new card has landed. No card shifts during or after the deal.
 - [ ] Through the sweep and the deal the dice keep last round's values (never blank); they change, with their change animation, only when the roll comes after the deal. A spectator sees the same dice behavior (no sweep, no deal).
