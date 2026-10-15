@@ -2,6 +2,38 @@
 
 Source: official rulebook (EN). Items marked **[BGA]** are deliberate choices for the BGA version, either where the rules are silent or where we knowingly differ from the physical game.
 
+## Glossary
+
+- **Round**: from the deal of 10 cards each until every player is stopped or crashed (`roundNumber`, `RoundSetup` → `EndRound`). The game is several rounds.
+- **Turn**: one pass through the turn sequence: roll, card 9, play, reveal, Stop or More, Start token pass, cards 2/10/11. One turn = one dice roll (the `turns` table stat).
+- **Roll**: rolling every die in play at the start of a turn (`RollDice`).
+- **Die in play**: a colored die of a color in use (`die_location = 'in_play'`), plus the golden die when added. **Colors in use**: the colors whose die is in play (4 colors at 2 to 4 players, 5 at 5 to 6).
+- **Returned to the box**: the color removed at 2 to 4 players, its 12 cards (`card_location`) and its die (`die_location`) `returned_to_box` for the whole game.
+- **Hand**: a player's secret cards (`card_location = 'hand'`). Others only see the hand count.
+- **Playable card**: a card in hand that is a valid play on the current dice (`getPlayableCardIDs()`): same value and color as one available die, or value equal to the sum of 2 available dice and color of one of them. An **available die** is one not reserved by another player.
+- **Play choice**: what a player still in picks in `PlayCard`: a card (`card`), Last Chance (`last_chance`) or Crash (`crash`). Pending until the reveal.
+- **Pending choice**: a play choice or Stop/More choice saved in `player` columns but not applied yet; only the reveal applies it.
+- **Set aside**: the look of chosen cards (first card and chain) raised in the hand until the reveal or Change my mind.
+- **Change my mind**: undoing your pending choice and choosing again, until the last player has chosen (`RIVChangeMindManager`, `ChangeMindHandler`).
+- **Reveal**: the GAME state that applies every pending choice at once and sends one notification: the card reveal (`RevealCards`) and the Stop/More reveal (`RevealStopOrMore`). "The reveal" alone means the card reveal.
+- **Column**: a player's played cards this round (`card_location = 'played'`, ordered by `location_in_column`), stacked so only the top strip with stars shows. Its stars are the **column stars**.
+- **Round status**: `in` (still playing this round), `stopped` (chose Stop, stars banked, out until the next round) or `crashed` (out with 0 points this round, column and hand discarded). **Out of the round** = stopped or crashed.
+- **Stop or More**: the simultaneous choice every player still in makes after the reveal. **Stop** (also **bank**: "Stop and bank N ★") ends your round and adds your column stars to your score at the Stop/More reveal (the `starsBanked` notification). **More** keeps you in for the next turn.
+- **Crash**: the play choice offered only when no card is playable: out of the round with 0 points, column and hand discarded.
+- **Last Chance**: each player's one card per game: play nothing this turn and stay in (`last_chance_used`). It sits on the player board until used.
+- **Power**: the effect of a card of value 1, 2, 9, 10 or 11, named by that value (`POWER2` suffix). **Power owner**: the player whose revealed card has it.
+- **Chain** (card 1): the extra cards a player adds after confirming a 1, inside their play choice, each on the same roll (`chain_position_POWER1`). Revealed with the first card. Only the last card of a chain can leave a non-1 power.
+- **Pending power**: a card 2, 9, 10 or 11 power marked after the reveal (`pending_POWER2/9/10/11`) and not resolved yet. **Pre-roll powers**: 2, 10 and 11, resolved after the Start token pass for owners who chose More. Card 9 resolves after the next roll.
+- **Resolve**: a pending power taking effect, used or skipped by its owner (`powerUsed_POWER*` stats count uses).
+- **Reserved die** (card 2): the die of the card's color, kept for its owner on the next roll (`reserved_by_POWER2`); other players can't use it, alone or in a sum.
+- **Golden die** (card 11): an extra colorless die added to the next roll (`in_use_by_POWER11`); it only counts in a sum with a colored die, which gives the color.
+- **Modified die** (card 9): a die turned +1 or -1 this roll (`modified_by_POWER9`); it can't be turned again this roll.
+- **Swap / redraw** (card 10): swapping 2 own cards for 2 random cards of an opponent who chose More, or, with no such opponent, the fallback of discarding and drawing from the **draw pile** (`deck`, refilled from the **discard pile**, `discard`).
+- **Start token holder**: the player with the Start token (`startPlayerId`). Reveal rows, banking order and every power resolve clockwise from them. **Start token pass**: the token moving to the next player still in, once per turn after Stop or More.
+- **Grand Slam**: a player's hand empty after a reveal (all 10 cards played this round); they win at once and the game ends.
+- **Round score**: what a round gave each player, one `round_scores` row: `stopped` (stars banked), `crashed`, `grand_slam` or `unfinished` (still in when a Grand Slam ended the round). Shown in the end-game table.
+- **Score**: a player's total banked stars over the game; 40 or more at the end of a round ends the game.
+
 ## Components
 
 - 60 numbered cards: values 1 to 12 in 5 colors (12 per color).

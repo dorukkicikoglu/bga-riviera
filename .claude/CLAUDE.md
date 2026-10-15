@@ -56,6 +56,7 @@ Mirror these specifically:
 
 ## Conventions
 
+- **Glossary**: use the terms in SPEC.md > Glossary in code comments, UI strings and docs. If I use a different word for one of them, treat it as the glossary term.
 - **Power naming**: any field, DB column or variable that exists only because of a special power carries the power's card value in its name: `reserved_by_POWER2`, `modified_by_POWER9`, `in_use_by_POWER11`. Same suffix in PHP, SQL, TS and data attributes (`data-reserved-by-power2`).
 - **Card ids reveal identity**: cards are inserted in a fixed order, so a `card_id` tells its color and value. Never send ids of cards a player isn't allowed to see; send counts instead.
 - **Color order**: the `color` ENUM is declared in sprite order (red, green, purple, blue, orange), so `ORDER BY color, value` sorts like the sprite. Keep `CARD_COLORS` (PHP) and `$card-colors` (SCSS) in that same order.
