@@ -34,12 +34,14 @@ class EndRound extends \Bga\GameFramework\States\GameState
      * The round is over: nobody is still in. Stoppers already banked their stars when their Stop was revealed
      * (RevealStopOrMore) and crashes are recorded at the reveal (RevealCards), so all that is left is the 40-point check:
      * anyone at WINNING_SCORE or more ends the game (highest score wins, equal scores share the win).
+     * The Start token's end-of-round pass waits for that check: [BGA] it is not passed if the game just ended.
      */
     function onEnteringState() {
         $maxScore = $this->game->bga->playerScore->getMax();
         if($maxScore >= WINNING_SCORE)
             return EndScore::class;
 
+        $this->game->tableManager->passStartToken();
         return RoundSetup::class;
     }
 }
