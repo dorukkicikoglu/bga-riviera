@@ -31,13 +31,19 @@ class PassStartToken extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * The Start token passes to the next player in turn order every turn, even when everyone crashed. It passes right
-     * after the reveal, before Stop or More, so this turn's card 2, 10 and 11 powers (after Stop or More) and the
-     * next roll's card 9 powers resolve clockwise from the new holder.
+     * [BGA, confirmed with publisher] The Start token passes once every turn, after Stop or More is revealed (or right
+     * after the card reveal when everyone crashed), so this turn's card 2, 10 and 11 powers and the next roll's card 9
+     * powers resolve clockwise from the new holder. It also passes when the round ends.
      */
     function onEnteringState() {
         $this->game->tableManager->passStartToken();
 
-        return StopOrMore::class;
+        //with nobody left the round ends, and RoundSetup clears every pending power anyway
+        if(count($this->game->getPlayerIDsInRound()) > 0){
+            $this->game->powerManager->clearPreRollPowersOfPlayersOut();
+            return $this->game->powerManager->goToNextPreRollPower();
+        }
+
+        return EndRound::class;
     }
 }

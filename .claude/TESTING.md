@@ -66,7 +66,7 @@ No valid card, Last Chance, Crash:
 - [x] "Crash", then "Change my mind": undone. "Crash" again, then reveal: my column and hand fade out, my board shows 0 cards and "Crashed", my column is dimmed. A separate crash log row (coral, bomb icon) appears.
 
 Start token:
-- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, and sits on the board's corner with a curved two-phase flight, see M4 > Start token.)
+- [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, and sits on the board's corner with a curved two-phase flight, and since 2026-10-15 passes after the Stop/More reveal instead of after the card reveal, see M4 > Start token.)
 
 Stop or More:
 - [x] Status: "You must choose: Stop or More", buttons "Stop and bank N ★" (N = my ★ total) and "More".
@@ -221,12 +221,16 @@ Zombie (friendly mode, kick a player in each state; a 3-player table helps):
 - [ ] Kick a player while they are the active power owner in ModifyDie, ResolvePowers or SwapCards: the game never blocks. Over a few tries the zombie sometimes uses the power (turns a die, adds the golden die, swaps 2 cards with a real player) and sometimes skips.
 - [ ] A zombie swap with me: my hand changes and I get the private row with the real cards.
 
-Start token (skips players out of the round), on a 3- or 4-player table:
-- [ ] After a reveal the token skips players who stopped or crashed and slides to the next player clockwise who is still in, with its usual log row.
-- [ ] A player who crashes on this reveal is already skipped by this pass.
-- [ ] If the holder is the only player still in, the token stays with them: no slide and no log row.
-- [ ] If nobody is still in (everyone crashed on that reveal), it slides to the next player in turn order, as before.
-- [ ] At the start of a new round the token stays where it is and keeps passing from there; card powers (clockwise from the holder) and the Stop/More and banking order follow the new holder.
+Start token (passes after Stop or More, skips players out of the round), on a 3- or 4-player table:
+- [ ] The token no longer moves after the card reveal: it passes once the Stop/More row and any "banks N ★" rows are in the log, with its usual flight and log row, before any card 2, 10 or 11 power (reservation row, golden die prompt, swap prompt).
+- [ ] It skips players who stopped or crashed, this turn's stoppers included, and slides to the next player clockwise who is still in.
+- [ ] A player who crashes on this reveal is skipped by this turn's pass too.
+- [ ] Card 2, 10 and 11 owners who chose More resolve clockwise from the player who just received the token; card 9 owners at the next roll start from that same player.
+- [ ] If the holder is the only player who chose More, the token stays with them: no slide and no log row.
+- [ ] Everyone crashes on the reveal (no Stop or More): the token still slides to the next player in turn order, right after the crash rows, then the round ends.
+- [ ] Nobody chooses More (everyone stopped or crashed): the token slides to the next player in turn order after the Stop/More and banks rows, before the new round's columns clear.
+- [ ] Never more than one token pass per turn (count the log rows over a few turns; none only when the holder keeps it).
+- [ ] At the start of a new round the token stays where it is and keeps passing from there; the reveal row, the Stop/More row and the banking order of a turn follow the player holding the token during that turn (the one who received it at the end of the previous turn).
 - [ ] The Start token's tooltip says it passes to the next player still in the round.
 
 Start token placement and flight (`debug_passStartToken()` passes it at will):

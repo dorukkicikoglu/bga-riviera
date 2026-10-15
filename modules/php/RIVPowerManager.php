@@ -74,7 +74,7 @@ class RIVPowerManager{
 
     /**
      * Pre-roll powers (2, 10, 11), after Stop or More, for owners who chose More (still 'in'), clockwise from the
-     * Start token holder (it passed before Stop or More). Card 2 is applied on the spot; a card-10 or card-11 owner
+     * Start token holder (it passed right after Stop or More). Card 2 is applied on the spot; a card-10 or card-11 owner
      * becomes the active player of SwapCards or ResolvePowers. Every action of those states returns this again,
      * so the walk goes on until nobody has a pending pre-roll power, then the next roll.
      */

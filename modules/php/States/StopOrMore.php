@@ -42,8 +42,8 @@ class StopOrMore extends GameState
         $this->game->changeMindManager->resetChoices(self::CHOICE_COLUMNS);
 
         $inRoundIDs = $this->game->getPlayerIDsInRound();
-        if(empty($inRoundIDs)) //everyone crashed
-            return EndRound::class;
+        if(empty($inRoundIDs)) //everyone crashed: the Start token still passes this turn
+            return PassStartToken::class;
 
         $this->game->gamestate->setPlayersMultiactive($inRoundIDs, RevealStopOrMore::class, true);
     }
