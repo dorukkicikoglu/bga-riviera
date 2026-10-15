@@ -30,7 +30,7 @@ export class SwapCards {
         this.args = args;
 
         if(!isCurrentPlayerActive || !this.game.handHandler){
-            this.bga.statusBar.setTitle(_('${actplayer} may swap cards with an opponent'));
+            this.game.setPowerPromptTitle(args?.powerCard ?? null, false);
             return;
         }
 
@@ -58,20 +58,26 @@ export class SwapCards {
         this.bga.statusBar.removeActionButtons();
         const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
 
-        if(this.args.mode === 'swap'){
-            this.bga.statusBar.setTitle(_('${you} may choose 2 cards to swap with an opponent'));
+        //the buttons show from the start, disabled until enough cards are selected, so the swap or redraw mode is visible at once
+        const allCardsSelected = selectedCardIDs.length === this.args.maxCards;
 
-            if(selectedCardIDs.length === this.args.maxCards){
-                for(let target of this.args.targets){
-                    const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
-                    this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), {id: 'swap-with-' + target.player_id + '-button'});
-                }
+        if(this.args.mode === 'swap'){
+            if(selectedCardIDs.length === 0)
+                this.game.setPowerPromptTitle(this.args.powerCard, true);
+            else this.bga.statusBar.setTitle(allCardsSelected ? _('Choose an opponent to swap with') : _('Choose 2 cards to swap'));
+
+            for(let target of this.args.targets){
+                const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
+                this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), {id: 'swap-with-' + target.player_id + '-button', disabled: !allCardsSelected});
             }
         } else {
-            this.bga.statusBar.setTitle(_('No opponent who chose More has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
+            if(selectedCardIDs.length === 0)
+                this.game.setPowerPromptTitle(this.args.powerCard, true);
+            else if(allCardsSelected)
+                this.bga.statusBar.setTitle(this.args.maxCards === 1 ? _('Discard this card and draw 1?') : _('Discard these cards and draw 2?'));
+            else this.bga.statusBar.setTitle(_('Choose 2 cards to discard'));
 
-            if(selectedCardIDs.length === this.args.maxCards)
-                this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), {id: 'redraw-button'});
+            this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), {id: 'redraw-button', disabled: !allCardsSelected});
         }
 
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), {id: 'skip-power-button', color: 'secondary'});

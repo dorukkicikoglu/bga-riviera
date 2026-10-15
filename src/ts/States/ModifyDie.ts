@@ -21,6 +21,7 @@ import { DiceHandler } from "../DiceHandler";
 export class ModifyDie {
     private modifiableDice: { color: DieColor; value: number; }[] = [];
     private selectedChoice: { color: DieColor; delta: number; } | null = null;
+    private powerCard: RivieraCard | null = null;
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -30,10 +31,11 @@ export class ModifyDie {
      */
     onEnteringState(args: ModifyDieArgs, isCurrentPlayerActive: boolean) {
         this.modifiableDice = args?.modifiableDice ?? [];
+        this.powerCard = args?.powerCard ?? null;
         this.selectedChoice = null;
 
         if(!isCurrentPlayerActive){
-            this.bga.statusBar.setTitle(_('${actplayer} may change a die (card 9)'));
+            this.game.setPowerPromptTitle(this.powerCard, false);
             return;
         }
 
@@ -76,7 +78,7 @@ export class ModifyDie {
                 .replace('${newValue}', newValue.toString()));
             this.bga.statusBar.addActionButton(_('Confirm'), () => this.modifyDie(selectedChoice.color, selectedChoice.delta), {id: 'confirm-die-button'});
         } else {
-            this.bga.statusBar.setTitle(_('${you} may turn a die up or down by 1 (card 9)'));
+            this.game.setPowerPromptTitle(this.powerCard, true);
         }
 
         this.bga.statusBar.addActionButton(_('Skip'), () => this.skipClicked(), {id: 'skip-power-button', color: 'secondary'});

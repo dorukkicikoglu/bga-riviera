@@ -24,13 +24,11 @@ export class ResolvePowers {
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args: ResolvePowersArgs, isCurrentPlayerActive: boolean) {
-        if(!isCurrentPlayerActive){
-            this.bga.statusBar.setTitle(_('${actplayer} may add the golden die to the next roll (card 11)'));
+        this.game.setPowerPromptTitle(args?.powerCard ?? null, isCurrentPlayerActive);
+        if(!isCurrentPlayerActive)
             return;
-        }
 
-        this.bga.statusBar.setTitle(_('${you} may give everyone an extra die on the next roll, usable only in sums (card 11)'));
-        this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), {id: 'add-golden-die-button'});
+        this.bga.statusBar.addActionButton(_('Add golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), {id: 'add-golden-die-button'});
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), {id: 'skip-power-button', color: 'secondary'});
     }
 

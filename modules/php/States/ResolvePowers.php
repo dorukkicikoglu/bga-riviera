@@ -38,6 +38,12 @@ class ResolvePowers extends GameState
         );
     }
 
+    //powerCard is the owner's 11, shown in the status bar (played cards are public)
+    public function getArgs(): array
+    {
+        return ['powerCard' => $this->game->tableManager->getLastPlayedCard((int) $this->game->getActivePlayerId())];
+    }
+
     #[PossibleAction]
     public function actAddGoldenDie_POWER11(int $activePlayerId)
     {

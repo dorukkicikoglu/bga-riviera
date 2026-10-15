@@ -107,7 +107,7 @@ export class PlayCard {
             }
         } else {
             if(this.pendingChoice.choice === 'card'){
-                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(handHandler.getCardData(cardID))).join('');
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardIconHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
             } else {
                 const pendingChoiceTitles: Record<Exclude<PlayChoice, 'card'>, string> = {
@@ -137,12 +137,12 @@ export class PlayCard {
 
         const isAddingToChain = this.pendingChoice !== null;
         if(selectedCard)
-            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
+            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.game.getStatusCardIconHTML(selectedCard)));
         else if(isAddingToChain){
             //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
             const chosenCardIDs = this.getChosenCardIDs();
             const lastChosenCard = this.game.handHandler?.getCardData(chosenCardIDs[chosenCardIDs.length - 1]);
-            this.bga.statusBar.setTitle(_('${you} may play an extra card with ${card1}').replace('${card1}', this.getCardIconHTML(lastChosenCard)));
+            this.game.setPowerPromptTitle(lastChosenCard ?? null, true);
         }
         else this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
     }
@@ -153,14 +153,6 @@ export class PlayCard {
             return;
 
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
-    }
-
-    //the number is drawn from img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead
-    private getCardIconHTML(card: RivieraCard | null): string {
-        if(!card)
-            return '';
-        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.game.getColorName(card.color));
-        return `<span class="status-card-icon" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
 
     private getChosenCardIDs(): number[] {

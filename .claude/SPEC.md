@@ -161,6 +161,8 @@ Entries are separated by spacing only: no borders or boxes, except the hovered c
 
 Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
 
+Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card]" / "<name> may use [card]", the card that gave the power drawn as the circular card icon (a ring in its color around its number, as in "Play [card]?"), with the same single-power tooltip as the log mini cards. Buttons stay short ("Add golden die", "Skip"); steps inside a power get their own short titles ("Turn [die] 4 → 5?", "Choose 2 cards to swap"). Card 2 has no prompt (automatic).
+
 ## Preferences [BGA]
 
 - "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included. It also skips the card 9 Confirm: clicking a die's arrow (or half) turns it at once.

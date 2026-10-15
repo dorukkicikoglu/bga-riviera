@@ -86,7 +86,7 @@ class PlayCard {
         }
         else {
             if (this.pendingChoice.choice === 'card') {
-                const cardsIcons = this.getChosenCardIDs().map(cardID => this.getCardIconHTML(handHandler.getCardData(cardID))).join('');
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardIconHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
             }
             else {
@@ -113,12 +113,12 @@ class PlayCard {
         }
         const isAddingToChain = this.pendingChoice !== null;
         if (selectedCard)
-            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.getCardIconHTML(selectedCard)));
+            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.game.getStatusCardIconHTML(selectedCard)));
         else if (isAddingToChain) {
             //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
             const chosenCardIDs = this.getChosenCardIDs();
             const lastChosenCard = this.game.handHandler?.getCardData(chosenCardIDs[chosenCardIDs.length - 1]);
-            this.bga.statusBar.setTitle(_('${you} may play an extra card with ${card1}').replace('${card1}', this.getCardIconHTML(lastChosenCard)));
+            this.game.setPowerPromptTitle(lastChosenCard ?? null, true);
         }
         else
             this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
@@ -128,13 +128,6 @@ class PlayCard {
         if (!selectedCardID)
             return;
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
-    }
-    //the number is drawn from img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead
-    getCardIconHTML(card) {
-        if (!card)
-            return '';
-        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.game.getColorName(card.color));
-        return `<span class="status-card-icon" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
     getChosenCardIDs() {
         const firstCardID = (this.pendingChoice && this.pendingChoice.choice === 'card') ? this.pendingChoice.card_id : null;
@@ -382,15 +375,17 @@ class ModifyDie {
         this.bga = bga;
         this.modifiableDice = [];
         this.selectedChoice = null;
+        this.powerCard = null;
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
         this.modifiableDice = args?.modifiableDice ?? [];
+        this.powerCard = args?.powerCard ?? null;
         this.selectedChoice = null;
         if (!isCurrentPlayerActive) {
-            this.bga.statusBar.setTitle(_('${actplayer} may change a die (card 9)'));
+            this.game.setPowerPromptTitle(this.powerCard, false);
             return;
         }
         this.game.diceHandler.showModifyArrowsPOWER9(this.modifiableDice);
@@ -427,7 +422,7 @@ class ModifyDie {
             this.bga.statusBar.addActionButton(_('Confirm'), () => this.modifyDie(selectedChoice.color, selectedChoice.delta), { id: 'confirm-die-button' });
         }
         else {
-            this.bga.statusBar.setTitle(_('${you} may turn a die up or down by 1 (card 9)'));
+            this.game.setPowerPromptTitle(this.powerCard, true);
         }
         this.bga.statusBar.addActionButton(_('Skip'), () => this.skipClicked(), { id: 'skip-power-button', color: 'secondary' });
     }
@@ -473,12 +468,10 @@ class ResolvePowers {
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
-        if (!isCurrentPlayerActive) {
-            this.bga.statusBar.setTitle(_('${actplayer} may add the golden die to the next roll (card 11)'));
+        this.game.setPowerPromptTitle(args?.powerCard ?? null, isCurrentPlayerActive);
+        if (!isCurrentPlayerActive)
             return;
-        }
-        this.bga.statusBar.setTitle(_('${you} may give everyone an extra die on the next roll, usable only in sums (card 11)'));
-        this.bga.statusBar.addActionButton(_('Add the golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
+        this.bga.statusBar.addActionButton(_('Add golden die'), () => this.bga.actions.performAction('actAddGoldenDie_POWER11'), { id: 'add-golden-die-button' });
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER11'), { id: 'skip-power-button', color: 'secondary' });
     }
     /**
@@ -506,7 +499,7 @@ class SwapCards {
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = args;
         if (!isCurrentPlayerActive || !this.game.handHandler) {
-            this.bga.statusBar.setTitle(_('${actplayer} may swap cards with an opponent'));
+            this.game.setPowerPromptTitle(args?.powerCard ?? null, false);
             return;
         }
         this.game.handHandler.setSelectableCards(this.game.handHandler.getHandCardIDs(), args.maxCards);
@@ -528,19 +521,26 @@ class SwapCards {
             return;
         this.bga.statusBar.removeActionButtons();
         const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
+        //the buttons show from the start, disabled until enough cards are selected, so the swap or redraw mode is visible at once
+        const allCardsSelected = selectedCardIDs.length === this.args.maxCards;
         if (this.args.mode === 'swap') {
-            this.bga.statusBar.setTitle(_('${you} may choose 2 cards to swap with an opponent'));
-            if (selectedCardIDs.length === this.args.maxCards) {
-                for (let target of this.args.targets) {
-                    const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
-                    this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), { id: 'swap-with-' + target.player_id + '-button' });
-                }
+            if (selectedCardIDs.length === 0)
+                this.game.setPowerPromptTitle(this.args.powerCard, true);
+            else
+                this.bga.statusBar.setTitle(allCardsSelected ? _('Choose an opponent to swap with') : _('Choose 2 cards to swap'));
+            for (let target of this.args.targets) {
+                const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
+                this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), { id: 'swap-with-' + target.player_id + '-button', disabled: !allCardsSelected });
             }
         }
         else {
-            this.bga.statusBar.setTitle(_('No opponent who chose More has 2 cards: ${you} may discard ${count} card(s) and draw as many (card 10)').replace('${count}', this.args.maxCards.toString()));
-            if (selectedCardIDs.length === this.args.maxCards)
-                this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button' });
+            if (selectedCardIDs.length === 0)
+                this.game.setPowerPromptTitle(this.args.powerCard, true);
+            else if (allCardsSelected)
+                this.bga.statusBar.setTitle(this.args.maxCards === 1 ? _('Discard this card and draw 1?') : _('Discard these cards and draw 2?'));
+            else
+                this.bga.statusBar.setTitle(_('Choose 2 cards to discard'));
+            this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button', disabled: !allCardsSelected });
         }
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), { id: 'skip-power-button', color: 'secondary' });
     }
@@ -762,11 +762,12 @@ class TooltipHandler {
         });
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
     }
-    //a log row: its mini cards keep the single-power tooltip. Only that row is queried, so loading a long log stays cheap
+    //a log row (its mini cards) or the status bar title (its circular card icons): single-power tooltips. Only that container
+    //is queried, so loading a long log stays cheap
     addTooltipsToCardsIn(container) {
-        if (this.isSafariMobile())
+        if (this.isSafariMobile() || !container)
             return;
-        container.querySelectorAll('.a-card[id]').forEach((card) => {
+        container.querySelectorAll('.a-card[id], .status-card-icon[id]').forEach((card) => {
             const value = parseInt(card.getAttribute('data-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
                 this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
@@ -2141,6 +2142,25 @@ class Game {
     isMobile() { return document.body.classList.contains('mobile_version'); }
     isInterfaceLocked() { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     updateStatusText(statusText) { $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
+    //power prompts (cards 1, 9, 10, 11): "may use" + the circular card icon of the card that gave the power. setTitle
+    //substitutes its args as raw HTML (Fugu's pass button slot uses the same), so the translatable string only holds the
+    //${card} placeholder. The details live in the icon's power tooltip
+    setPowerPromptTitle(powerCard, isCurrentPlayerActive) {
+        this.bga.statusBar.setTitle(isCurrentPlayerActive ? _('${you} may use ${card}') : _('${actplayer} may use ${card}'), { card: this.getStatusCardIconHTML(powerCard) });
+        this.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
+    }
+    //the circular card icon of status bar titles: a ring in the card's color around its number. The number is drawn from
+    //img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead. The id and the
+    //power-card-POWER<n> class let TooltipHandler.addTooltipsToCardsIn give it the same power tooltip as the log mini cards
+    getStatusCardIconHTML(card) {
+        if (!card)
+            return '';
+        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.getColorName(card.color));
+        const powerClass = POWER_CARD_VALUES.includes(card.value) ? ' ' + TooltipHandler.getPowerCardClass(card.value) : '';
+        const iconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+        this.localCardIDCounter++;
+        return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
+    }
     getGameStateName() { return this.gamedatas.gamestate.name; }
     getColorIndex(color) {
         for (const colorIndex in this.gamedatas.cardColors) {

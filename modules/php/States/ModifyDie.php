@@ -39,10 +39,13 @@ class ModifyDie extends GameState
         );
     }
 
-    //the dice are public, so are the dice that can still be changed
+    //the dice are public, so are the dice that can still be changed; powerCard is the owner's 9, shown in the status bar
     public function getArgs(): array
     {
-        return ['modifiableDice' => $this->game->tableManager->getModifiableDicePOWER9()];
+        return [
+            'modifiableDice' => $this->game->tableManager->getModifiableDicePOWER9(),
+            'powerCard' => $this->game->tableManager->getLastPlayedCard((int) $this->game->getActivePlayerId()),
+        ];
     }
 
     #[PossibleAction]

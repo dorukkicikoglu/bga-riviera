@@ -352,6 +352,27 @@ export class Game {
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }
     public isInterfaceLocked(): boolean { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     public updateStatusText(statusText): void{ $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
+
+    //power prompts (cards 1, 9, 10, 11): "may use" + the circular card icon of the card that gave the power. setTitle
+    //substitutes its args as raw HTML (Fugu's pass button slot uses the same), so the translatable string only holds the
+    //${card} placeholder. The details live in the icon's power tooltip
+    public setPowerPromptTitle(powerCard: RivieraCard | null, isCurrentPlayerActive: boolean): void {
+        this.bga.statusBar.setTitle(isCurrentPlayerActive ? _('${you} may use ${card}') : _('${actplayer} may use ${card}'), { card: this.getStatusCardIconHTML(powerCard) });
+        this.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
+    }
+
+    //the circular card icon of status bar titles: a ring in the card's color around its number. The number is drawn from
+    //img/card_icon_numbers.webp, so screen readers (and copy-paste) get the visually hidden text instead. The id and the
+    //power-card-POWER<n> class let TooltipHandler.addTooltipsToCardsIn give it the same power tooltip as the log mini cards
+    public getStatusCardIconHTML(card: RivieraCard | null): string {
+        if(!card)
+            return '';
+        const cardText = _('${value} ${color}').replace('${value}', card.value.toString()).replace('${color}', this.getColorName(card.color));
+        const powerClass = POWER_CARD_VALUES.includes(card.value) ? ' ' + TooltipHandler.getPowerCardClass(card.value) : '';
+        const iconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+        this.localCardIDCounter++;
+        return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
+    }
     public getGameStateName(): string { return this.gamedatas.gamestate.name; }
 
     public getColorIndex(color: CardColor): number {

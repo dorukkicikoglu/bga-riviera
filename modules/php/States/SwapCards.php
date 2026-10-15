@@ -58,6 +58,7 @@ class SwapCards extends GameState
             'myHandCount' => $myHandCount,
             'drawableCount' => $drawableCount,
             'maxCards' => ($mode === 'swap') ? CARDS_SWAPPED_BY_POWER10 : min(CARDS_SWAPPED_BY_POWER10, $myHandCount, $drawableCount),
+            'powerCard' => $this->game->tableManager->getLastPlayedCard($activePlayerID), //the owner's 10, shown in the status bar
         ];
     }
 

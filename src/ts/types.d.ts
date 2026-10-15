@@ -100,9 +100,11 @@ interface PlayCardArgs {
 
 interface ModifyDieArgs {
     modifiableDice: { color: DieColor; value: number; }[];
+    powerCard: RivieraCard | null;
 }
 
 interface ResolvePowersArgs {
+    powerCard: RivieraCard | null;
 }
 
 interface SwapTargetPOWER10 {
@@ -116,6 +118,7 @@ interface SwapCardsArgs {
     myHandCount: number;
     drawableCount: number;
     maxCards: number;
+    powerCard: RivieraCard | null;
 }
 
 interface StopOrMoreArgs {

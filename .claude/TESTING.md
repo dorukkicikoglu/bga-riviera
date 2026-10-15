@@ -106,8 +106,9 @@ Card 1 / Grand Slam (`debug_POWER1()`: gives me two 1s and a 2, all playable):
 - [ ] I play a 1 when no other card is playable: I'm not asked anything and my choice is final at once.
 - [ ] After a chain of three, I press "Undo": all three cards go back to my hand and I choose a first card again.
 - [ ] I press "Undo" in the middle of a chain (still choosing): the same thing happens.
-- [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "You may play an extra card with [1]" prompt (the 1 as a card icon) is back. Same after F5 once the chain is finished (waiting for others).
+- [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "You may use [1]" prompt (the 1 as a circular card icon) is back. Same after F5 once the chain is finished (waiting for others).
 - [ ] The other player only sees that I'm still choosing or done, and their network traffic shows no card id.
+- [ ] After confirming a 1, the status bar reads "You may use [1]", the 1 drawn as the circular card icon (a ring in its color around the number, like "Play [card]?"); hovering it shows the card 1 power tooltip, the same as a 1 in the log. Selecting a card switches the title to "Add [card]?".
 - [ ] My chain ends on a 2, 10 or 11: that card's power resolves after Stop or More if I choose More. A chain that ends on a 1 triggers no other power.
 - [ ] The reveal log row shows the chain as card + card + card.
 - [ ] I play my last cards through a chain (`debug_trimHands(3)`, then `debug_POWER1()`): Grand Slam, the game ends, and the last card's power does not resolve.
@@ -121,18 +122,18 @@ Card 2 (`debug_POWER2()`, then More):
 - [ ] If I choose Stop instead: no outline and no row, ever; on the next roll the other player can use that die.
 
 Card 11 (`debug_POWER11()`, then More):
-- [ ] After the Stop or More reveal (not before) I'm asked "Add the golden die" / "Skip"; the other player sees that I may add it.
-- [ ] "Add the golden die": a blank gold die appears and a champagne log row. It is rolled next turn and works only in a sum, never for its own color.
+- [ ] After the Stop or More reveal (not before) the status bar reads "You may use [11]" (my 11 as a circular card icon in its color) with "Add golden die" / "Skip"; the other player and a spectator see "<my name> may use [11]". Hovering the icon shows the card 11 power tooltip, for everyone.
+- [ ] "Add golden die": a blank gold die appears and a champagne log row. It is rolled next turn and works only in a sum, never for its own color.
 - [ ] It is gone after that turn's reveal, unless a new 11 is added after that turn's Stop or More, in which case it comes back and is rolled again.
 - [ ] "Skip" logs a slate "does not use" row.
 - [ ] If I choose Stop instead: I'm never asked, no golden die, no row.
 - [ ] Two 11s in the same turn, both owners More: the first owner (clockwise from the new Start token holder) is asked; if they add it, the second owner is not asked and gets no row. If the first skips, the second is asked.
 
 Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9 first):
-- [ ] After the next roll each die I can turn shows a small up arrow above it and a small down arrow below it; the status bar only has "Skip". Others and spectators see no arrows, just that I may change a die.
+- [ ] After the next roll each die I can turn shows a small up arrow above it and a small down arrow below it; the status bar reads "You may use [9]" (my 9 as a circular card icon, with the card 9 power tooltip on hover) and only has "Skip". Others and spectators see no arrows, just "<my name> may use [9]".
 - [ ] The gap between a die and its arrow looks the same above and below.
 - [ ] Clicking an arrow selects it (it stays highlighted) and the status bar reads "Turn [die] 4 → 5?" with "Confirm" and "Skip"; nothing is sent yet. Clicking the top half of a die selects its up arrow, the bottom half its down arrow.
-- [ ] Clicking another arrow (or half) switches the selection; clicking the selected one again clears it and the status bar goes back to "may turn a die". "Confirm" turns the die.
+- [ ] Clicking another arrow (or half) switches the selection; clicking the selected one again clears it and the status bar goes back to "You may use [9]". "Confirm" turns the die.
 - [ ] Preview: selecting the green 6's down arrow makes that die show 5 with a soft glow, instantly (no shrink/expand animation, also when the real value comes back), while the status bar still shows "Turn [green 6] 6 → 5?". A new roll and the turned die after "Confirm" still animate, for everyone. Only one die is previewed: selecting another arrow (other die, or the other arrow of the same die) puts the first die back to its real value and previews the new choice; clearing the selection puts it back too.
 - [ ] The preview disappears and the real value comes back on "Skip", on F5, and when leaving the state; after "Confirm" the die shows the real new value from the server (no glow).
 - [ ] Another player and a spectator never see the preview: their dice keep the real values while I'm choosing.
@@ -150,6 +151,7 @@ Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9
 - [ ] An owner who chose Stop after playing the 9 is not asked (no row).
 
 Card 10 (`debug_POWER10()`, then More; fallback: `debug_POWER10(true)`, then More):
+- [ ] The status bar reads "You may use [10]" (my 10 as a circular card icon, with the card 10 power tooltip on hover); others and spectators see "<my name> may use [10]". The "Swap with <name>" buttons (or "Discard and draw" in the fallback) show at once, disabled. After 1 card the title is "Choose 2 cards to swap" ("Choose 2 cards to discard" in the fallback); after 2, "Choose an opponent to swap with" ("Discard these cards and draw 2?") and the buttons are enabled. Unselecting a card disables them again.
 - [ ] Swap: I select 2 cards, then "Swap with <name>" (no confirm). My 2 cards fade out and 2 random cards slide in from their board.
 - [ ] The victim never has to click. Their hand changes the same way.
 - [ ] The owner and victim each see a single pink log row with the real cards. A third player and a spectator see a single row with 2 backs, and 2 backs slide each way between the two boards. Hand counts don't change.
