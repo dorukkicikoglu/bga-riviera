@@ -419,9 +419,6 @@ body .sliding-clone {
   background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%);
   --pip-color: #3b2a00;
 }
-.a-die[data-color=gold][data-in-use-by-power11=false] {
-  display: none;
-}
 .a-die .die-pip {
   position: absolute;
   box-sizing: border-box;
@@ -574,9 +571,17 @@ body .sliding-clone {
   gap: 8px;
   padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
   min-height: var(--die-size);
+  position: relative;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 #dice-container .die-slot {
   position: relative;
+}
+#dice-container .fading-out-die {
+  position: absolute;
+  margin: 0px;
+  pointer-events: none;
 }
 #dice-container .die-arrow {
   position: absolute;

@@ -145,9 +145,7 @@ $card-icon-number-height: 28px;
     @each $color in $card-colors {
         &[data-color="#{$color}"]{ --die-color: var(--die-color-#{$color}); }
     }
-    &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00;
-        &[data-in-use-by-power11="false"]{ display: none; }
-    }
+    &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00; }
 
     //every pip has the same fixed size (a share of --die-size) and is centered on a fixed point of a 3x3 layout.
     //No grid tracks or percentages: nothing in a cell can make one pip bigger or oval
@@ -165,7 +163,7 @@ $card-icon-number-height: 28px;
             &[data-value="#{$value}"] .die-pip:nth-child(#{$pip}){ visibility: visible; }
         }
     }
-    &[data-value=""]{ display: none; } //no value (not rolled yet): never shown, it appears with the roll that gives it one
+    &[data-value=""]{ display: none; } //no value: never shown. DiceHandler only blanks a die on a roll, so the golden die stays up until the next roll
 
     &:not([data-reserved-by-power2=""]){ outline: 3px solid var(--reserver-color); outline-offset: 2px; }
     &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
@@ -178,8 +176,14 @@ $card-icon-number-height: 28px;
 //is 2px wider: the two gaps then look the same
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
     display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
+    //the roll-in starts past the right edge (DiceHandler.rollIn): clipped there, so the dice slide in from the game area's
+    //edge, never over the player boards, and never make the page scroll sideways on mobile. clip (not hidden) keeps the
+    //vertical axis visible (the lift above the row, the card-9 arrows, shadows) and makes no scroll container
+    position: relative; overflow-x: clip; overflow-y: visible;
 
     .die-slot{ position: relative; }
+    //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
+    .fading-out-die{ position: absolute; margin: 0px; pointer-events: none; }
 
     //card 9, active owner only (DiceHandler.showModifyArrowsPOWER9): two transparent hit containers on top of each die that
     //can be turned. The up one (+1) runs from its triangle's tip down to the die's middle line, the down one (-1) from that

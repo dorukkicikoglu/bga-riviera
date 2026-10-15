@@ -460,7 +460,7 @@ export class Game {
     }
 
     public async notif_diceRolled(args: DiceRolledArgs) {
-        this.diceHandler.updateDice(args.dice);
+        await this.diceHandler.rollDice(args.dice);
     }
 
     public async notif_playChoiceConfirmed(args: PlayChoiceConfirmedArgs) {

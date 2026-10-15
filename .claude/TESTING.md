@@ -276,6 +276,15 @@ Layout:
 - [ ] Status bar card icon ("Play [card]?", "Add [card]?", "You chose [cards]"): the number comes from `img/card_icon_numbers.webp`, gold on navy inside a ring of the card's color, same size as before; 10, 11 and 12 fit inside the ring; no square edge shows around the number. A screen reader reads "<value> <color>".
 - [ ] BGA dark mode: every log row stays readable (dark text on its pale background), including plain framework rows.
 
+Dice roll-in:
+- [ ] Roll-in: on every new roll each die slides in from the right edge of the game area, a little above its row, spinning (half a turn to a full turn, either way) and slowing into its slot with no bounce, in about half a second; the dice are slightly staggered, not one block. The faces flicker through a few random values and the real value is showing when each die stops (check against the dice log row).
+- [ ] Fade-out at the same time: the previous roll's dice fade out (and shrink a little) in place while the new ones are already coming in; nothing waits for the fade. At a new round, last round's dice stay up through the deal, then fade as the new roll comes in.
+- [ ] Golden die fades out: after a turn with the golden die, it keeps its face through the reveal, Stop or More and the powers, then fades out with the others at the next roll (no new 11); it never vanishes instantly. With a new 11, it fades out and a new golden die rolls in with the others.
+- [ ] Card 9 doesn't re-roll: turning a die only gives that die a quick scale-in with its new value; no die slides or spins. The card 2 outline and the card 9 "±" badge show correctly on the dice once they have rolled in.
+- [ ] No animation on reload: F5 at any point shows the dice in place, no roll-in, no fade. Fast replay (and a hidden tab) changes the dice instantly.
+- [ ] On a phone: no sideways scroll or page widening while the dice come in; they appear from the right edge. On desktop they never fly over the player boards.
+- [ ] Nothing else (log rows, the card 9 prompt, the play prompt) starts before the last die has stopped.
+
 BGA alpha checklist:
 - [ ] Game management page: turn on "Use minified JS" and "Use minified CSS", commit, and play a turn. No "Connecting to game" hang.
 - [ ] Test spectator: sees boards, columns, dice and logs, never a hand or a pending choice.

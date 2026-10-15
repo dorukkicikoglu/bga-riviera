@@ -318,10 +318,14 @@ class DiceHandler {
         this.applyDieData(aDie, dieData);
         return aDie;
     }
-    //a die with no value (the golden die between card 11 and the roll, or after it expires) is never displayed: Game.scss
-    //hides data-value="", so it appears with the roll that gives it a value
-    applyDieData(aDie, dieData) {
-        aDie.setAttribute('data-value', dieData.value === null ? '' : dieData.value.toString());
+    //a die with no value is never displayed (Game.scss hides data-value=""). Only a roll ($isRoll) or a new die takes a
+    //face away: any other update without a value (the golden die expiring after the reveal) keeps the last roll's face up,
+    //so the dice area shows the last roll until the next one, where it fades out with the others
+    applyDieData(aDie, dieData, isRoll = false) {
+        if (dieData.value !== null)
+            aDie.setAttribute('data-value', dieData.value.toString());
+        else if (isRoll || !aDie.getAttribute('data-value'))
+            aDie.setAttribute('data-value', '');
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
         const reserverID = dieData.reserved_by_POWER2;
@@ -348,13 +352,115 @@ class DiceHandler {
                 this.playChangeAnimation(aDie);
         }
     }
+    /**
+     * diceRolled: the previous roll's dice fade out in place while every die of the new roll rolls in, all at once (a
+     * golden die left out of this roll only fades out). Resolves once the last die has stopped, so the notification waits
+     * for it. With BGA's animations off (fast replay, hidden tab) the dice just change. A card 9 change is not a roll: it
+     * goes through updateDice.
+     */
+    async rollDice(diceData) {
+        if (this.previewedColorPOWER9)
+            this.game.modifyDie.cancelSelection();
+        const animate = this.game.bga.gameui.bgaAnimationsActive();
+        if (animate)
+            this.fadeOutShownDice();
+        //every die gets its final face first, so the layout (a golden die joining or leaving) is final before measuring
+        const rolledDice = [];
+        for (let dieData of diceData) {
+            const aDie = this.getDieDiv(dieData.color);
+            if (!aDie)
+                continue;
+            this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
+            this.game.tooltipHandler?.updateDieTooltip(dieData);
+            aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
+            this.applyDieData(aDie, dieData, true);
+            if (dieData.value !== null)
+                rolledDice.push({ aDie: aDie, dieData: dieData });
+        }
+        if (animate)
+            await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
+    }
+    //each shown die leaves a copy at its place, under the dice rolling in (prepended), that fades out and is removed
+    fadeOutShownDice() {
+        const containerRect = this.diceContainer.getBoundingClientRect();
+        this.diceContainer.querySelectorAll('.die-slot > .a-die').forEach((aDie) => {
+            if (!aDie.getAttribute('data-value'))
+                return;
+            const dieRect = aDie.getBoundingClientRect();
+            const zoom = this.getZoom(aDie);
+            const fadingDie = aDie.cloneNode(true);
+            fadingDie.removeAttribute('id');
+            fadingDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS, DiceHandler.PREVIEWED_CLASS_POWER9);
+            fadingDie.classList.add('fading-out-die');
+            fadingDie.style.left = ((dieRect.left - containerRect.left) / zoom - this.diceContainer.clientLeft) + 'px';
+            fadingDie.style.top = ((dieRect.top - containerRect.top) / zoom - this.diceContainer.clientTop) + 'px';
+            this.diceContainer.prepend(fadingDie);
+            const fade = fadingDie.animate([
+                { opacity: 1, scale: 1 },
+                { opacity: 0, scale: DiceHandler.FADE_OUT_SCALE },
+            ], { duration: DiceHandler.FADE_OUT_DURATION, easing: 'ease-in', fill: 'forwards' });
+            Promise.race([
+                fade.finished.catch(() => undefined),
+                this.game.bga.gameui.wait(DiceHandler.FADE_OUT_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
+            ]).then(() => fadingDie.remove());
+        });
+    }
+    //one die of the new roll, already at its final face and place: it starts off the container's right edge, a little
+    //above its row, turned ROLL_MIN_SPIN to ROLL_MAX_SPIN either way, and slides and spins into its slot. Only translate and
+    //rotate animate (never transform). fill 'backwards' keeps it off-screen during its delay. Random faces show on the way,
+    //the real one from ROLL_FACE_SETTLE_FRACTION of the travel
+    async rollIn(aDie, dieData) {
+        const containerRect = this.diceContainer.getBoundingClientRect();
+        const dieRect = aDie.getBoundingClientRect();
+        const zoom = this.getZoom(aDie); //screen px to the game area's px (BGA scales the game area down on mobile)
+        const dieSize = dieRect.width / zoom;
+        const startX = (containerRect.right - dieRect.left) / zoom + dieSize * DiceHandler.ROLL_START_GAP;
+        const startY = -dieSize * DiceHandler.ROLL_START_LIFT;
+        const spinDirection = Math.random() < 0.5 ? -1 : 1;
+        const spin = spinDirection * (DiceHandler.ROLL_MIN_SPIN + Math.random() * (DiceHandler.ROLL_MAX_SPIN - DiceHandler.ROLL_MIN_SPIN));
+        const delay = Math.random() * DiceHandler.ROLL_MAX_DELAY;
+        const roll = aDie.animate([
+            { translate: `${startX}px ${startY}px`, rotate: `${spin}deg` },
+            { translate: '0px 0px', rotate: '0deg' },
+        ], { duration: DiceHandler.ROLL_DURATION, delay: delay, easing: DiceHandler.ROLL_EASING, fill: 'backwards' });
+        let face = this.getRandomFace(null);
+        aDie.setAttribute('data-value', face.toString());
+        const faceInterval = DiceHandler.ROLL_DURATION * DiceHandler.ROLL_FACE_SETTLE_FRACTION / DiceHandler.ROLL_FACE_CHANGES;
+        const faceTimers = [];
+        for (let faceIndex = 1; faceIndex < DiceHandler.ROLL_FACE_CHANGES; faceIndex++) {
+            faceTimers.push(window.setTimeout(() => {
+                face = this.getRandomFace(face);
+                aDie.setAttribute('data-value', face.toString());
+            }, delay + faceIndex * faceInterval));
+        }
+        faceTimers.push(window.setTimeout(() => this.applyDieData(aDie, dieData, true), delay + DiceHandler.ROLL_FACE_CHANGES * faceInterval));
+        await Promise.race([
+            roll.finished.catch(() => undefined),
+            this.game.bga.gameui.wait(delay + DiceHandler.ROLL_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
+        ]);
+        faceTimers.forEach(faceTimer => window.clearTimeout(faceTimer));
+        this.applyDieData(aDie, dieData, true);
+    }
+    getRandomFace(previousFace) {
+        let face;
+        do {
+            face = Math.floor(Math.random() * DiceHandler.DIE_FACES) + 1;
+        } while (face === previousFace);
+        return face;
+    }
+    //on-screen px per px of the game area (below 1 when BGA scales it down on mobile). The unrounded computed width, not
+    //offsetWidth, which rounds and drifts by a pixel
+    getZoom(aDie) {
+        const cssWidth = parseFloat(window.getComputedStyle(aDie).width);
+        return cssWidth > 0 ? aDie.getBoundingClientRect().width / cssWidth : 1;
+    }
     playChangeAnimation(aDie) {
         aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
         void aDie.offsetWidth; // restart the animation if it's already running
         aDie.classList.add(DiceHandler.CHANGE_ANIM_CLASS);
         aDie.addEventListener('animationend', () => aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS), { once: true });
     }
-    getDieDiv(color) { return this.diceContainer.querySelector(`.a-die[data-color="${color}"]`); }
+    getDieDiv(color) { return this.diceContainer.querySelector(`.die-slot > .a-die[data-color="${color}"]`); } //never a fading copy
     getDieSlot(color) { return this.diceContainer.querySelector(`.die-slot[data-color="${color}"]`); }
     getDiceContainer() { return this.diceContainer; }
     getDiceData() { return this.diceData; }
@@ -365,6 +471,20 @@ DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows i
 DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
 DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
 DiceHandler.DIE_FACES = 6;
+//roll-in (diceRolled): every die of the new roll slides in from past the dice container's right edge (the game area's;
+//Game.scss clips it there), spinning down to upright, while the previous roll's dice fade out in place, all at once
+DiceHandler.ROLL_DURATION = 450; //ms of each die's travel
+DiceHandler.ROLL_MAX_DELAY = 80; //ms, each die starts after a random delay up to this, so the dice don't move as one block
+DiceHandler.ROLL_EASING = 'cubic-bezier(0.25, 0.8, 0.35, 1)'; //ease-out with no overshoot: the dice decelerate into place
+DiceHandler.ROLL_START_GAP = 0.5; //die sizes between the container's right edge and the die's left edge at the start, so its rotated corners are hidden too
+DiceHandler.ROLL_START_LIFT = 0.4; //die sizes above its slot at the start
+DiceHandler.ROLL_MIN_SPIN = 180; //deg from upright at the start, in a random direction
+DiceHandler.ROLL_MAX_SPIN = 360; //deg
+DiceHandler.ROLL_FACE_CHANGES = 4; //random faces shown on the way, evenly spaced, before the real one
+DiceHandler.ROLL_FACE_SETTLE_FRACTION = 0.7; //share of the travel after which the die shows its real value, so it is right when it stops
+DiceHandler.FADE_OUT_DURATION = 300; //ms of the previous roll's dice fading out
+DiceHandler.FADE_OUT_SCALE = 0.85; //their size at the end of the fade
+DiceHandler.FINISH_SAFETY_MARGIN = 300; //ms after an animation's duration at which it counts as done anyway, should it never report finished
 
 /**
  * Card 9, after the roll: the active owner turns one die that hasn't been changed this roll by 1 (6 wraps to 1,
@@ -2239,7 +2359,7 @@ class Game {
         this.tooltipHandler.addTooltipsToCards();
     }
     async notif_diceRolled(args) {
-        this.diceHandler.updateDice(args.dice);
+        await this.diceHandler.rollDice(args.dice);
     }
     async notif_playChoiceConfirmed(args) {
         this.playCard.onChoiceConfirmed(args);
