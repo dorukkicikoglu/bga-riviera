@@ -112,8 +112,10 @@ class PlayCard {
             return;
         }
         const isAddingToChain = this.pendingChoice !== null;
-        if (selectedCard)
-            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.game.getStatusCardIconHTML(selectedCard)));
+        if (selectedCard) {
+            this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
+            this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
+        }
         else if (isAddingToChain) {
             //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
             const chosenCardIDs = this.getChosenCardIDs();
@@ -951,13 +953,14 @@ class TooltipHandler {
         });
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
     }
-    //a log row (its mini cards) or the status bar title (its circular card icons): single-power tooltips. Only that container
+    //a log row (its mini cards) or the status bar title (its circular card icons and power icons): single-power tooltips. Only that container
     //is queried, so loading a long log stays cheap
     addTooltipsToCardsIn(container) {
         if (this.isSafariMobile() || !container)
             return;
-        container.querySelectorAll('.a-card[id], .status-card-icon[id]').forEach((card) => {
-            const value = parseInt(card.getAttribute('data-value'));
+        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id
+        container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card) => {
+            const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
                 this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
             else if (card.classList.contains('last-chance-card'))
@@ -2349,6 +2352,16 @@ class Game {
         const iconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
+    }
+    //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
+    //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
+    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. Cards without a power get the card icon alone
+    getStatusCardWithPowerHTML(card) {
+        if (!card || !POWER_CARD_VALUES.includes(card.value))
+            return this.getStatusCardIconHTML(card);
+        const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+        this.localCardIDCounter++;
+        return this.getStatusCardIconHTML(card) + `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(card.value)}" data-power-value="${card.value}" aria-hidden="true"></span>`;
     }
     getGameStateName() { return this.gamedatas.gamestate.name; }
     getColorIndex(color) {

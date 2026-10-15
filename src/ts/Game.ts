@@ -373,6 +373,18 @@ export class Game {
         this.localCardIDCounter++;
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
+
+    //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
+    //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
+    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. Cards without a power get the card icon alone
+    public getStatusCardWithPowerHTML(card: RivieraCard | null): string {
+        if(!card || !POWER_CARD_VALUES.includes(card.value))
+            return this.getStatusCardIconHTML(card);
+
+        const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+        this.localCardIDCounter++;
+        return this.getStatusCardIconHTML(card) + `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(card.value)}" data-power-value="${card.value}" aria-hidden="true"></span>`;
+    }
     public getGameStateName(): string { return this.gamedatas.gamestate.name; }
 
     public getColorIndex(color: CardColor): number {

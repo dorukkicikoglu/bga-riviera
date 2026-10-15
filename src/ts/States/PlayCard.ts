@@ -136,8 +136,10 @@ export class PlayCard {
         }
 
         const isAddingToChain = this.pendingChoice !== null;
-        if(selectedCard)
-            this.bga.statusBar.setTitle((isAddingToChain ? _('Add ${card}?') : _('Play ${card}?')).replace('${card}', this.game.getStatusCardIconHTML(selectedCard)));
+        if(selectedCard){
+            this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
+            this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
+        }
         else if(isAddingToChain){
             //the chain only stays open after a 1, so the last chosen card is the 1 that gives the extra card
             const chosenCardIDs = this.getChosenCardIDs();

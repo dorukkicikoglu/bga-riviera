@@ -1380,10 +1380,10 @@ body .start-token.flying-start-token {
 
 .power-icon {
   float: left;
-  height: 38px;
   margin: 2px 8px 0px 0px;
   background-image: var(--image-source-power-icons);
   background-repeat: no-repeat;
+  height: 38px;
 }
 .power-icon[data-power-value="1"] {
   width: 26.5396825397px;
@@ -1409,6 +1409,39 @@ body .start-token.flying-start-token {
   width: 38px;
   background-size: 229.2063492063px 38px;
   background-position: -186.9841269841px 0px;
+}
+
+.status-card-icon + .power-icon {
+  float: none;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0px 3px 0px 2px;
+  height: 40px;
+}
+.status-card-icon + .power-icon[data-power-value="1"] {
+  width: 27.9365079365px;
+  background-size: 241.2698412698px 40px;
+  background-position: -10.1587301587px 0px;
+}
+.status-card-icon + .power-icon[data-power-value="2"] {
+  width: 40px;
+  background-size: 241.2698412698px 40px;
+  background-position: -52.0634920635px 0px;
+}
+.status-card-icon + .power-icon[data-power-value="9"] {
+  width: 40px;
+  background-size: 241.2698412698px 40px;
+  background-position: -100.3174603175px 0px;
+}
+.status-card-icon + .power-icon[data-power-value="10"] {
+  width: 63.3333333333px;
+  background-size: 316.6666666667px 52.5px;
+  background-position: -190px -5.8333333333px;
+}
+.status-card-icon + .power-icon[data-power-value="11"] {
+  width: 40px;
+  background-size: 241.2698412698px 40px;
+  background-position: -196.8253968254px 0px;
 }
 
 .round-status-tooltip div + div {

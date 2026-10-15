@@ -49,14 +49,15 @@ export class TooltipHandler{
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
     }
 
-    //a log row (its mini cards) or the status bar title (its circular card icons): single-power tooltips. Only that container
+    //a log row (its mini cards) or the status bar title (its circular card icons and power icons): single-power tooltips. Only that container
     //is queried, so loading a long log stays cheap
     public addTooltipsToCardsIn(container: HTMLElement){
         if(this.isSafariMobile() || !container)
             return;
 
-        container.querySelectorAll('.a-card[id], .status-card-icon[id]').forEach((card: HTMLElement) => {
-            const value = parseInt(card.getAttribute('data-value'));
+        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id
+        container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card: HTMLElement) => {
+            const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if(card.classList.contains(TooltipHandler.getPowerCardClass(value)))
                 this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value), TooltipHandler.TOOLTIP_DELAY);
             else if(card.classList.contains('last-chance-card'))

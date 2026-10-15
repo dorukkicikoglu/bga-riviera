@@ -118,7 +118,8 @@ $card-icon-number-frames: 12;
 $card-icon-number-frame-width: 76;
 $card-icon-number-frame-height: 63;
 $card-icon-number-height: 28px;
-.status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; width: 40px; height: 40px; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1;
+$status-card-icon-size: 40px;
+.status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; width: $status-card-icon-size; height: $status-card-icon-size; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1;
     .status-card-icon-number{ display: block; flex-shrink: 0; height: $card-icon-number-height; width: math.div($card-icon-number-height * $card-icon-number-frame-width, $card-icon-number-frame-height);
         background-image: var(--image-source-card-icon-numbers); background-size: #{$card-icon-number-frames * 100%} 100%; background-repeat: no-repeat; }
     @for $value from 1 through $card-icon-number-frames {
@@ -491,12 +492,16 @@ $power-icons: (
     10: (x: 228, y: 7, width: 76, height: 48),
     11: (x: 310, y: 0, width: 63, height: 63),
 );
-.power-icon{ float: left; height: $power-icon-height; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat;
+@mixin power-icon-size($height){ height: $height;
     @each $value, $icon in $power-icons {
-        $scale: math.div($power-icon-height, map.get($icon, height));
+        $scale: math.div($height, map.get($icon, height));
         &[data-power-value="#{$value}"]{ width: $scale * map.get($icon, width); background-size: $scale * $power-icon-sprite-width $scale * $power-icon-sprite-height; background-position: (-$scale * map.get($icon, x)) (-$scale * map.get($icon, y)); }
     }
 }
+.power-icon{ float: left; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat; @include power-icon-size($power-icon-height); }
+//status bar titles (Game.getStatusCardWithPowerHTML): the power icon right after the circular card icon, as tall as it and
+//centered on the text like it. The card icon's 3px right margin plus 2px makes the gap
+.status-card-icon + .power-icon{ float: none; display: inline-block; vertical-align: middle; margin: 0px 3px 0px 2px; @include power-icon-size($status-card-icon-size); }
 
 .round-status-tooltip div + div{ margin-top: 3px; }
 .round-status-tooltip .fa-play{ color: #2e8b2e; }
