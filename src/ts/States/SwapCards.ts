@@ -12,10 +12,11 @@
 import { Game } from "../Game";
 
 /**
- * Card 10, after Stop or More (the owner chose More), before the next roll: the active owner selects 2 cards from
- * their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
+ * Card 10, after Stop or More (the owner chose More), before the Start token passes: the active owner selects 2 cards
+ * from their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
  * and have at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
+ * Everyone else sees the power prompt ("<name> may use [10]") throughout.
  */
 export class SwapCards {
     private args: SwapCardsArgs | null = null;
@@ -51,34 +52,37 @@ export class SwapCards {
         this.updateStatusBar();
     }
 
+    //step 1, fewer cards selected than the power takes: "You may choose 2 cards to swap [10]" (or to discard) with Skip alone.
+    //Step 2, all selected: the selected cards' circular icons in the title, then one button per opponent (swap) or Confirm
+    //(discard and draw), plus Skip. Rebuilt from the selection on every change, so unselecting a card goes back to step 1
     private updateStatusBar(): void {
         if(!this.args)
             return;
 
         this.bga.statusBar.removeActionButtons();
         const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
+        const isSwap = this.args.mode === 'swap';
 
-        //the buttons show from the start, disabled until enough cards are selected, so the swap or redraw mode is visible at once
-        const allCardsSelected = selectedCardIDs.length === this.args.maxCards;
-
-        if(this.args.mode === 'swap'){
-            if(selectedCardIDs.length === 0)
-                this.game.setPowerPromptTitle(this.args.powerCard, true);
-            else this.bga.statusBar.setTitle(allCardsSelected ? _('Choose an opponent to swap with') : _('Choose 2 cards to swap'));
-
-            for(let target of this.args.targets){
-                const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
-                this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), {id: 'swap-with-' + target.player_id + '-button', disabled: !allCardsSelected});
-            }
+        if(selectedCardIDs.length < this.args.maxCards){
+            let title = _('${you} may choose 2 cards to swap ${card}');
+            if(!isSwap)
+                title = (this.args.maxCards === 1) ? _('${you} may choose 1 card to discard ${card}') : _('${you} may choose 2 cards to discard ${card}');
+            this.bga.statusBar.setTitle(title, { card: this.game.getStatusCardWithPowerHTML(this.args.powerCard) });
         } else {
-            if(selectedCardIDs.length === 0)
-                this.game.setPowerPromptTitle(this.args.powerCard, true);
-            else if(allCardsSelected)
-                this.bga.statusBar.setTitle(this.args.maxCards === 1 ? _('Discard this card and draw 1?') : _('Discard these cards and draw 2?'));
-            else this.bga.statusBar.setTitle(_('Choose 2 cards to discard'));
+            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
 
-            this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), {id: 'redraw-button', disabled: !allCardsSelected});
+            if(isSwap){
+                this.bga.statusBar.setTitle(_('Choose an opponent to swap ${cards}'), { cards: cardsIcons });
+                for(let target of this.args.targets){
+                    const label = _('Swap with ${player_name}').replace('${player_name}', '<b>' + this.game.getPlayerName(target.player_id) + '</b>');
+                    this.game.addPlayerChoiceButton(target.player_id, label, () => this.swapClicked(target, selectedCardIDs), {id: 'swap-with-' + target.player_id + '-button'});
+                }
+            } else {
+                this.bga.statusBar.setTitle((this.args.maxCards === 1) ? _('Discard ${cards} and draw 1?') : _('Discard ${cards} and draw 2?'), { cards: cardsIcons });
+                this.bga.statusBar.addActionButton(_('Confirm'), () => this.redrawClicked(selectedCardIDs), {id: 'redraw-button'});
+            }
         }
+        this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
 
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), {id: 'skip-power-button', color: 'secondary'});
     }

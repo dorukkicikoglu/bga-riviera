@@ -393,6 +393,28 @@ body .sliding-clone {
   line-height: 0;
 }
 
+.bgabutton.player-choice-button {
+  --player-color: #000000;
+  --player-choice-ring: 0px 0px 0px 2px var(--player-color), 0px 2px 8px color-mix(in srgb, var(--player-color) 55%, transparent);
+}
+.bgabutton.player-choice-button, .bgabutton.player-choice-button:hover, .bgabutton.player-choice-button:active, .bgabutton.player-choice-button:focus, .bgabutton.player-choice-button:focus-visible, .bgabutton.player-choice-button.disabled, .bgabutton.player-choice-button:disabled {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: var(--player-choice-ring) !important;
+  text-shadow: none !important;
+  color: #000000 !important;
+}
+.bgabutton.player-choice-button:not(.disabled):not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--player-color) 10%, #ffffff) !important;
+}
+.bgabutton.player-choice-button:not(.disabled):not(:disabled):active {
+  background-color: color-mix(in srgb, var(--player-color) 20%, #ffffff) !important;
+}
+.bgabutton.player-choice-button.disabled, .bgabutton.player-choice-button:disabled {
+  opacity: 0.5;
+}
+
 .a-die {
   position: relative;
   box-sizing: border-box;
@@ -925,6 +947,10 @@ body .start-token.flying-start-token {
   top: -2px;
   left: -15px;
   z-index: 10;
+}
+
+.bouncing-player-board {
+  animation: bouncing-player-board 0.175s ease-in-out 2;
 }
 
 .log .roundedbox, .gamelogreview {
@@ -1503,6 +1529,17 @@ body .start-token.flying-start-token {
   }
   100% {
     box-shadow: 0 0 4px 4px var(--glow-color);
+  }
+}
+@keyframes bouncing-player-board {
+  0% {
+    top: 0px;
+  }
+  50% {
+    top: -5px;
+  }
+  100% {
+    top: 0px;
   }
 }
 @keyframes card-fade-in {

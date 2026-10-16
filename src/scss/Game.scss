@@ -141,6 +141,23 @@ $status-card-icon-size: 40px;
     .button-star{ line-height: 0; }
 }
 
+//a button that picks a player (card 10's "Swap with <name>"; Game.addPlayerChoiceButton): BGA's secondary button recolored,
+//white with black text, ringed and softly glowing in the player's color (--player-color, set inline on the button). Its
+//hover and active states are a light tint of that color. BGA's gray gradient, border color, shadow and text shadow come
+//from its own selectors (which outrank a plain class rule and come back on hover and active), so those properties are
+//!important here, in every state. BGA's border width, padding and radius stay: the ring is a box-shadow, so the button is
+//as tall and as round as Skip
+.bgabutton.player-choice-button{ --player-color: #000000;
+    --player-choice-ring: 0px 0px 0px 2px var(--player-color), 0px 2px 8px color-mix(in srgb, var(--player-color) 55%, transparent);
+    &, &:hover, &:active, &:focus, &:focus-visible, &.disabled, &:disabled{
+        background-image: none !important; background-color: #ffffff !important; border-color: transparent !important;
+        box-shadow: var(--player-choice-ring) !important; text-shadow: none !important; color: #000000 !important;
+    }
+    &:not(.disabled):not(:disabled):hover{ background-color: color-mix(in srgb, var(--player-color) 10%, #ffffff) !important; }
+    &:not(.disabled):not(:disabled):active{ background-color: color-mix(in srgb, var(--player-color) 20%, #ffffff) !important; }
+    &.disabled, &:disabled{ opacity: 0.5; }
+}
+
 //dice
 //.a-die lives outside #dice-container so logs can show small dice too
 //padding is a share of --die-size: a % padding would be a share of the parent's width and blow the die up
@@ -336,6 +353,9 @@ body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; marg
 .start-token-anchor{ position: relative;
     > #start-token{ position: absolute; top: -2px; left: -15px; z-index: 10; }
 }
+//the one shared player board bounce (card 10 swap or redraw, PlayerHandler.bounceBoard, which removes the class on
+//animationend). Every bounce uses this class and this exact timing. position: relative comes from .start-token-anchor
+.bouncing-player-board{ animation: bouncing-player-board 0.175s ease-in-out 2; }
 //end player board
 
 //logs
@@ -531,6 +551,12 @@ $power-icons: (
   0% { box-shadow: 0 0 4px 4px var(--glow-color); }
   50% { box-shadow: 0 0 8px 8px var(--glow-peak-color); }
   100% { box-shadow: 0 0 4px 4px var(--glow-color); }
+}
+
+@keyframes bouncing-player-board {
+  0% { top: 0px; }
+  50% { top: -5px; }
+  100% { top: 0px; }
 }
 
 @keyframes card-fade-in {

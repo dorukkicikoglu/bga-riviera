@@ -24,7 +24,7 @@ use Bga\Games\Riviera\Game;
 
 /**
  * Card 10, after Stop or More (owner chose More), [BGA] before the Start token passes, clockwise from the holder
- * before the pass (RIVPowerManager::goToNextPOWER10Owner()): the owner swaps 2 cards of their choice with
+ * before the pass (NextPOWER10Owner picks each owner in turn): the owner swaps 2 cards of their choice with
  * 2 random cards from the hand of an opponent who chose More with at least 2 cards. The victim is passive.
  * With no such opponent, the owner discards and draws instead, [BGA] only as many cards as can be drawn (the
  * discard pile is reshuffled into a short draw pile), so card 10 never changes a hand size. Owners with fewer than
@@ -107,7 +107,7 @@ class SwapCards extends GameState
             'CARDS_SWAPPED_POWER10_LOG_STR' => $swapLogStr,
         ]);
 
-        return $this->game->powerManager->goToNextPOWER10Owner();
+        return NextPOWER10Owner::class; //never straight back into SwapCards: the next owner is picked there
     }
 
     #[PossibleAction]
@@ -150,7 +150,7 @@ class SwapCards extends GameState
             'CARDS_REDRAWN_POWER10_LOG_STR' => $redrawLogStr,
         ]);
 
-        return $this->game->powerManager->goToNextPOWER10Owner();
+        return NextPOWER10Owner::class; //never straight back into SwapCards: the next owner is picked there
     }
 
     #[PossibleAction]
@@ -158,7 +158,7 @@ class SwapCards extends GameState
     {
         $this->game->powerManager->skipPower($activePlayerId, 10);
 
-        return $this->game->powerManager->goToNextPOWER10Owner();
+        return NextPOWER10Owner::class; //never straight back into SwapCards: the next owner is picked there
     }
 
     private function checkPendingPower(int $playerID): void

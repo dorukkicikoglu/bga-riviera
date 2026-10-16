@@ -152,7 +152,7 @@ Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9
 - [ ] An owner who chose Stop after playing the 9 is not asked (no row).
 
 Card 10 (`debug_POWER10()`, then More; fallback: `debug_POWER10(true)`, then More):
-- [ ] The status bar reads "You may use [10]" (my 10 as a circular card icon, with the card 10 power tooltip on hover); others and spectators see "<my name> may use [10]". The "Swap with <name>" buttons (or "Discard and draw" in the fallback) show at once, disabled. After 1 card the title is "Choose 2 cards to swap" ("Choose 2 cards to discard" in the fallback); after 2, "Choose an opponent to swap with" ("Discard these cards and draw 2?") and the buttons are enabled. Unselecting a card disables them again.
+- [ ] Others and spectators see "<my name> may use [10][power]" the whole time. My own title and buttons follow the "After M4: card 10 status bar steps" checks below.
 - [ ] Swap: I select 2 cards, then "Swap with <name>" (no confirm). My 2 cards fade out and 2 random cards slide in from their board.
 - [ ] The victim never has to click. Their hand changes the same way.
 - [ ] The owner and victim each see a single pink log row with the real cards. A third player and a spectator see a single row with 2 backs, and 2 backs slide each way between the two boards. Hand counts don't change.
@@ -299,6 +299,7 @@ BGA alpha checklist:
 
 Card 10 order (2 players, `debug_POWER10()` for each player in turn, both choose More):
 - [ ] A holds the Start token and both A and B played a 10. After the More reveal: A is asked for card 10 first, then B, and only then "B receives the Start token". The token has not moved while either is choosing.
+- [ ] Two card 10 owners: both get their turn, also when the first one swaps with the second. Check it three ways: the first owner swaps with the second, swaps with a third player, and skips. The second owner is always asked next, then the token passes.
 - [ ] 3 players, holder B, A and C played a 10, all More: the order is C then A (clockwise from the holder B), then the token passes to C.
 - [ ] The holder stopped and two others played a 10 and chose More: the card 10 order still starts clockwise from the (stopped) holder, then the token passes to the next player still in.
 - [ ] A card 10 owner who stopped is never asked, and gets no log row. A target list never includes a player who stopped.
@@ -315,3 +316,22 @@ Start token and roll together:
 - [ ] Round end (nobody chose More, game goes on): the token flies, and the previous columns only clear once it has landed; then the sweep, the deal and the roll as before.
 - [ ] Game end (40+ or Grand Slam): no token flight, the end-game table shows as before.
 - [ ] F5, fast replay, hidden tab: the token just jumps, the dice just change, no hang.
+
+## After M4: card 10 status bar steps
+
+Swap (`debug_POWER10()`, then More with an opponent who also chose More):
+- [ ] Before any card is selected: "You may choose 2 cards to swap [10][power]" (my 10 as the circular icon, then its power icon, both with the card 10 tooltip) and only Skip. No "Swap with" button, not even a disabled one.
+- [ ] With 1 card selected: the same title and only Skip.
+- [ ] With 2 cards selected: "Choose an opponent to swap [card][card]" with my 2 selected cards as circular icons (each with its power tooltip if it has one), one "Swap with **name**" button per eligible opponent (white, ringed in their color), then Skip.
+- [ ] Unselecting one of the 2: back to "You may choose 2 cards to swap [10][power]" and only Skip.
+- [ ] Clicking a third card while 2 are selected replaces the oldest one (first in, first out): select 3 then 5, click 8: 5 and 8 are raised, 3 drops back. The title reads "Choose an opponent to swap [5][8]" (in selection order) and the player buttons stay. Clicking 3 again: 8 and 3.
+- [ ] Unselect then select a different card: the title shows the new pair of cards.
+- [ ] "Swap with" sends the swap with the cards shown in the title; Skip skips at either step.
+- [ ] Others and spectators see "<name> may use [10][power]" throughout, never my steps.
+
+Discard and draw fallback (`debug_POWER10(true)`, then More):
+- [ ] Before 2 cards are selected: "You may choose 2 cards to discard [10][power]" and only Skip.
+- [ ] With 2 cards selected: "Discard [card][card] and draw 2?" with Confirm and Skip. Unselecting a card goes back.
+- [ ] A third card replaces the oldest selected one here too, the title showing the new pair in selection order, still with Confirm. Confirm discards the 2 cards shown.
+- [ ] `debug_setDrawPile(1, 0)` first: "You may choose 1 card to discard [10][power]", then with 1 card selected "Discard [card] and draw 1?"; Confirm still shows the "Only 1 card is left to draw" confirmation.
+- [ ] F5 at either step: back to step 1 with nothing selected.

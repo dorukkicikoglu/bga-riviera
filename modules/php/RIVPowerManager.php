@@ -79,6 +79,8 @@ class RIVPowerManager{
      * [BGA] Card 10 resolves after Stop or More and before the Start token passes, clockwise from the holder before the
      * pass. RevealStopOrMore computes that order once, here, from the owners who chose More (still 'in' once the Stops
      * are applied), and stores it: goToNextPOWER10Owner() only walks the stored order, it never reads the holder again.
+     * Stored as a comma-separated string of player ids (a plain scalar global, like startPlayerId), read back by
+     * getOwnerOrderPOWER10() in every later request.
      */
     function saveOwnerOrderPOWER10(): void{
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
@@ -90,20 +92,25 @@ class RIVPowerManager{
                 $ownerOrder[] = $playerID;
         }
 
-        $this->game->bga->globals->set('ownerOrder_POWER10', $ownerOrder);
+        $this->game->bga->globals->set('ownerOrder_POWER10', implode(',', $ownerOrder));
+    }
+
+    private function getOwnerOrderPOWER10(): array{
+        $ownerOrder = (string) $this->game->bga->globals->get('ownerOrder_POWER10', '');
+        return ($ownerOrder === '') ? [] : array_map('intval', explode(',', $ownerOrder));
     }
 
     /**
      * Card 10 owners in the order saveOwnerOrderPOWER10() stored: the next one still pending becomes the active player
-     * of SwapCards, whose every action returns this again. Once nobody is left, the Start token passes (PassStartToken),
-     * which starts the card 2 and 11 walk. With nobody who chose More, the order is empty and it goes straight there.
+     * of SwapCards. Called from NextPOWER10Owner (a GAME state), which RevealStopOrMore and every SwapCards action go to,
+     * so an owner's swap or skip, or having been an earlier owner's victim, never takes the next owner's turn: only
+     * their own action clears their pending_POWER10. Once nobody is left, the Start token passes (PassStartToken), which
+     * starts the card 2 and 11 walk. With nobody who chose More, the order is empty and it goes straight there.
      */
     function goToNextPOWER10Owner(): string{
-        $ownerOrder = $this->game->bga->globals->get('ownerOrder_POWER10', []);
         $pendingPOWER10DB = $this->game->getCollectionFromDB("SELECT `player_id`, `pending_POWER10` FROM `player`", true);
 
-        foreach($ownerOrder as $playerID){
-            $playerID = (int) $playerID;
+        foreach($this->getOwnerOrderPOWER10() as $playerID){
             if(($pendingPOWER10DB[$playerID] ?? 'no') !== 'yes')
                 continue;
 
@@ -122,7 +129,9 @@ class RIVPowerManager{
             return SwapCards::class;
         }
 
-        $this->game->bga->globals->set('ownerOrder_POWER10', []);
+        //every owner in the order has resolved their 10: nothing pending may leak into a later turn's order
+        $this->game->DbQuery("UPDATE `player` SET `pending_POWER10` = 'no'");
+        $this->game->bga->globals->set('ownerOrder_POWER10', '');
         return PassStartToken::class;
     }
 

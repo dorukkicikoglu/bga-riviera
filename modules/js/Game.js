@@ -673,10 +673,11 @@ class ResolvePowers {
 }
 
 /**
- * Card 10, after Stop or More (the owner chose More), before the next roll: the active owner selects 2 cards from
- * their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
+ * Card 10, after Stop or More (the owner chose More), before the Start token passes: the active owner selects 2 cards
+ * from their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
  * and have at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
+ * Everyone else sees the power prompt ("<name> may use [10]") throughout.
  */
 class SwapCards {
     constructor(game, bga) {
@@ -707,32 +708,36 @@ class SwapCards {
     selectionChanged() {
         this.updateStatusBar();
     }
+    //step 1, fewer cards selected than the power takes: "You may choose 2 cards to swap [10]" (or to discard) with Skip alone.
+    //Step 2, all selected: the selected cards' circular icons in the title, then one button per opponent (swap) or Confirm
+    //(discard and draw), plus Skip. Rebuilt from the selection on every change, so unselecting a card goes back to step 1
     updateStatusBar() {
         if (!this.args)
             return;
         this.bga.statusBar.removeActionButtons();
         const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
-        //the buttons show from the start, disabled until enough cards are selected, so the swap or redraw mode is visible at once
-        const allCardsSelected = selectedCardIDs.length === this.args.maxCards;
-        if (this.args.mode === 'swap') {
-            if (selectedCardIDs.length === 0)
-                this.game.setPowerPromptTitle(this.args.powerCard, true);
-            else
-                this.bga.statusBar.setTitle(allCardsSelected ? _('Choose an opponent to swap with') : _('Choose 2 cards to swap'));
-            for (let target of this.args.targets) {
-                const label = _('Swap with ${player_name}').replace('${player_name}', this.game.getPlayerName(target.player_id));
-                this.bga.statusBar.addActionButton(label, () => this.swapClicked(target, selectedCardIDs), { id: 'swap-with-' + target.player_id + '-button', disabled: !allCardsSelected });
-            }
+        const isSwap = this.args.mode === 'swap';
+        if (selectedCardIDs.length < this.args.maxCards) {
+            let title = _('${you} may choose 2 cards to swap ${card}');
+            if (!isSwap)
+                title = (this.args.maxCards === 1) ? _('${you} may choose 1 card to discard ${card}') : _('${you} may choose 2 cards to discard ${card}');
+            this.bga.statusBar.setTitle(title, { card: this.game.getStatusCardWithPowerHTML(this.args.powerCard) });
         }
         else {
-            if (selectedCardIDs.length === 0)
-                this.game.setPowerPromptTitle(this.args.powerCard, true);
-            else if (allCardsSelected)
-                this.bga.statusBar.setTitle(this.args.maxCards === 1 ? _('Discard this card and draw 1?') : _('Discard these cards and draw 2?'));
-            else
-                this.bga.statusBar.setTitle(_('Choose 2 cards to discard'));
-            this.bga.statusBar.addActionButton(_('Discard and draw'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button', disabled: !allCardsSelected });
+            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+            if (isSwap) {
+                this.bga.statusBar.setTitle(_('Choose an opponent to swap ${cards}'), { cards: cardsIcons });
+                for (let target of this.args.targets) {
+                    const label = _('Swap with ${player_name}').replace('${player_name}', '<b>' + this.game.getPlayerName(target.player_id) + '</b>');
+                    this.game.addPlayerChoiceButton(target.player_id, label, () => this.swapClicked(target, selectedCardIDs), { id: 'swap-with-' + target.player_id + '-button' });
+                }
+            }
+            else {
+                this.bga.statusBar.setTitle((this.args.maxCards === 1) ? _('Discard ${cards} and draw 1?') : _('Discard ${cards} and draw 2?'), { cards: cardsIcons });
+                this.bga.statusBar.addActionButton(_('Confirm'), () => this.redrawClicked(selectedCardIDs), { id: 'redraw-button' });
+            }
         }
+        this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), { id: 'skip-power-button', color: 'secondary' });
     }
     swapClicked(target, cardIDs) {
@@ -868,6 +873,10 @@ class PlayerHandler {
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
         this.startTokenAnchor = playerPanel.closest('.player-board') ?? playerPanel; //BGA's whole board around our panel
         this.startTokenAnchor.classList.add('start-token-anchor');
+        this.startTokenAnchor.addEventListener('animationend', (event) => {
+            if (event.target === this.startTokenAnchor && event.animationName === PlayerHandler.BOUNCE_CLASS)
+                this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        });
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
         this.roundStatusIndicator.id = 'round-status-' + this.playerID;
@@ -898,6 +907,21 @@ class PlayerHandler {
         }
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
     }
+    //card 10: the whole BGA player board (startTokenAnchor) bounces once a swap or redraw has landed. Nothing waits for it:
+    //the class comes off by itself on animationend. No bounce in fast replay or a hidden tab
+    bounceBoard() {
+        if (!this.game.bga.gameui.bgaAnimationsActive())
+            return;
+        this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        void this.startTokenAnchor.offsetWidth; //restarts a bounce still playing
+        this.startTokenAnchor.classList.add(PlayerHandler.BOUNCE_CLASS);
+    }
+    //px the board is lifted by its bounce right now (0 at rest), so a measurement can be brought back to the resting place
+    getBounceOffset() {
+        if (!this.startTokenAnchor.classList.contains(PlayerHandler.BOUNCE_CLASS))
+            return 0;
+        return parseFloat(getComputedStyle(this.startTokenAnchor).top) || 0;
+    }
     setGrandSlam() {
         this.playerBoardContainer.classList.add('grand-slam-player-board');
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
@@ -921,9 +945,19 @@ class PlayerHandler {
     getPlayedColumn() { return this.playedColumn; }
     getStartTokenAnchor() { return this.startTokenAnchor; }
     getHandCountElement() { return this.handCountBacks; }
+    //where card 10's swapped cards fly to and from in my hand: BGA's avatar on this player's board, or the top mini card
+    //back of the hand count when the avatar isn't shown
+    getAvatarRect() {
+        const avatarRect = document.getElementById('avatar_' + this.playerID)?.getBoundingClientRect();
+        if (avatarRect && avatarRect.width > 0 && avatarRect.height > 0)
+            return avatarRect;
+        const cardBacks = this.handCountBacks.querySelectorAll('.a-card');
+        return (cardBacks.length > 0) ? cardBacks[cardBacks.length - 1].getBoundingClientRect() : this.handCountBacks.getBoundingClientRect();
+    }
 }
 PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
 PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME = 400;
+PlayerHandler.BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
 
 //every card value with a power; Game.createCardDiv gives those cards the power-card-POWER<n> class (used by the log row tooltips)
 const POWER_CARD_VALUES = [1, 2, 9, 10, 11];
@@ -1084,6 +1118,7 @@ class HandHandler {
         this.game = game;
         this.handData = handData;
         this.maxSelectedCards = 1;
+        this.selectionCounter = 0; //stamps data-selection-order on each selected card, so selections read back in the order they were made
         this.resizeDebounceTimeout = null;
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
         this.handContainer = document.querySelector('#my-hand-container');
@@ -1169,7 +1204,8 @@ class HandHandler {
         this.handCardClicked(event.target);
     }
     //selecting a card only raises it; the status-bar confirmation sends it. With one card at most (card play),
-    //a click moves the selection; with more (card 10), clicks add cards until the limit
+    //a click moves the selection; with more (card 10), clicks add cards, and once the limit is reached a new card
+    //replaces the oldest selected one (first in, first out). Clicking a selected card unselects it
     handCardClicked(cardDiv) {
         const cardWasAlreadySelected = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
         if (cardWasAlreadySelected) {
@@ -1177,12 +1213,25 @@ class HandHandler {
         }
         else if (this.maxSelectedCards === 1) {
             this.clearSelection();
-            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+            this.selectCard(cardDiv);
         }
-        else if (this.getSelectedCardIDs().length < this.maxSelectedCards) {
-            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+        else {
+            const selectedCards = this.getSelectedCardDivs();
+            if (selectedCards.length >= this.maxSelectedCards)
+                selectedCards[0].classList.remove(HandHandler.SELECTED_CARD_CLASS);
+            this.selectCard(cardDiv);
         }
         this.game.handSelectionChanged();
+    }
+    selectCard(cardDiv) {
+        this.selectionCounter++;
+        cardDiv.setAttribute('data-selection-order', this.selectionCounter.toString());
+        cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+    }
+    //selected cards, oldest selection first
+    getSelectedCardDivs() {
+        const selectedCards = Array.from(this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS));
+        return selectedCards.sort((a, b) => parseInt(a.getAttribute('data-selection-order') ?? '0') - parseInt(b.getAttribute('data-selection-order') ?? '0'));
     }
     clearSelection() {
         this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
@@ -1191,8 +1240,9 @@ class HandHandler {
         const selectedCard = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS);
         return selectedCard ? parseInt(selectedCard.getAttribute('data-card-id')) : null;
     }
+    //in selection order, oldest first
     getSelectedCardIDs() {
-        return Array.from(this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS)).map(card => parseInt(card.getAttribute('data-card-id')));
+        return this.getSelectedCardDivs().map(card => parseInt(card.getAttribute('data-card-id')));
     }
     getSelectedCardData() {
         const selectedCardID = this.getSelectedCardID();
@@ -1221,7 +1271,7 @@ class HandHandler {
         for (let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
-    //card 10: cards leaving my hand fade out
+    //card 10 redraw: cards leaving my hand fade out
     async removeCards(cardIDs) {
         this.handData = this.handData.filter(handCard => !cardIDs.includes(handCard.card_id));
         const leavingCards = cardIDs.map(cardID => this.getCardDiv(cardID)).filter(card => card);
@@ -1230,7 +1280,7 @@ class HandHandler {
         leavingCards.forEach(card => card.remove());
         this.recomputeCardSpacing();
     }
-    //card 10: cards joining my hand take their sorted place and slide in from fromElement (the other player's board), or fade in
+    //card 10 redraw: cards joining my hand take their sorted place and slide in from fromElement, or fade in
     async addCards(cardsData, fromElement) {
         this.handData = [...this.handData, ...cardsData];
         this.displayHand();
@@ -1244,6 +1294,44 @@ class HandHandler {
             return this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME).then(() => card.classList.remove('card-fading-in'));
         });
         await Promise.all(arrivals);
+    }
+    //card 10 swap: the cards I give fly from their slots to the other player's board (boardRect, on screen), shrinking, the
+    //cards I get fly from it into their sorted slots, growing, and the cards I keep slide from their old places to their new
+    //ones. Every card is measured before the hand changes, the hand is laid out once in its final order, then every move
+    //starts at the same time. Resolves when the last one has landed
+    async swapCards(leavingCardIDs, arrivingCardsData, boardRect) {
+        const animate = this.game.bga.gameui.bgaAnimationsActive();
+        const oldRects = new Map();
+        for (let card of this.getCardDivs())
+            oldRects.set(parseInt(card.getAttribute('data-card-id')), card.getBoundingClientRect());
+        const moves = [];
+        for (let cardID of leavingCardIDs) {
+            const card = this.getCardDiv(cardID);
+            if (!card)
+                continue;
+            if (animate)
+                moves.push(this.game.animateSlideAway(card, boardRect, HandHandler.SLIDE_ANIM_TIME)); //places the copy on card before its first await,
+            card.remove(); //so the card can go right away
+        }
+        this.handData = [...this.handData.filter(handCard => !leavingCardIDs.includes(handCard.card_id)), ...arrivingCardsData];
+        for (let cardData of arrivingCardsData)
+            this.insertCardToHand(cardData);
+        for (let cardData of this.getSortedHandData()) //moves the cards I keep instead of recreating them, so they keep their tooltips
+            this.cardsContainer.appendChild(this.getCardDiv(cardData.card_id));
+        this.recomputeCardSpacing();
+        if (animate) {
+            for (let card of this.getCardDivs()) {
+                const oldRect = oldRects.get(parseInt(card.getAttribute('data-card-id')));
+                if (!oldRect)
+                    moves.push(this.game.animateSlide(card, boardRect, null, HandHandler.SLIDE_ANIM_TIME));
+                else if (HandHandler.hasMoved(oldRect, card.getBoundingClientRect()))
+                    moves.push(this.game.animateSlide(card, oldRect, null, HandHandler.SLIDE_ANIM_TIME));
+            }
+        }
+        await Promise.all(moves);
+    }
+    static hasMoved(oldRect, newRect) {
+        return Math.abs(oldRect.left - newRect.left) > 0.5 || Math.abs(oldRect.top - newRect.top) > 0.5;
     }
     getHandCardIDs() { return this.handData.map(cardData => cardData.card_id); }
     //the card leaves the hand at once while a copy of it slides into the played column
@@ -1370,7 +1458,9 @@ class StartTokenHandler {
         this.startToken.style.visibility = 'hidden';
         targetAnchor.appendChild(this.startToken);
         StartTokenHandler.setOutlineColor(this.startToken, toColor); //hidden until the copy lands
-        const toRect = this.getUntiltedRect();
+        const landingRect = this.getUntiltedRect();
+        const targetBounce = this.game.players[playerID].getBounceOffset(); //a card 10 bounce may still be playing: land on the resting board
+        const toRect = new DOMRect(landingRect.x, landingRect.y - targetBounce, landingRect.width, landingRect.height);
         const from = this.getCenter(fromRect);
         const to = this.getCenter(toRect);
         const liftHeight = fromRect.height * StartTokenHandler.LIFT_SCALE;
@@ -2376,6 +2466,13 @@ class Game {
     }
     getPlayerColor(playerID) { return this.gamedatas.players[playerID]?.color; }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
+    //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that
+    //player's color through --player-color. label is HTML (setTitle-style), e.g. the player's name in bold
+    addPlayerChoiceButton(playerID, label, callback, params = {}) {
+        const button = this.bga.statusBar.addActionButton(label, callback, { ...params, color: 'secondary', classes: 'player-choice-button' });
+        button.style.setProperty('--player-color', '#' + (this.getPlayerColor(playerID) ?? '000000'));
+        return button;
+    }
     //a hand card was clicked: the current state handles the selection
     handSelectionChanged() {
         const stateName = this.getGameStateName();
@@ -2384,20 +2481,32 @@ class Game {
         else if (stateName === 'SwapCards')
             this.swapCards.selectionChanged();
     }
-    //card 10, seen by everyone but the two players involved: N card backs slide each way between their boards
-    async animateCardBacksBetweenBoards(fromPlayerID, toPlayerID, count) {
-        const fromPlayer = this.players[fromPlayerID];
-        const toPlayer = this.players[toPlayerID];
-        if (!fromPlayer || !toPlayer)
+    //card 10, seen by everyone but the two players involved: N card backs fly each way between their boards, all at once.
+    //Both start points are measured before any back is added to a board, so one direction never starts from the other's back
+    async animateCardBacksSwap(firstPlayerID, secondPlayerID, count) {
+        const firstPlayer = this.players[firstPlayerID];
+        const secondPlayer = this.players[secondPlayerID];
+        if (!firstPlayer || !secondPlayer)
             return;
-        const slides = [];
-        for (let i = 0; i < count; i++) {
-            const cardBack = this.createCardBackDiv();
-            cardBack.classList.add('mini-card-back');
-            slides.push(this.animateSlide(cardBack, fromPlayer.getHandCountElement(), toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME).then(() => cardBack.remove()));
+        if (this.bga.gameui.bgaAnimationsActive()) {
+            const firstRect = this.getSlideSourceRect(firstPlayer.getHandCountElement());
+            const secondRect = this.getSlideSourceRect(secondPlayer.getHandCountElement());
+            const slides = [];
+            for (let i = 0; i < count; i++) {
+                slides.push(this.animateCardBackSlide(firstRect, secondPlayer));
+                slides.push(this.animateCardBackSlide(secondRect, firstPlayer));
+            }
+            await Promise.all(slides);
         }
-        await Promise.all(slides);
-        toPlayer.setHandCount(toPlayer.getHandCount()); //a swap keeps hand sizes, this only redraws the backs
+        //a swap keeps hand sizes, this only redraws the backs
+        firstPlayer.setHandCount(firstPlayer.getHandCount());
+        secondPlayer.setHandCount(secondPlayer.getHandCount());
+    }
+    async animateCardBackSlide(fromRect, toPlayer) {
+        const cardBack = this.createCardBackDiv();
+        cardBack.classList.add('mini-card-back');
+        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME);
+        cardBack.remove();
     }
     getMyPlayerID() { return this.myPlayerID; }
     getPlayerOrder() { return this.gamedatas.playerorder; } //turn order, starting with myself
@@ -2529,26 +2638,29 @@ class Game {
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);
     }
-    //private, to the owner and the victim only: my side of the swap
+    //private, to the owner and the victim only: my side of the swap. The cards I give fly to the other player's avatar while
+    //the cards I get fly from it into my hand and my other cards slide to their new places, all at once
     async notif_cardsSwapped_POWER10(args) {
         if (!this.handHandler)
             return;
         const iAmOwner = args.owner_id === this.myPlayerID;
         const cardsILose = (iAmOwner ? args.owner_gives : args.target_gives) ?? [];
         const cardsIGet = (iAmOwner ? args.target_gives : args.owner_gives) ?? [];
-        const otherPlayerID = iAmOwner ? args.target_id : args.owner_id;
-        await this.handHandler.removeCards(cardsILose.map(card => card.card_id));
-        await this.handHandler.addCards(cardsIGet, this.players[otherPlayerID]?.getHandCountElement() ?? null);
+        const otherPlayer = this.players[iAmOwner ? args.target_id : args.owner_id];
+        const boardRect = otherPlayer?.getAvatarRect() ?? this.handHandler.getHandContainer().getBoundingClientRect();
+        //the owner is still active in SwapCards until the state changes: once BGA unlocks the interface at the end of the
+        //animation, cards left selectable would glow until onLeavingState clears them
+        this.handHandler.clearSelectableCards();
+        await this.handHandler.swapCards(cardsILose.map(card => card.card_id), cardsIGet, boardRect);
         this.tooltipHandler.addTooltipsToCards();
+        this.bouncePlayerBoards([args.owner_id, args.target_id]);
     }
     //public: the owner and the victim already animated their private notification
     async notif_cardsSwappedPublic_POWER10(args) {
         if (args.owner_id === this.myPlayerID || args.target_id === this.myPlayerID)
             return;
-        await Promise.all([
-            this.animateCardBacksBetweenBoards(args.owner_id, args.target_id, args.count),
-            this.animateCardBacksBetweenBoards(args.target_id, args.owner_id, args.count),
-        ]);
+        await this.animateCardBacksSwap(args.owner_id, args.target_id, args.count);
+        this.bouncePlayerBoards([args.owner_id, args.target_id]);
     }
     //private, to the owner only
     async notif_cardsRedrawn_POWER10(args) {
@@ -2558,8 +2670,17 @@ class Game {
         await this.handHandler.addCards(args.drawn ?? [], null);
         this.tooltipHandler.addTooltipsToCards();
     }
-    //public: hand sizes don't change, the log row is all there is
+    //public: hand sizes don't change, so only the owner's board bounces (for everyone but the owner)
     async notif_cardsRedrawnPublic_POWER10(args) {
+        this.bouncePlayerBoards([args.player_id]);
+    }
+    //card 10: the boards of the players involved bounce once the cards have landed, except my own (a swapper or victim
+    //sees only the other player's board bounce); nothing waits for it
+    bouncePlayerBoards(playerIDs) {
+        for (let playerID of playerIDs) {
+            if (playerID !== this.myPlayerID)
+                this.players[playerID]?.bounceBoard();
+        }
     }
     async notif_powerSkipped(args) {
     }

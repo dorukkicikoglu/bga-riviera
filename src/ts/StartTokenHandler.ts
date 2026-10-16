@@ -82,7 +82,9 @@ export class StartTokenHandler{
         this.startToken.style.visibility = 'hidden';
         targetAnchor.appendChild(this.startToken);
         StartTokenHandler.setOutlineColor(this.startToken, toColor); //hidden until the copy lands
-        const toRect = this.getUntiltedRect();
+        const landingRect = this.getUntiltedRect();
+        const targetBounce = this.game.players[playerID].getBounceOffset(); //a card 10 bounce may still be playing: land on the resting board
+        const toRect = new DOMRect(landingRect.x, landingRect.y - targetBounce, landingRect.width, landingRect.height);
 
         const from = this.getCenter(fromRect);
         const to = this.getCenter(toRect);

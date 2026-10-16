@@ -15,6 +15,7 @@ import { PlayedColumnHandler } from "./PlayedColumnHandler";
 export class PlayerHandler{
     private static readonly MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
     private static readonly LAST_CHANCE_FADE_ANIM_TIME = 400;
+    private static readonly BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
 
     private playerBoardContainer: HTMLDivElement;
     private handCountBacks: HTMLDivElement;
@@ -56,6 +57,10 @@ export class PlayerHandler{
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
         this.startTokenAnchor = (playerPanel.closest('.player-board') as HTMLDivElement) ?? playerPanel; //BGA's whole board around our panel
         this.startTokenAnchor.classList.add('start-token-anchor');
+        this.startTokenAnchor.addEventListener('animationend', (event: AnimationEvent) => { //the board's own bounce, not a child's animation
+            if(event.target === this.startTokenAnchor && event.animationName === PlayerHandler.BOUNCE_CLASS)
+                this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        });
 
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
@@ -95,6 +100,24 @@ export class PlayerHandler{
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
     }
 
+    //card 10: the whole BGA player board (startTokenAnchor) bounces once a swap or redraw has landed. Nothing waits for it:
+    //the class comes off by itself on animationend. No bounce in fast replay or a hidden tab
+    public bounceBoard(): void {
+        if(!this.game.bga.gameui.bgaAnimationsActive())
+            return;
+
+        this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        void this.startTokenAnchor.offsetWidth; //restarts a bounce still playing
+        this.startTokenAnchor.classList.add(PlayerHandler.BOUNCE_CLASS);
+    }
+
+    //px the board is lifted by its bounce right now (0 at rest), so a measurement can be brought back to the resting place
+    public getBounceOffset(): number {
+        if(!this.startTokenAnchor.classList.contains(PlayerHandler.BOUNCE_CLASS))
+            return 0;
+        return parseFloat(getComputedStyle(this.startTokenAnchor).top) || 0;
+    }
+
     public setGrandSlam(): void {
         this.playerBoardContainer.classList.add('grand-slam-player-board');
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
@@ -122,4 +145,15 @@ export class PlayerHandler{
     public getPlayedColumn(): PlayedColumnHandler { return this.playedColumn; }
     public getStartTokenAnchor(): HTMLDivElement { return this.startTokenAnchor; }
     public getHandCountElement(): HTMLDivElement { return this.handCountBacks; }
+
+    //where card 10's swapped cards fly to and from in my hand: BGA's avatar on this player's board, or the top mini card
+    //back of the hand count when the avatar isn't shown
+    public getAvatarRect(): DOMRect {
+        const avatarRect = document.getElementById('avatar_' + this.playerID)?.getBoundingClientRect();
+        if(avatarRect && avatarRect.width > 0 && avatarRect.height > 0)
+            return avatarRect;
+
+        const cardBacks = this.handCountBacks.querySelectorAll('.a-card');
+        return (cardBacks.length > 0) ? cardBacks[cardBacks.length - 1].getBoundingClientRect() : this.handCountBacks.getBoundingClientRect();
+    }
 }

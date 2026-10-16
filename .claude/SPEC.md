@@ -163,7 +163,7 @@ Entries are separated by spacing only: no borders or boxes, except the hovered c
 
 Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
 
-Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card]" / "<name> may use [card]", the card that gave the power drawn as the circular card icon (a ring in its color around its number) followed by its power icon, as in "Play [card]?", both with the same single-power tooltip as the log mini cards. Buttons stay short ("Add golden die", "Skip"); steps inside a power get their own short titles ("Turn [die] 4 → 5?", "Choose 2 cards to swap"). Card 2 has no prompt (automatic).
+Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card]" / "<name> may use [card]", the card that gave the power drawn as the circular card icon (a ring in its color around its number) followed by its power icon, as in "Play [card]?", both with the same single-power tooltip as the log mini cards. Buttons stay short ("Add golden die", "Skip"); steps inside a power get their own short titles ("Turn [die] 4 → 5?"). Card 10's owner sees "You may choose 2 cards to swap [10]" with only Skip, then, with 2 cards selected, "Choose an opponent to swap [card][card]" with one button per opponent, ringed in their color (fallback: "You may choose 2 cards to discard [10]", then "Discard [card][card] and draw 2?" with Confirm); everyone else sees "<name> may use [10]". Card 2 has no prompt (automatic).
 
 ## Preferences [BGA]
 
@@ -190,9 +190,10 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 - `PlayCard` (multiple active, with Undo)
 - `RevealCards` (game, 22: applies every play choice, one reveal notification, Grand Slam check, clears last turn's dice effects → `StopOrMore`)
 - `ResolvePowers` (active player, 30: card-11 add/skip, a second 11 is skipped when the golden die is already added; card 2 is applied while walking owners)
-- `SwapCards` (active player, 35: card 10 swap or discard/draw fallback, before the Start token pass; each action → the next card 10 owner or `PassStartToken`)
+- `NextPOWER10Owner` (game, 33: picks the next card 10 owner in the stored order → `SwapCards`, else `PassStartToken`)
+- `SwapCards` (active player, 35: card 10 swap or discard/draw fallback, before the Start token pass; each action → `NextPOWER10Owner`)
 - `StopOrMore` (multiple active, with Undo; everyone crashed → `PassStartToken`)
-- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, then banks each stopper's stars, computes the card 10 order clockwise from the current holder → `SwapCards` for the first card 10 owner, else `PassStartToken`)
+- `RevealStopOrMore` (game, 55: applies Stop choices, one reveal notification, then banks each stopper's stars, computes the card 10 order clockwise from the current holder → `NextPOWER10Owner`)
 - `PassStartToken` (game, 40: passes the token; if anyone chose More, walks their card 2/11 powers clockwise from the new holder, then `RollDice`; else `EndRound`)
 - `EndRound` (game: 40-point check only; stars are banked at the Stop reveal)
 - `EndScore`
@@ -253,4 +254,5 @@ Full list with ids: `.claude/plans/milestone-4.md`.
      - Start token skips players out of the round (2026-10-15): `RIVTableManager::passStartToken()` gives it to the next player clockwise still `in`; the holder keeps it (no notification) when they are the only one in; with nobody in it goes to the next player in turn order, as before.
      - Start token passes after Stop or More (2026-10-15, confirmed with publisher): `RevealCards` → `StopOrMore` → `RevealStopOrMore` → `PassStartToken`, which now starts the card 2/10/11 walk (or goes to `EndRound`). With everyone crashed, `StopOrMore` goes straight to `PassStartToken`. This turn's stoppers are already out when it passes, so they are skipped. Animation and log row unchanged.
      - Card 10 before the Start token pass (2026-10-16): `RevealStopOrMore` stores the card 10 owners who chose More, clockwise from the holder before the pass (`RIVPowerManager::saveOwnerOrderPOWER10()`, global `ownerOrder_POWER10`), and walks them (`goToNextPOWER10Owner()`, `SwapCards` returns to it) before `PassStartToken`; `goToNextPreRollPower()` now only walks cards 2 and 11, from the new holder. Client: `startTokenPassed` no longer blocks, `diceRolled` waits for the roll and the flight together, `newRound` waits for the flight first.
+     - Second card 10 owner skipped (2026-10-16): after the first owner's swap the walk went straight to the token pass. Owners are now handed off through a GAME state, `NextPOWER10Owner` (33), so `SwapCards` never re-enters itself, and the order is stored as a comma-separated string. The walk's end clears every `pending_POWER10`, so nothing leaks into a later turn.
      - Not code, yours: the Game Metadata Manager (designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, banner, icon, display images, a transparent box image).

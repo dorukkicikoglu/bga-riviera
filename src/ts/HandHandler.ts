@@ -39,6 +39,7 @@ export class HandHandler{
     private handContainer: HTMLDivElement;
     private cardsContainer: HTMLDivElement;
     private maxSelectedCards: number = 1;
+    private selectionCounter: number = 0; //stamps data-selection-order on each selected card, so selections read back in the order they were made
     private resizeDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(private game: Game, private handData: RivieraCard[]) {
@@ -149,7 +150,8 @@ export class HandHandler{
     }
 
     //selecting a card only raises it; the status-bar confirmation sends it. With one card at most (card play),
-    //a click moves the selection; with more (card 10), clicks add cards until the limit
+    //a click moves the selection; with more (card 10), clicks add cards, and once the limit is reached a new card
+    //replaces the oldest selected one (first in, first out). Clicking a selected card unselects it
     private handCardClicked(cardDiv: HTMLDivElement){
         const cardWasAlreadySelected: boolean = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
 
@@ -157,12 +159,27 @@ export class HandHandler{
             cardDiv.classList.remove(HandHandler.SELECTED_CARD_CLASS);
         } else if(this.maxSelectedCards === 1){
             this.clearSelection();
-            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
-        } else if(this.getSelectedCardIDs().length < this.maxSelectedCards){
-            cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+            this.selectCard(cardDiv);
+        } else {
+            const selectedCards = this.getSelectedCardDivs();
+            if(selectedCards.length >= this.maxSelectedCards)
+                selectedCards[0].classList.remove(HandHandler.SELECTED_CARD_CLASS);
+            this.selectCard(cardDiv);
         }
 
         this.game.handSelectionChanged();
+    }
+
+    private selectCard(cardDiv: HTMLDivElement): void{
+        this.selectionCounter++;
+        cardDiv.setAttribute('data-selection-order', this.selectionCounter.toString());
+        cardDiv.classList.add(HandHandler.SELECTED_CARD_CLASS);
+    }
+
+    //selected cards, oldest selection first
+    private getSelectedCardDivs(): HTMLDivElement[]{
+        const selectedCards = Array.from(this.cardsContainer.querySelectorAll<HTMLDivElement>('.a-card.' + HandHandler.SELECTED_CARD_CLASS));
+        return selectedCards.sort((a, b) => parseInt(a.getAttribute('data-selection-order') ?? '0') - parseInt(b.getAttribute('data-selection-order') ?? '0'));
     }
 
     private clearSelection(): void{
@@ -174,8 +191,9 @@ export class HandHandler{
         return selectedCard ? parseInt(selectedCard.getAttribute('data-card-id')) : null;
     }
 
+    //in selection order, oldest first
     public getSelectedCardIDs(): number[]{
-        return Array.from(this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS)).map(card => parseInt(card.getAttribute('data-card-id')));
+        return this.getSelectedCardDivs().map(card => parseInt(card.getAttribute('data-card-id')));
     }
 
     public getSelectedCardData(): RivieraCard | null{
@@ -211,7 +229,7 @@ export class HandHandler{
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
 
-    //card 10: cards leaving my hand fade out
+    //card 10 redraw: cards leaving my hand fade out
     public async removeCards(cardIDs: number[]): Promise<void>{
         this.handData = this.handData.filter(handCard => !cardIDs.includes(handCard.card_id));
 
@@ -222,7 +240,7 @@ export class HandHandler{
         this.recomputeCardSpacing();
     }
 
-    //card 10: cards joining my hand take their sorted place and slide in from fromElement (the other player's board), or fade in
+    //card 10 redraw: cards joining my hand take their sorted place and slide in from fromElement, or fade in
     public async addCards(cardsData: RivieraCard[], fromElement: HTMLDivElement | null): Promise<void>{
         this.handData = [...this.handData, ...cardsData];
         this.displayHand();
@@ -240,6 +258,52 @@ export class HandHandler{
         });
 
         await Promise.all(arrivals);
+    }
+
+    //card 10 swap: the cards I give fly from their slots to the other player's board (boardRect, on screen), shrinking, the
+    //cards I get fly from it into their sorted slots, growing, and the cards I keep slide from their old places to their new
+    //ones. Every card is measured before the hand changes, the hand is laid out once in its final order, then every move
+    //starts at the same time. Resolves when the last one has landed
+    public async swapCards(leavingCardIDs: number[], arrivingCardsData: RivieraCard[], boardRect: DOMRect): Promise<void>{
+        const animate = this.game.bga.gameui.bgaAnimationsActive();
+
+        const oldRects = new Map<number, DOMRect>();
+        for(let card of this.getCardDivs())
+            oldRects.set(parseInt(card.getAttribute('data-card-id')), card.getBoundingClientRect());
+
+        const moves: Promise<void>[] = [];
+        for(let cardID of leavingCardIDs){
+            const card = this.getCardDiv(cardID);
+            if(!card)
+                continue;
+
+            if(animate)
+                moves.push(this.game.animateSlideAway(card, boardRect, HandHandler.SLIDE_ANIM_TIME)); //places the copy on card before its first await,
+            card.remove();                                                                            //so the card can go right away
+        }
+
+        this.handData = [...this.handData.filter(handCard => !leavingCardIDs.includes(handCard.card_id)), ...arrivingCardsData];
+        for(let cardData of arrivingCardsData)
+            this.insertCardToHand(cardData);
+        for(let cardData of this.getSortedHandData()) //moves the cards I keep instead of recreating them, so they keep their tooltips
+            this.cardsContainer.appendChild(this.getCardDiv(cardData.card_id));
+        this.recomputeCardSpacing();
+
+        if(animate){
+            for(let card of this.getCardDivs()){
+                const oldRect = oldRects.get(parseInt(card.getAttribute('data-card-id')));
+                if(!oldRect)
+                    moves.push(this.game.animateSlide(card, boardRect, null, HandHandler.SLIDE_ANIM_TIME));
+                else if(HandHandler.hasMoved(oldRect, card.getBoundingClientRect()))
+                    moves.push(this.game.animateSlide(card, oldRect, null, HandHandler.SLIDE_ANIM_TIME));
+            }
+        }
+
+        await Promise.all(moves);
+    }
+
+    private static hasMoved(oldRect: DOMRect, newRect: DOMRect): boolean{
+        return Math.abs(oldRect.left - newRect.left) > 0.5 || Math.abs(oldRect.top - newRect.top) > 0.5;
     }
 
     public getHandCardIDs(): number[]{ return this.handData.map(cardData => cardData.card_id); }

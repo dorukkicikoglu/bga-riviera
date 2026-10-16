@@ -76,7 +76,7 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
 
         $this->game->powerManager->clearPreRollPowersOfPlayersOut();
         $this->game->powerManager->saveOwnerOrderPOWER10();
-        return $this->game->powerManager->goToNextPOWER10Owner();
+        return NextPOWER10Owner::class;
     }
 
     //the stopper's column goes into their score now, clockwise from the Start token holder like the Stop/More row
