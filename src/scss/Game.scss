@@ -468,7 +468,7 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
 }
 .mobile_version .tooltip-wrapper{ min-width: 250px; }
 
-//power reference (TooltipHandler.getPowerReferenceHTML): every game-area card, laid out like the rulebook's powers page.
+//power reference (TooltipHandler.getPowerReferenceHTML): every game-area card, laid out like the rulebook's powers page (a power card's own power on top).
 //Colors are explicit (teal and dark text sampled from the rulebook), so BGA's dark mode doesn't change them
 $power-reference-background: #13a6ba;
 $power-reference-text: #051121;
@@ -485,10 +485,20 @@ $power-reference-text: #051121;
     .power-reference-entry{ display: flow-root; padding: 4px 6px; margin: 0px -6px 6px -6px; border: 1px solid transparent; border-radius: 8px; background: none; box-shadow: none; outline: none;
         &.highlighted-power-entry{ background: rgba(255, 255, 255, 0.32); border-color: rgba(5, 17, 33, 0.45); }
     }
+    //a power card's reference: its own power on top, as wide as the tooltip, in a stronger box than the others
+    &.focused-power-reference{ display: block; }
+    .power-reference-entry.focused-power-entry{ margin-bottom: 12px; background: rgba(255, 255, 255, 0.5); border-color: rgba(5, 17, 33, 0.75); box-shadow: 0px 1px 3px rgba(5, 17, 33, 0.3); }
+    //then the other powers in two columns the browser balances, the rule where the columns' separator is (18px gap + 18px padding).
+    //Entries never split, and a heading stays with its group's first entry
+    .power-reference-balanced-columns{ column-count: 2; column-gap: 36px; column-rule: 1px solid rgba(5, 17, 33, 0.35);
+        .power-reference-heading-group, .power-reference-entry{ break-inside: avoid; }
+        .power-reference-heading-group:not(:first-child) > .power-reference-heading{ margin-top: 10px; }
+    }
 }
 //one column: the entries follow each other, so no separator
 @mixin power-reference-one-column(){ flex-direction: column; gap: 0px; width: min(340px, 92vw);
     .power-reference-column + .power-reference-column{ padding-left: 0px; border-left: none; }
+    .power-reference-balanced-columns{ column-count: 1; }
 }
 .mobile_version .tooltip-wrapper.power-reference{ @include power-reference-one-column(); }
 @media (max-width: 700px){

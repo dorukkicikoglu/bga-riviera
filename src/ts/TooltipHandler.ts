@@ -18,7 +18,7 @@ export class TooltipHandler{
     private static readonly TOOLTIP_DELAY = 1000;
     private static readonly GAME_AREA_CARDS_SELECTOR = '#my-hand-container .a-card[id], #played-columns-container .a-card[id]';
 
-    private powerReferenceHTMLByValue: Record<number, string> = {}; //0: no entry highlighted
+    private powerReferenceHTMLByValue: Record<number, string> = {}; //0: the whole reference, no power on top
 
     constructor(private game: Game) {
         this.addTooltipsToCards();
@@ -34,7 +34,7 @@ export class TooltipHandler{
 	}
 
     //every card in the game area (my hand, every played column) shows the power reference, with the hovered card's power
-    //highlighted. Tooltips only reach the cards already on the page, so this runs again whenever cards are created
+    //on top. Tooltips only reach the cards already on the page, so this runs again whenever cards are created
 	public addTooltipsToCards(){
         if(this.isSafariMobile()) {
             this.addTooltipToBottomForSafari();
@@ -112,35 +112,68 @@ export class TooltipHandler{
 
     /**
      * The power reference, laid out like the rulebook's powers page: entries grouped by timing, each with its icon
-     * (img/power_icons_sprite.webp) floated left. Two columns on desktop (left: card 1, then cards 2 and 10; right:
-     * card 11, then card 9), one on narrow screens. $highlightedValue's entry is highlighted; 0 highlights none.
+     * (img/power_icons_sprite.webp) floated left. Two columns on desktop, one on narrow screens.
+     * focusedValue 0 (a card with no power): the whole reference, split like the rulebook (left: card 1, then cards 2 and 10;
+     * right: card 11, then card 9). A power card: its own entry on top, as wide as the tooltip, then the other powers under
+     * their timing headings (a group left empty loses its heading) in two columns the browser balances (CSS columns).
      * The text follows our BGA rules (SPEC.md), not the rulebook's wording.
      */
-    private getPowerReferenceHTML(highlightedValue: number): string {
-        if(this.powerReferenceHTMLByValue[highlightedValue])
-            return this.powerReferenceHTMLByValue[highlightedValue];
+    private getPowerReferenceHTML(focusedValue: number): string {
+        if(this.powerReferenceHTMLByValue[focusedValue])
+            return this.powerReferenceHTMLByValue[focusedValue];
 
         const headingHTML = (heading: string) => `<div class="power-reference-heading">${heading}</div>`;
+        const timingGroups = this.getPowerTimingGroups();
+        const [immediateGroup, beforeRollGroup, afterRollGroup] = timingGroups;
 
-        const referenceHTML = `
-            <div class="tooltip-wrapper power-reference">
-                <div class="power-reference-column">
-                    ${headingHTML(_('Power activated immediately after playing the card:'))}
-                    ${this.getPowerEntryHTML(1)}
-                    ${headingHTML(_('Powers activated before the next dice roll:'))}
-                    ${this.getPowerEntryHTML(2)}
-                    ${this.getPowerEntryHTML(10)}
+        let referenceHTML: string;
+        if(focusedValue === 0) {
+            referenceHTML = `
+                <div class="tooltip-wrapper power-reference">
+                    <div class="power-reference-column">
+                        ${headingHTML(immediateGroup.heading)}
+                        ${this.getPowerEntryHTML(1)}
+                        ${headingHTML(beforeRollGroup.heading)}
+                        ${this.getPowerEntryHTML(2)}
+                        ${this.getPowerEntryHTML(10)}
+                    </div>
+                    <div class="power-reference-column">
+                        ${this.getPowerEntryHTML(11)}
+                        ${headingHTML(afterRollGroup.heading)}
+                        ${this.getPowerEntryHTML(9)}
+                    </div>
                 </div>
-                <div class="power-reference-column">
-                    ${this.getPowerEntryHTML(11)}
-                    ${headingHTML(_('Power activated after the next dice roll and before playing a card:'))}
-                    ${this.getPowerEntryHTML(9)}
-                </div>
-            </div>
-        `;
+            `;
+        } else {
+            //each heading is kept with its group's first entry, so a column never ends on a heading
+            const otherPowersHTML = timingGroups.map(({heading, values}) => {
+                const otherValues = values.filter((value) => value !== focusedValue);
+                if(otherValues.length === 0)
+                    return '';
 
-        this.powerReferenceHTMLByValue[highlightedValue] = referenceHTML;
+                const [firstValue, ...nextValues] = otherValues;
+                return `<div class="power-reference-heading-group">${headingHTML(heading)}${this.getPowerEntryHTML(firstValue)}</div>` + nextValues.map((value) => this.getPowerEntryHTML(value)).join('');
+            }).join('');
+
+            referenceHTML = `
+                <div class="tooltip-wrapper power-reference focused-power-reference">
+                    ${this.getPowerEntryHTML(focusedValue, 'focused-power-entry')}
+                    <div class="power-reference-balanced-columns">${otherPowersHTML}</div>
+                </div>
+            `;
+        }
+
+        this.powerReferenceHTMLByValue[focusedValue] = referenceHTML;
         return referenceHTML;
+    }
+
+    //the powers by timing, in the rulebook's order: the only source of the reference's headings
+    private getPowerTimingGroups(): {heading: string, values: number[]}[] {
+        return [
+            {heading: _('Power activated immediately after playing the card:'), values: [1]},
+            {heading: _('Powers activated before the next dice roll:'), values: [2, 10, 11]},
+            {heading: _('Power activated after the next dice roll and before playing a card:'), values: [9]},
+        ];
     }
 
     //a single power: the power reference's entry for it, on the same background. For the mini cards in log rows and the
@@ -154,10 +187,10 @@ export class TooltipHandler{
     }
 
     //one power's entry: its icon floated left, "Card N:" in bold, then its text. Shared by the power reference and the
-    //single-power tooltip, so both look the same
-    private getPowerEntryHTML(value: number): string {
+    //single-power tooltip, so both look the same. extraClass: focused-power-entry for the hovered card's power on top of the reference
+    private getPowerEntryHTML(value: number, extraClass: string = ''): string {
         return `
-            <div class="power-reference-entry highlighted-power-entry">
+            <div class="power-reference-entry highlighted-power-entry ${extraClass}">
                 <span class="power-icon" data-power-value="${value}"></span><b>${_('Card ${value}:').replace('${value}', value.toString())}</b> ${this.getPowerText(value)}
             </div>`;
     }

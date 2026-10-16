@@ -1355,6 +1355,26 @@ body .start-token.flying-start-token {
   background: rgba(255, 255, 255, 0.32);
   border-color: rgba(5, 17, 33, 0.45);
 }
+.tooltip-wrapper.power-reference.focused-power-reference {
+  display: block;
+}
+.tooltip-wrapper.power-reference .power-reference-entry.focused-power-entry {
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(5, 17, 33, 0.75);
+  box-shadow: 0px 1px 3px rgba(5, 17, 33, 0.3);
+}
+.tooltip-wrapper.power-reference .power-reference-balanced-columns {
+  column-count: 2;
+  column-gap: 36px;
+  column-rule: 1px solid rgba(5, 17, 33, 0.35);
+}
+.tooltip-wrapper.power-reference .power-reference-balanced-columns .power-reference-heading-group, .tooltip-wrapper.power-reference .power-reference-balanced-columns .power-reference-entry {
+  break-inside: avoid;
+}
+.tooltip-wrapper.power-reference .power-reference-balanced-columns .power-reference-heading-group:not(:first-child) > .power-reference-heading {
+  margin-top: 10px;
+}
 
 .mobile_version .tooltip-wrapper.power-reference {
   flex-direction: column;
@@ -1364,6 +1384,9 @@ body .start-token.flying-start-token {
 .mobile_version .tooltip-wrapper.power-reference .power-reference-column + .power-reference-column {
   padding-left: 0px;
   border-left: none;
+}
+.mobile_version .tooltip-wrapper.power-reference .power-reference-balanced-columns {
+  column-count: 1;
 }
 
 @media (max-width: 700px) {
@@ -1376,6 +1399,9 @@ body .start-token.flying-start-token {
     padding-left: 0px;
     border-left: none;
   }
+  .tooltip-wrapper.power-reference .power-reference-balanced-columns {
+    column-count: 1;
+  }
 }
 .tooltip-wrapper.single-power-reference {
   flex-direction: column;
@@ -1385,6 +1411,9 @@ body .start-token.flying-start-token {
 .tooltip-wrapper.single-power-reference .power-reference-column + .power-reference-column {
   padding-left: 0px;
   border-left: none;
+}
+.tooltip-wrapper.single-power-reference .power-reference-balanced-columns {
+  column-count: 1;
 }
 .tooltip-wrapper.single-power-reference .power-reference-entry {
   margin-bottom: 0px;

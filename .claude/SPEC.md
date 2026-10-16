@@ -154,12 +154,12 @@ Level 1 (report it in the Game Metadata Manager):
 
 ## Power reference [BGA]
 
-Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. The hovered card's power, if any, is highlighted. The text follows our BGA rules, not the rulebook's wording:
+Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. Hovering a power card (1, 2, 9, 10, 11) puts that card's power on top, on its own row as wide as the tooltip, in a stronger box; the other powers follow under their timing headings (a heading left with no power is dropped) in two balanced columns, never repeating the hovered one. The text follows our BGA rules, not the rulebook's wording:
 - Immediately after playing the card: card 1.
 - Before the next dice roll, only if you choose More: card 2 (automatic), card 10 (an opponent who chose More with at least 2 cards, otherwise discard and draw), card 11.
 - After the next dice roll and before playing a card: card 9 (the golden or a reserved die can be turned, only if you are still in the round).
 
-Entries are separated by spacing only: no borders or boxes, except the hovered card's power, which gets a box (soft lighter background, rounded corners, thin border) so it stands out at a glance. Hovering a card with no power highlights nothing. A thin vertical line separates the two columns (none when they stack).
+Entries are separated by spacing only: no borders or boxes, except the hovered card's power, which gets a box (soft lighter background, rounded corners, thin border) so it stands out at a glance. Hovering a card with no power shows the whole reference, split as above. A thin vertical line separates the two columns (none when they stack).
 
 Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
 
