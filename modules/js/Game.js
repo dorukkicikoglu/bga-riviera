@@ -2332,11 +2332,11 @@ class Game {
     isMobile() { return document.body.classList.contains('mobile_version'); }
     isInterfaceLocked() { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     updateStatusText(statusText) { $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
-    //power prompts (cards 1, 9, 10, 11): "may use" + the circular card icon of the card that gave the power. setTitle
-    //substitutes its args as raw HTML (Fugu's pass button slot uses the same), so the translatable string only holds the
-    //${card} placeholder. The details live in the icon's power tooltip
+    //power prompts (cards 1, 9, 10, 11): "may use" + the circular card icon of the card that gave the power, followed by
+    //its power icon (like "Play [card]?"). setTitle substitutes its args as raw HTML (Fugu's pass button slot uses the
+    //same), so the translatable string only holds the ${card} placeholder. The details live in the icons' power tooltip
     setPowerPromptTitle(powerCard, isCurrentPlayerActive) {
-        this.bga.statusBar.setTitle(isCurrentPlayerActive ? _('${you} may use ${card}') : _('${actplayer} may use ${card}'), { card: this.getStatusCardIconHTML(powerCard) });
+        this.bga.statusBar.setTitle(isCurrentPlayerActive ? _('${you} may use ${card}') : _('${actplayer} may use ${card}'), { card: this.getStatusCardWithPowerHTML(powerCard) });
         this.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
     }
     //the circular card icon of status bar titles: a ring in the card's color around its number. The number is drawn from
