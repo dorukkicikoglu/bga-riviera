@@ -53,8 +53,8 @@
 }
 
 body {
-  background: linear-gradient(180deg, #3d8fc6 0%, #1f5f94 100%) fixed;
-  background-color: #1f5f94;
+  background: url(img/bg_riviera.webp) top center/min(100%, 700px) auto repeat scroll;
+  background-color: #032a2e;
 }
 
 #game_play_area {

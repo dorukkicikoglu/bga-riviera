@@ -64,7 +64,9 @@
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
 .mobile_version{ --card-width: min(28.5vw, 150px); --die-size: min(13.3vw, 55px); }
 
-body{ background: linear-gradient(180deg, #3d8fc6 0%, #1f5f94 100%) fixed; background-color: #1f5f94; } //Riviera sea blue
+//img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
+//tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
+body{ background: url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #032a2e; }
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
 
 @mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
