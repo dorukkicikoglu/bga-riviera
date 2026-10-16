@@ -39,6 +39,7 @@ export class Game {
     public players: Record<number, PlayerHandler> = {};
     private myPlayerID: number;
     private localCardIDCounter = 1;
+    private startTokenFlight: Promise<void> = Promise.resolve(); //the Start token's pass, flying alongside the notifications after it
 
     public myself: PlayerHandler;
     public handHandler: HandHandler;
@@ -457,6 +458,8 @@ export class Game {
 
     // Add the notification handlers
     public async notif_newRound(args: NewRoundArgs) {
+        await this.startTokenFlight; //the end-of-round pass (EndRound) lands before the columns clear
+
         const columnsCleared: Promise<void>[] = [];
         for(let player_id in this.players){
             const player = this.players[player_id];
@@ -474,8 +477,9 @@ export class Game {
         this.tooltipHandler.addTooltipsToCards();
     }
 
+    //the roll starts at once, alongside a Start token pass still flying, and the notification waits for both
     public async notif_diceRolled(args: DiceRolledArgs) {
-        await this.diceHandler.rollDice(args.dice);
+        await Promise.all([this.diceHandler.rollDice(args.dice), this.startTokenFlight]);
     }
 
     public async notif_playChoiceConfirmed(args: PlayChoiceConfirmedArgs) {
@@ -543,8 +547,11 @@ export class Game {
         this.players[args.player_id]?.setGrandSlam();
     }
 
+    //the flight doesn't block: the card 2 and 11 notifications (no animation) and the roll play while it flies, and
+    //diceRolled (or newRound, when the round ends) waits for it
     public async notif_startTokenPassed(args: StartTokenPassedArgs) {
-        await this.startTokenHandler.moveTo(args.player_id);
+        await this.startTokenFlight; //a previous pass still flying (debug passes back to back)
+        this.startTokenFlight = this.startTokenHandler.moveTo(args.player_id);
     }
 
     public async notif_stopOrMoreChoiceConfirmed(args: StopOrMoreChoiceArgs) {

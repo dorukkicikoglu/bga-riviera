@@ -15,6 +15,7 @@ namespace Bga\Games\Riviera;
 
 use Bga\Games\Riviera\Game;
 use Bga\Games\Riviera\States\ModifyDie;
+use Bga\Games\Riviera\States\PassStartToken;
 use Bga\Games\Riviera\States\PlayCard;
 use Bga\Games\Riviera\States\ResolvePowers;
 use Bga\Games\Riviera\States\SwapCards;
@@ -25,8 +26,10 @@ use Bga\Games\Riviera\States\RollDice;
  * with 1s), so the last card a player reveals leaves a pending_POWER<n> marker, and owners are walked one by one
  * clockwise from the Start token holder, like Fugu's NextPlayer: change the active player, then go to the state.
  * [BGA, confirmed with publisher] A player who stops doesn't benefit from their powers: cards 2, 10 and 11 resolve
- * after Stop or More, only for owners who chose More (RevealStopOrMore starts the walk); card 9 after the next roll,
- * only for owners still in. Card 1 lives in PlayCard: its chain is part of the player's choice.
+ * after Stop or More, only for owners who chose More. [BGA] Card 10 goes first, clockwise from the holder before the
+ * Start token passes (RevealStopOrMore starts that walk); cards 2 and 11 after the pass, clockwise from the new holder
+ * (PassStartToken starts that walk); card 9 after the next roll, only for owners still in. Card 1 lives in PlayCard:
+ * its chain is part of the player's choice.
  */
 class RIVPowerManager{
     public Game $game;
@@ -51,7 +54,7 @@ class RIVPowerManager{
 
     /**
      * Owners who stopped (or crashed) lose their pending card 2, 10 and 11 powers, silently. RevealStopOrMore, once
-     * the Stops are applied: everyone still 'in' chose More.
+     * the Stops are applied, before any of them resolves: everyone still 'in' chose More.
      */
     function clearPreRollPowersOfPlayersOut(): void{
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER10` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
@@ -73,14 +76,65 @@ class RIVPowerManager{
     }
 
     /**
-     * Pre-roll powers (2, 10, 11), after Stop or More, for owners who chose More (still 'in'), clockwise from the
-     * Start token holder (it passed right after Stop or More). Card 2 is applied on the spot; a card-10 or card-11 owner
-     * becomes the active player of SwapCards or ResolvePowers. Every action of those states returns this again,
-     * so the walk goes on until nobody has a pending pre-roll power, then the next roll.
+     * [BGA] Card 10 resolves after Stop or More and before the Start token passes, clockwise from the holder before the
+     * pass. RevealStopOrMore computes that order once, here, from the owners who chose More (still 'in' once the Stops
+     * are applied), and stores it: goToNextPOWER10Owner() only walks the stored order, it never reads the holder again.
+     */
+    function saveOwnerOrderPOWER10(): void{
+        $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
+        $pendingPOWER10DB = $this->game->getCollectionFromDB("SELECT `player_id`, `pending_POWER10` FROM `player` WHERE `round_status` = 'in'", true);
+
+        $ownerOrder = [];
+        foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
+            if(($pendingPOWER10DB[$playerID] ?? 'no') === 'yes')
+                $ownerOrder[] = $playerID;
+        }
+
+        $this->game->bga->globals->set('ownerOrder_POWER10', $ownerOrder);
+    }
+
+    /**
+     * Card 10 owners in the order saveOwnerOrderPOWER10() stored: the next one still pending becomes the active player
+     * of SwapCards, whose every action returns this again. Once nobody is left, the Start token passes (PassStartToken),
+     * which starts the card 2 and 11 walk. With nobody who chose More, the order is empty and it goes straight there.
+     */
+    function goToNextPOWER10Owner(): string{
+        $ownerOrder = $this->game->bga->globals->get('ownerOrder_POWER10', []);
+        $pendingPOWER10DB = $this->game->getCollectionFromDB("SELECT `player_id`, `pending_POWER10` FROM `player`", true);
+
+        foreach($ownerOrder as $playerID){
+            $playerID = (int) $playerID;
+            if(($pendingPOWER10DB[$playerID] ?? 'no') !== 'yes')
+                continue;
+
+            $handCount = $this->game->tableManager->getHandCounts()[$playerID] ?? 0;
+            if($handCount < CARDS_SWAPPED_BY_POWER10){ //[BGA] the power needs 2 cards of your own
+                $this->skipPower($playerID, 10, 'not_enough_cards');
+                continue;
+            }
+
+            if(empty($this->getSwapTargetsPOWER10($playerID)) && $this->game->tableManager->getDrawableCountPOWER10() === 0){
+                $this->skipPower($playerID, 10, 'nothing_to_draw');
+                continue;
+            }
+
+            $this->game->gamestate->changeActivePlayer($playerID);
+            return SwapCards::class;
+        }
+
+        $this->game->bga->globals->set('ownerOrder_POWER10', []);
+        return PassStartToken::class;
+    }
+
+    /**
+     * Cards 2 and 11, after the Start token pass, for owners who chose More (still 'in'), clockwise from the new holder.
+     * Card 2 is applied on the spot; a card-11 owner becomes the active player of ResolvePowers, whose every action
+     * returns this again, so the walk goes on until nobody has a pending card 2 or 11, then the next roll.
+     * Card 10 has already resolved, before the pass (goToNextPOWER10Owner()).
      */
     function goToNextPreRollPower(): string{
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
-        $pendingPowersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `round_status`, `pending_POWER2`, `pending_POWER10`, `pending_POWER11` FROM `player`");
+        $pendingPowersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `round_status`, `pending_POWER2`, `pending_POWER11` FROM `player`");
 
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             $pendingPowers = $pendingPowersDB[$playerID];
@@ -100,22 +154,6 @@ class RIVPowerManager{
 
                 $this->game->gamestate->changeActivePlayer($playerID);
                 return ResolvePowers::class;
-            }
-
-            if($pendingPowers['pending_POWER10'] === 'yes'){
-                $handCount = $this->game->tableManager->getHandCounts()[$playerID] ?? 0;
-                if($handCount < CARDS_SWAPPED_BY_POWER10){ //[BGA] the power needs 2 cards of your own
-                    $this->skipPower($playerID, 10, 'not_enough_cards');
-                    continue;
-                }
-
-                if(empty($this->getSwapTargetsPOWER10($playerID)) && $this->game->tableManager->getDrawableCountPOWER10() === 0){
-                    $this->skipPower($playerID, 10, 'nothing_to_draw');
-                    continue;
-                }
-
-                $this->game->gamestate->changeActivePlayer($playerID);
-                return SwapCards::class;
             }
         }
 

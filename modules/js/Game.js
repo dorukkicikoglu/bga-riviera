@@ -2069,6 +2069,7 @@ class Game {
     constructor(bga) {
         this.players = {};
         this.localCardIDCounter = 1;
+        this.startTokenFlight = Promise.resolve(); //the Start token's pass, flying alongside the notifications after it
         this.bga = bga;
         // Declare the State classes
         this.playCard = new PlayCard(this, bga);
@@ -2423,6 +2424,7 @@ class Game {
     }
     // Add the notification handlers
     async notif_newRound(args) {
+        await this.startTokenFlight; //the end-of-round pass (EndRound) lands before the columns clear
         const columnsCleared = [];
         for (let player_id in this.players) {
             const player = this.players[player_id];
@@ -2437,8 +2439,9 @@ class Game {
         await this.handHandler?.setHand(args.cards); //old cards sweep out, then the new ones are dealt
         this.tooltipHandler.addTooltipsToCards();
     }
+    //the roll starts at once, alongside a Start token pass still flying, and the notification waits for both
     async notif_diceRolled(args) {
-        await this.diceHandler.rollDice(args.dice);
+        await Promise.all([this.diceHandler.rollDice(args.dice), this.startTokenFlight]);
     }
     async notif_playChoiceConfirmed(args) {
         this.playCard.onChoiceConfirmed(args);
@@ -2492,8 +2495,11 @@ class Game {
         this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
         this.players[args.player_id]?.setGrandSlam();
     }
+    //the flight doesn't block: the card 2 and 11 notifications (no animation) and the roll play while it flies, and
+    //diceRolled (or newRound, when the round ends) waits for it
     async notif_startTokenPassed(args) {
-        await this.startTokenHandler.moveTo(args.player_id);
+        await this.startTokenFlight; //a previous pass still flying (debug passes back to back)
+        this.startTokenFlight = this.startTokenHandler.moveTo(args.player_id);
     }
     async notif_stopOrMoreChoiceConfirmed(args) {
         this.stopOrMore.setPendingChoice(args.choice);

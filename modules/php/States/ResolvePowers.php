@@ -22,10 +22,11 @@ use Bga\GameFramework\UserException;
 use Bga\Games\Riviera\Game;
 
 /**
- * Card 11, after Stop or More (owner chose More), before the next roll: the owner may add the golden die to the next
- * roll, for everyone. Card 2 needs no choice ([BGA] its reservation is automatic) and card 10 has SwapCards, so this
- * state only asks card-11 owners. RIVPowerManager::goToNextPreRollPower() walks the owners and picks the next state;
- * [BGA] it skips a second 11 when the golden die is already added.
+ * Card 11, after Stop or More (owner chose More) and the Start token pass, before the next roll: the owner may add
+ * the golden die to the next roll, for everyone. Card 2 needs no choice ([BGA] its reservation is automatic) and
+ * card 10 has SwapCards (before the pass), so this state only asks card-11 owners.
+ * RIVPowerManager::goToNextPreRollPower() walks the owners and picks the next state; [BGA] it skips a second 11 when
+ * the golden die is already added.
  */
 class ResolvePowers extends GameState
 {

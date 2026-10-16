@@ -294,3 +294,24 @@ BGA alpha checklist:
 - [ ] A game starts from the waiting screen (express start and a normal start).
 - [ ] Control panel: "Dry run build" passes.
 - [ ] Game Metadata Manager filled in: designer Valentin Demion, artist Simon Caruso, year, presentation text, zombie level 1, box image with a transparent background, banner, icon, display images.
+
+## After M4: card 10 before the Start token pass, token and roll together
+
+Card 10 order (2 players, `debug_POWER10()` for each player in turn, both choose More):
+- [ ] A holds the Start token and both A and B played a 10. After the More reveal: A is asked for card 10 first, then B, and only then "B receives the Start token". The token has not moved while either is choosing.
+- [ ] 3 players, holder B, A and C played a 10, all More: the order is C then A (clockwise from the holder B), then the token passes to C.
+- [ ] The holder stopped and two others played a 10 and chose More: the card 10 order still starts clockwise from the (stopped) holder, then the token passes to the next player still in.
+- [ ] A card 10 owner who stopped is never asked, and gets no log row. A target list never includes a player who stopped.
+- [ ] Only one player chose More with a 10: they get the discard and draw fallback, then the token stays with them or passes, then the roll.
+- [ ] Nobody chose More (everyone stopped, some with a 10): no card 10 prompt; the round ends (40-point check), the token passes only if the game goes on.
+- [ ] Card 2 and 11 still come after the token has moved: with a 10 (A) and an 11 (B) in the same turn, the order is A's card 10, token passes, then B's card 11 prompt, then the roll.
+- [ ] Zombie with a pending 10 still resolves (random swap, redraw or skip) and the game goes on to the pass.
+- [ ] F5 while a card 10 owner is choosing: the same owner is still asked, the next one follows in the same order.
+
+Start token and roll together:
+- [ ] A turn with no card 2/11/10: the Start token's flight and the dice roll-in start at the same moment. Nothing after them (the card 9 prompt, the play prompt, log rows) starts before both have finished, whichever is longer.
+- [ ] With a card 2: its log row and the reserved outline show while the token flies, and the roll starts right away too.
+- [ ] With a card 11 prompt after the pass: the prompt shows while the token is still flying; nothing breaks if the owner clicks before the token lands.
+- [ ] Round end (nobody chose More, game goes on): the token flies, and the previous columns only clear once it has landed; then the sweep, the deal and the roll as before.
+- [ ] Game end (40+ or Grand Slam): no token flight, the end-game table shows as before.
+- [ ] F5, fast replay, hidden tab: the token just jumps, the dice just change, no hang.
