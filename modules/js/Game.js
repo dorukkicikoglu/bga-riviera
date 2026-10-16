@@ -540,8 +540,8 @@ DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the
 DiceHandler.DIE_FACES = 6;
 //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
 //shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once
-DiceHandler.ROLL_DURATION = 450; //ms of each die's travel
-DiceHandler.ROLL_MAX_DELAY = 80; //ms, each die starts after a random delay up to this, so the dice don't move as one block
+DiceHandler.ROLL_DURATION = 540; //ms of each die's travel
+DiceHandler.ROLL_MAX_DELAY = 96; //ms, each die starts after a random delay up to this, so the dice don't move as one block
 DiceHandler.ROLL_EASING_POINTS = [0.25, 0.8, 0.35, 1]; //x1, y1, x2, y2 of the roll's cubic-bezier: ease-out with no overshoot, the dice decelerate into place
 DiceHandler.ROLL_EASING = `cubic-bezier(${DiceHandler.ROLL_EASING_POINTS.join(', ')})`; //the faces follow the rotation through this same curve (getRollProgress)
 DiceHandler.ROLL_DISTANCE = 3; //die sizes (on screen) the die starts right of its slot, and as many above: D in translate(+D, -D). The dice container is about 1.6 die sizes tall, so every die starts above it
@@ -550,7 +550,7 @@ DiceHandler.ROLL_MAX_SPIN = 360; //deg
 DiceHandler.FACE_TURN = 90; //deg: the face changes each time the rotation passes a multiple of this, as if a new side rolled up
 DiceHandler.FACE_LOCK_FRACTION = 0.6; //share of the travel time from which the face is the real value: no change while the die slows down
 DiceHandler.MAX_SPIN_AFTER_LOCK = 90; //deg the die may still turn after FACE_LOCK_FRACTION; a bigger start spin is reduced to keep to it
-DiceHandler.FADE_OUT_DURATION = 300; //ms of the previous roll's dice fading out
+DiceHandler.FADE_OUT_DURATION = 240; //ms of the previous roll's dice fading out
 DiceHandler.FADE_OUT_SCALE = 0.85; //their size at the end of the fade
 DiceHandler.FINISH_SAFETY_MARGIN = 300; //ms after an animation's duration at which it counts as done anyway, should it never report finished
 
