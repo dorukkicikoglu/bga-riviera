@@ -288,8 +288,10 @@ body.current_player_is_active:not(.lockedInterface){
 .riviera-player-board{ margin-top: 6px;
     .player-board-cards-row{ display: flex; align-items: center; justify-content: space-between; min-height: 34px;
         .hand-count-backs{ display: flex; align-items: center;
-            .a-card.mini-card-back{ --my-card-width: 16px; box-shadow: 1px 1px 2px #000000;
-                & + .a-card.mini-card-back{ margin-left: -9px; }
+            //top-aligned, so every 2nd back sits 4px lower (a centered flex item would only move half its margin)
+            .a-card.mini-card-back{ --my-card-width: 20px; box-shadow: 1px 1px 2px #000000; align-self: flex-start; outline: 1px solid #a9a9a9; border-radius: 8%;
+                & + .a-card.mini-card-back{ margin-left: -4px; }
+                &:nth-child(even){ margin-top: 4px; }
             }
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }

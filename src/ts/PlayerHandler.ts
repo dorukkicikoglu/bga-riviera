@@ -13,7 +13,7 @@ import { Game } from "./Game";
 import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
 export class PlayerHandler{
-    private static readonly MAX_INDIVIDUAL_CARD_BACKS = 6; //above this, the hand count shows a single card back followed by "x N"
+    private static readonly MAX_INDIVIDUAL_CARD_BACKS = 7; //above this, the hand count shows a single card back followed by "x N"
     private static readonly LAST_CHANCE_FADE_ANIM_TIME = 400;
     private static readonly BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
 

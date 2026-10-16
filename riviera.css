@@ -839,11 +839,17 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   align-items: center;
 }
 .riviera-player-board .player-board-cards-row .hand-count-backs .a-card.mini-card-back {
-  --my-card-width: 16px;
+  --my-card-width: 20px;
   box-shadow: 1px 1px 2px #000000;
+  align-self: flex-start;
+  outline: 1px solid #a9a9a9;
+  border-radius: 8%;
 }
 .riviera-player-board .player-board-cards-row .hand-count-backs .a-card.mini-card-back + .a-card.mini-card-back {
-  margin-left: -9px;
+  margin-left: -4px;
+}
+.riviera-player-board .player-board-cards-row .hand-count-backs .a-card.mini-card-back:nth-child(even) {
+  margin-top: 4px;
 }
 .riviera-player-board .player-board-cards-row .hand-count-backs .hand-count-text {
   margin-left: 5px;
@@ -1602,3 +1608,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */
