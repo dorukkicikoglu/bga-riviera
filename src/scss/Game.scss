@@ -197,7 +197,7 @@ $status-card-icon-size: 40px;
 //state, so the dice never move when the arrows appear or go. The die's drop shadow falls 2px below it, so the gap below
 //is 2px wider: the two gaps then look the same
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
-    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 10px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
     position: relative; //for the fading copies
 
     .die-slot{ position: relative; }
@@ -235,7 +235,7 @@ body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-in
 
 #my-hand-container{
     &:empty{ display: none; } //spectators have no hand
-    position: relative; text-align: center; border: 1px solid var(--hand-owner-color); border-radius: 10px; margin-top: 30px; padding: 26px 10px 14px 10px;
+    position: relative; text-align: center; border: 1px solid var(--hand-owner-color); border-radius: 10px; margin-top: 30px; padding: 14px 10px 14px 10px;
     .my-hand-title{ color: var(--hand-owner-color); }
 
     .cards-container{ display: flex; justify-content: center; align-items: flex-start;

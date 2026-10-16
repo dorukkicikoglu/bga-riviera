@@ -596,7 +596,7 @@ body .sliding-clone {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap)) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
+  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 10px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
   min-height: var(--die-size);
   position: relative;
 }
@@ -703,7 +703,7 @@ body .a-die.rolling-die {
   border: 1px solid var(--hand-owner-color);
   border-radius: 10px;
   margin-top: 30px;
-  padding: 26px 10px 14px 10px;
+  padding: 14px 10px 14px 10px;
 }
 #my-hand-container .my-hand-title {
   color: var(--hand-owner-color);
