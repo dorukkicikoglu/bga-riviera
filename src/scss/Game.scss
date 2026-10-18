@@ -489,7 +489,7 @@ $power-reference-text: #051121;
     }
     //a power card's reference: its own power on top, as wide as the tooltip, in a stronger box than the others
     &.focused-power-reference{ display: block; }
-    .power-reference-entry.focused-power-entry{ margin-bottom: 12px; background: rgba(255, 255, 255, 0.5); border-color: rgba(5, 17, 33, 0.75); box-shadow: 0px 1px 3px rgba(5, 17, 33, 0.3); }
+    .power-reference-entry.focused-power-entry{ margin-bottom: 32px; background: rgba(255, 255, 255, 0.5); border-color: rgba(5, 17, 33, 0.75); box-shadow: 0px 1px 3px rgba(5, 17, 33, 0.3); }
     //then the other powers in two columns the browser balances, the rule where the columns' separator is (18px gap + 18px padding).
     //Entries never split, and a heading stays with its group's first entry
     .power-reference-balanced-columns{ column-count: 2; column-gap: 36px; column-rule: 1px solid rgba(5, 17, 33, 0.35);

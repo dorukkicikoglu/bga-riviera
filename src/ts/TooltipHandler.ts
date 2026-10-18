@@ -114,7 +114,7 @@ export class TooltipHandler{
      * The power reference, laid out like the rulebook's powers page: entries grouped by timing, each with its icon
      * (img/power_icons_sprite.webp) floated left. Two columns on desktop, one on narrow screens.
      * focusedValue 0 (a card with no power): the whole reference, split like the rulebook (left: card 1, then cards 2 and 10;
-     * right: card 11, then card 9). A power card: its own entry on top, as wide as the tooltip, then the other powers under
+     * right: card 11, then card 9). A power card: its own entry on top under its timing heading, as wide as the tooltip, then the other powers under
      * their timing headings (a group left empty loses its heading) in two columns the browser balances (CSS columns).
      * The text follows our BGA rules (SPEC.md), not the rulebook's wording.
      */
@@ -155,8 +155,11 @@ export class TooltipHandler{
                 return `<div class="power-reference-heading-group">${headingHTML(heading)}${this.getPowerEntryHTML(firstValue)}</div>` + nextValues.map((value) => this.getPowerEntryHTML(value)).join('');
             }).join('');
 
+            //the hovered power keeps its timing heading on top too (repeated below when its group has other powers)
+            const focusedGroup = timingGroups.find(({values}) => values.includes(focusedValue));
             referenceHTML = `
                 <div class="tooltip-wrapper power-reference focused-power-reference">
+                    ${headingHTML(focusedGroup.heading)}
                     ${this.getPowerEntryHTML(focusedValue, 'focused-power-entry')}
                     <div class="power-reference-balanced-columns">${otherPowersHTML}</div>
                 </div>

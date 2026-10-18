@@ -1365,7 +1365,7 @@ body .start-token.flying-start-token {
   display: block;
 }
 .tooltip-wrapper.power-reference .power-reference-entry.focused-power-entry {
-  margin-bottom: 12px;
+  margin-bottom: 32px;
   background: rgba(255, 255, 255, 0.5);
   border-color: rgba(5, 17, 33, 0.75);
   box-shadow: 0px 1px 3px rgba(5, 17, 33, 0.3);
