@@ -67,6 +67,9 @@
 //img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
 //tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
 body{ background: url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #032a2e; }
+//desktop: the same tile a little lighter, under a 10% white layer (mobile keeps the plain tile)
+body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #ffffff; }
+
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
 
 @mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
