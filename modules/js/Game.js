@@ -1764,6 +1764,17 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'cards-revealed-log');
     }
+    //icons only: "name → [Last Chance]", the reveal row's arrow and mini card (the server's LAST_CHANCE_LOG_STR is the
+    //plain-text fallback)
+    createLogLastChanceUsed(player_id) {
+        let logHTML = `
+            <div class="last-chance-row">
+                ${this.getCutPlayerNameHTML(player_id)}
+                <i class="fa6 fa-arrow-right last-chance-arrow" aria-hidden="true"></i>
+                <div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>
+            </div>` + ' &nbsp;';
+        return this.addLogClassTag(logHTML, 'last-chance-log');
+    }
     createLogPlayerCrashed(player_id) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
         const crashText = player_id === this.game.getMyPlayerID()
@@ -2282,7 +2293,7 @@ class Game {
             if (log && args && !args.processed) {
                 args.processed = true;
                 // list of special keys we want to replace with images
-                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
+                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'LAST_CHANCE_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
                     'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'GAME_END_LOG_STR'];
                 for (let key of keys) {
                     if (key in args) {
@@ -2292,6 +2303,8 @@ class Game {
                             log = this.logMutationObserver.createLogDiceRolled(args['dice']).log_html;
                         else if (key == 'REVEAL_LOG_STR')
                             log = this.logMutationObserver.createLogCardsRevealed(args['reveals']).log_html;
+                        else if (key == 'LAST_CHANCE_LOG_STR')
+                            log = this.logMutationObserver.createLogLastChanceUsed(args['player_id']).log_html;
                         else if (key == 'CRASH_LOG_STR')
                             log = this.logMutationObserver.createLogPlayerCrashed(args['player_id']).log_html;
                         else if (key == 'GRAND_SLAM_LOG_STR')
@@ -2628,6 +2641,9 @@ class Game {
                 slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement()));
         }
         await Promise.all(slides);
+    }
+    //the log row only: cardsRevealed already took the Last Chance card off the player board
+    async notif_lastChanceUsed(args) {
     }
     async notif_playerCrashed(args) {
         const player = this.players[args.player_id];

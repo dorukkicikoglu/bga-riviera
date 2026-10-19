@@ -46,6 +46,7 @@ class RevealCards extends \Bga\GameFramework\States\GameState
         $reveals = [];
         $revealLogParts = [];
         $crashedPlayerIDs = [];
+        $lastChancePlayerIDs = [];
         $cardPlayerIDs = [];
         $lastCardValueByPlayer = [];
 
@@ -89,6 +90,7 @@ class RevealCards extends \Bga\GameFramework\States\GameState
 
                 $reveals[] = ['player_id' => $playerID, 'choice' => 'last_chance', 'card' => null, 'extra_cards_POWER1' => []];
                 $revealLogParts[] = $playerName.': Last Chance';
+                $lastChancePlayerIDs[] = $playerID;
             } else if($playChoice === 'crash'){
                 $this->game->DbQuery("UPDATE `player` SET `round_status` = 'crashed' WHERE `player_id` = $playerID");
                 $this->game->tableManager->discardPlayerCards($playerID);
@@ -109,11 +111,23 @@ class RevealCards extends \Bga\GameFramework\States\GameState
             foreach($reveals as $reveal)
                 $handCounts[$reveal['player_id']] = $allHandCounts[$reveal['player_id']];
 
-            $this->bga->notify->all('cardsRevealed', '${REVEAL_LOG_STR}', [
+            //only Last Chances: no reveal row (an empty message makes no log row), their own rows below are enough. The
+            //notification still goes out, so the client updates exactly as for any reveal
+            $onlyLastChances = count(array_filter($reveals, fn(array $reveal) => $reveal['choice'] !== 'last_chance')) === 0;
+            $this->bga->notify->all('cardsRevealed', $onlyLastChances ? '' : '${REVEAL_LOG_STR}', [
                 'preserve' => ['reveals'],
                 'reveals' => $reveals,
                 'hand_counts' => $handCounts,
                 'REVEAL_LOG_STR' => implode(', ', $revealLogParts),
+            ]);
+        }
+
+        //one row per Last Chance, under the reveal row, clockwise from the Start token holder like the reveal
+        foreach($lastChancePlayerIDs as $playerID){
+            $this->bga->notify->all('lastChanceUsed', '${LAST_CHANCE_LOG_STR}', [
+                'preserve' => ['player_id'],
+                'player_id' => $playerID,
+                'LAST_CHANCE_LOG_STR' => $this->game->getPlayerNameById($playerID).' uses Last Chance',
             ]);
         }
 

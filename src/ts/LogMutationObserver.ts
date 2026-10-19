@@ -152,6 +152,19 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'cards-revealed-log');
     }
 
+    //icons only: "name → [Last Chance]", the reveal row's arrow and mini card (the server's LAST_CHANCE_LOG_STR is the
+    //plain-text fallback)
+    public createLogLastChanceUsed(player_id: number): LogRowData {
+        let logHTML = `
+            <div class="last-chance-row">
+                ${this.getCutPlayerNameHTML(player_id)}
+                <i class="fa6 fa-arrow-right last-chance-arrow" aria-hidden="true"></i>
+                <div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>
+            </div>` + ' &nbsp;';
+
+        return this.addLogClassTag(logHTML, 'last-chance-log');
+    }
+
     public createLogPlayerCrashed(player_id: number): LogRowData {
         const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
         const crashText = player_id === this.game.getMyPlayerID()

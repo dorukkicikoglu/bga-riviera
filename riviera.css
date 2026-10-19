@@ -32,6 +32,7 @@
   --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
   --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
   --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
+  --bg-log-last-chance: linear-gradient(135deg, #fcdcd7, #eba49b);
   --bg-log-crash: linear-gradient(135deg, #fbe6e3, #f1c2bc);
   --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
   --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
@@ -992,6 +993,9 @@ body .start-token.flying-start-token {
 .log.cards-revealed-log .roundedbox, .log.gamelogreview.cards-revealed-log, .gamelogreview.cards-revealed-log .roundedbox, .gamelogreview.gamelogreview.cards-revealed-log {
   background: var(--bg-log-cards-revealed);
 }
+.log.last-chance-log .roundedbox, .log.gamelogreview.last-chance-log, .gamelogreview.last-chance-log .roundedbox, .gamelogreview.gamelogreview.last-chance-log {
+  background: var(--bg-log-last-chance);
+}
 .log.crash-log .roundedbox, .log.gamelogreview.crash-log, .gamelogreview.crash-log .roundedbox, .gamelogreview.gamelogreview.crash-log {
   background: var(--bg-log-crash);
 }
@@ -1027,6 +1031,32 @@ body .start-token.flying-start-token {
 }
 .log.game-end-log .roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.gamelogreview.game-end-log {
   background: var(--bg-log-game-end);
+}
+.log .last-chance-row, .gamelogreview .last-chance-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  color: #27271c;
+  margin-top: 5px;
+  margin-bottom: -7px;
+  font-size: 15px;
+}
+.log .last-chance-row .playername, .gamelogreview .last-chance-row .playername {
+  display: block;
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log .last-chance-row .last-chance-arrow, .gamelogreview .last-chance-row .last-chance-arrow {
+  flex-shrink: 0;
+  color: #000000;
+  font-size: 1em;
+}
+.log .last-chance-row .minimised-card-icon, .gamelogreview .last-chance-row .minimised-card-icon {
+  flex-shrink: 0;
 }
 .log .start-token-row, .gamelogreview .start-token-row {
   display: flex;

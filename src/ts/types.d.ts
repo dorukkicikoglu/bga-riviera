@@ -217,6 +217,10 @@ interface PlayerCrashedArgs {
     player_id: number;
 }
 
+interface LastChanceUsedArgs {
+    player_id: number;
+}
+
 interface DiceRolledArgs {
     dice: RivieraDie[];
 }

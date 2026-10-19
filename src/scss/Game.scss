@@ -43,6 +43,7 @@
     --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
     --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
     --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
+    --bg-log-last-chance: linear-gradient(135deg, #fcdcd7, #eba49b);
     --bg-log-crash: linear-gradient(135deg, #fbe6e3, #f1c2bc);
     --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
     --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
@@ -385,7 +386,7 @@ body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; marg
 
 $reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
 $swap-name-max-width: 80px; //card 10 swap rows: same, and a name shrinks further when the line is still too long
-$log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
+$log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
     &.a-game-log{ position: relative;
@@ -395,6 +396,13 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
         &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
     }
 
+    //"name → [Last Chance]": the reveal row's arrow and mini card, the name cut like the reveal rows' (full name in its title),
+    //at the left of the log row like the reveal row
+    .last-chance-row{ display: flex; justify-content: flex-start; align-items: center; gap: 5px; white-space: nowrap; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
+        .playername{ display: block; min-width: 0; max-width: $reveal-name-max-width; overflow: hidden; text-overflow: ellipsis; }
+        .last-chance-arrow{ flex-shrink: 0; color: #000000; font-size: 1em; }
+        .minimised-card-icon{ flex-shrink: 0; }
+    }
     //"name ⇐ [Start token]": the name is cut like the reveal rows' (full name in its title)
     .start-token-row{ display: flex; justify-content: center; align-items: center; white-space: nowrap;
         .playername{ display: block; min-width: 0; max-width: $reveal-name-max-width; overflow: hidden; text-overflow: ellipsis; }
