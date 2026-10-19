@@ -135,12 +135,10 @@ export class LogMutationObserver{
             const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //a card-1 chain: the first card, then "+" and each card added to it
             const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getCardIconsHTML([extraCard])}`).join('');
-            //a long name is cut with an ellipsis, so its title shows it whole
-            const nameText = (reveal.player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(reveal.player_id);
             //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
-                    ${this.game.divColoredPlayer(reveal.player_id, {class: 'playername', title: nameText.replace(/"/g, '&quot;')})}
+                    ${this.getCutPlayerNameHTML(reveal.player_id)}
                     <i class="fa6 fa-arrow-right reveal-arrow" aria-hidden="true"></i>
                     <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
                 </div>`;
@@ -274,29 +272,25 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'die-modified-power9-log');
     }
 
-    //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
-    //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
+    //card 10: one row for everyone. The owner and the victim got the cards (ownerGives / targetGives set, from the
+    //notification's _private); everyone else sees card backs
     public createLogCardsSwappedPOWER10(owner_id: number, target_id: number, ownerGives: RivieraCard[] | null, targetGives: RivieraCard[] | null, count: number): LogRowData {
-        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
-        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+        //the backs go in the icons' container too, so both views space their cards the same way
+        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
+        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
 
+        //"owner [cards] ⇄ [cards] target", on one line: each side's cards next to its player
         let logHTML = `
             <div class="cards-swapped-row">
-                ${this.game.divColoredPlayer(owner_id, {class: 'playername'})} ${ownerCardsHTML}
+                ${this.getCutPlayerNameHTML(owner_id)}${ownerCardsHTML}
                 <span class="log-arrow">⇄</span>
-                ${this.game.divColoredPlayer(target_id, {class: 'playername'})} ${targetCardsHTML}
+                ${targetCardsHTML}${this.getCutPlayerNameHTML(target_id)}
             </div>` + ' &nbsp;';
 
-        const isPublicRow = ownerGives === null;
-        const isInvolved = [owner_id, target_id].includes(this.game.getMyPlayerID());
-        let logRow = this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
-        if(isPublicRow && isInvolved)
-            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
-
-        return logRow;
+        return this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
     }
 
-    //card 10 with no opponent left: the owner sees the cards, everyone else card backs (the owner hides the public row)
+    //card 10 with no opponent left: one row for everyone. The owner sees the cards (from _private), everyone else card backs
     public createLogCardsRedrawnPOWER10(player_id: number, discarded: RivieraCard[] | null, drawn: RivieraCard[] | null, count: number): LogRowData {
         const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
         const redrawnText = player_id === this.game.getMyPlayerID()
@@ -311,11 +305,7 @@ export class LogMutationObserver{
                 ${redrawnText.replace('${discarded}', discardedHTML).replace('${drawn}', drawnHTML)}
             </div>` + ' &nbsp;';
 
-        let logRow = this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
-        if(discarded === null && player_id === this.game.getMyPlayerID())
-            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
-
-        return logRow;
+        return this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
     }
 
     public createLogPowerSkipped(player_id: number, value: number, card: RivieraCard | null, reason: string): LogRowData {
@@ -370,6 +360,12 @@ export class LogMutationObserver{
         for(let i = 0; i < count; i++)
             backsHTML += `<div class="minimised-card-icon">${this.game.createCardBackDiv().outerHTML}</div>`;
         return backsHTML;
+    }
+
+    //a player name the row's CSS cuts with an ellipsis (max-width), so its title shows it whole
+    private getCutPlayerNameHTML(player_id: number): string {
+        const nameText = (player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(player_id);
+        return this.game.divColoredPlayer(player_id, {class: 'playername', title: nameText.replace(/"/g, '&quot;')});
     }
 
     private getMiniDieHTML(die: RivieraDie): string {

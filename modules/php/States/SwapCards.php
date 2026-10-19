@@ -86,25 +86,19 @@ class SwapCards extends GameState
 
         $swapLogStr = $this->game->getPlayerNameById($activePlayerId).' swaps '.$swapCount.' cards with '.$this->game->getPlayerNameById($targetPlayerId);
 
-        //the owner and victim both know both sides of the swap
-        $privateArgs = [
-            'preserve' => ['owner_id', 'target_id', 'owner_gives', 'target_gives', 'count'],
-            'owner_id' => $activePlayerId,
-            'target_id' => $targetPlayerId,
-            'owner_gives' => $ownerGives,
-            'target_gives' => $targetGives,
-            'count' => $swapCount,
-            'CARDS_SWAPPED_POWER10_LOG_STR' => $swapLogStr,
-        ];
-        $this->bga->notify->player($activePlayerId, 'cardsSwapped_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', $privateArgs);
-        $this->bga->notify->player($targetPlayerId, 'cardsSwapped_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', $privateArgs);
-
-        $this->bga->notify->all('cardsSwappedPublic_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', [
-            'preserve' => ['owner_id', 'target_id', 'count'],
+        //one row for everyone: the cards go in _private, which the framework sends to the owner and the victim only (both
+        //know both sides of the swap). Everyone else, spectators included, gets the ids and the count, and sees card backs
+        $privateCards = ['owner_gives' => $ownerGives, 'target_gives' => $targetGives];
+        $this->bga->notify->all('cardsSwapped_POWER10', '${CARDS_SWAPPED_POWER10_LOG_STR}', [
+            'preserve' => ['owner_id', 'target_id', 'count', '_private'],
             'owner_id' => $activePlayerId,
             'target_id' => $targetPlayerId,
             'count' => $swapCount,
             'CARDS_SWAPPED_POWER10_LOG_STR' => $swapLogStr,
+            '_private' => [
+                $activePlayerId => $privateCards,
+                $targetPlayerId => $privateCards,
+            ],
         ]);
 
         return NextPOWER10Owner::class; //never straight back into SwapCards: the next owner is picked there
@@ -134,20 +128,15 @@ class SwapCards extends GameState
 
         $redrawLogStr = $this->game->getPlayerNameById($activePlayerId).' discards '.$redrawCount.' cards and draws '.count($drawn);
 
-        $this->bga->notify->player($activePlayerId, 'cardsRedrawn_POWER10', '${CARDS_REDRAWN_POWER10_LOG_STR}', [
-            'preserve' => ['player_id', 'discarded', 'drawn', 'count'],
-            'player_id' => $activePlayerId,
-            'discarded' => $discarded,
-            'drawn' => $drawn,
-            'count' => $redrawCount,
-            'CARDS_REDRAWN_POWER10_LOG_STR' => $redrawLogStr,
-        ]);
-
-        $this->bga->notify->all('cardsRedrawnPublic_POWER10', '${CARDS_REDRAWN_POWER10_LOG_STR}', [
-            'preserve' => ['player_id', 'count'],
+        //one row for everyone: the cards go in _private, which the framework sends to the owner only
+        $this->bga->notify->all('cardsRedrawn_POWER10', '${CARDS_REDRAWN_POWER10_LOG_STR}', [
+            'preserve' => ['player_id', 'count', '_private'],
             'player_id' => $activePlayerId,
             'count' => $redrawCount,
             'CARDS_REDRAWN_POWER10_LOG_STR' => $redrawLogStr,
+            '_private' => [
+                $activePlayerId => ['discarded' => $discarded, 'drawn' => $drawn],
+            ],
         ]);
 
         return NextPOWER10Owner::class; //never straight back into SwapCards: the next owner is picked there

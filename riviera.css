@@ -1028,9 +1028,6 @@ body .start-token.flying-start-token {
 .log.game-end-log .roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.gamelogreview.game-end-log {
   background: var(--bg-log-game-end);
 }
-.log.duplicate-log, .gamelogreview.duplicate-log {
-  display: none;
-}
 .log .new-round-row, .log .player-crashed-row, .log .grand-slam-row, .log .start-token-row, .log .stars-banked-row, .gamelogreview .new-round-row, .gamelogreview .player-crashed-row, .gamelogreview .grand-slam-row, .gamelogreview .start-token-row, .gamelogreview .stars-banked-row {
   text-align: center;
   color: #27271c;
@@ -1155,6 +1152,26 @@ body .start-token.flying-start-token {
 .log .log-arrow, .gamelogreview .log-arrow {
   color: #240e52;
   text-shadow: 1px 0 #c7d7d0, -1px 0 #c7d7d0, 0 1px #c7d7d0, 0 -1px #c7d7d0, 0.5px 0.5px #c7d7d0, -0.5px -0.5px #c7d7d0, 0.5px -0.5px #c7d7d0, -0.5px 0.5px #c7d7d0;
+}
+.log.cards-swapped-power10-log, .gamelogreview.cards-swapped-power10-log {
+  --log-card-icon-size: 24px;
+}
+.log.cards-swapped-power10-log .cards-swapped-row, .gamelogreview.cards-swapped-power10-log .cards-swapped-row {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.log.cards-swapped-power10-log .cards-swapped-row .playername, .gamelogreview.cards-swapped-power10-log .cards-swapped-row .playername {
+  display: block;
+  min-width: 0;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log.cards-swapped-power10-log .cards-swapped-row .log-card-icons, .log.cards-swapped-power10-log .cards-swapped-row .log-arrow, .gamelogreview.cards-swapped-power10-log .cards-swapped-row .log-card-icons, .gamelogreview.cards-swapped-power10-log .cards-swapped-row .log-arrow {
+  flex-shrink: 0;
+}
+.log.cards-swapped-power10-log .cards-swapped-row .minimised-card-icon .a-card, .gamelogreview.cards-swapped-power10-log .cards-swapped-row .minimised-card-icon .a-card {
+  --my-card-width: calc(var(--log-card-icon-size) / 1.4740566038);
 }
 
 .a-game-log .playername[player-color=ffa500] {

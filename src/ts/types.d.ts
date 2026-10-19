@@ -180,21 +180,25 @@ interface DieModifiedPOWER9Args {
     dice: RivieraDie[];
 }
 
-//owner_gives / target_gives only in the private notification to the owner and the victim
+//_private (the cards) only reaches the owner and the victim
 interface CardsSwappedPOWER10Args {
     owner_id: number;
     target_id: number;
-    owner_gives?: RivieraCard[];
-    target_gives?: RivieraCard[];
     count: number;
+    _private?: {
+        owner_gives: RivieraCard[];
+        target_gives: RivieraCard[];
+    };
 }
 
-//discarded / drawn only in the private notification to the owner
+//_private (the cards) only reaches the owner
 interface CardsRedrawnPOWER10Args {
     player_id: number;
-    discarded?: RivieraCard[];
-    drawn?: RivieraCard[];
     count: number;
+    _private?: {
+        discarded: RivieraCard[];
+        drawn: RivieraCard[];
+    };
 }
 
 interface PowerSkippedArgs {

@@ -178,9 +178,9 @@ export class Game {
                         else if(key == 'DIE_MODIFIED_POWER9_LOG_STR')
                             log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
                         else if(key == 'CARDS_SWAPPED_POWER10_LOG_STR')
-                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['owner_gives'] ?? null, args['target_gives'] ?? null, args['count']).log_html;
+                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['_private']?.['owner_gives'] ?? null, args['_private']?.['target_gives'] ?? null, args['count']).log_html;
                         else if(key == 'CARDS_REDRAWN_POWER10_LOG_STR')
-                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
+                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['_private']?.['discarded'] ?? null, args['_private']?.['drawn'] ?? null, args['count']).log_html;
                         else if(key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if(key == 'GAME_END_LOG_STR')
@@ -612,15 +612,19 @@ export class Game {
         this.diceHandler.updateDice(args.dice);
     }
 
-    //private, to the owner and the victim only: my side of the swap. The cards I give fly to the other player's avatar while
-    //the cards I get fly from it into my hand and my other cards slide to their new places, all at once
+    //the owner and the victim get the cards (_private): my side of the swap. The cards I give fly to the other player's
+    //avatar while the cards I get fly from it into my hand and my other cards slide to their new places, all at once.
+    //Everyone else gets no cards: card backs slide each way between the two boards
     public async notif_cardsSwapped_POWER10(args: CardsSwappedPOWER10Args) {
-        if(!this.handHandler)
+        if(!args._private || !this.handHandler){
+            await this.animateCardBacksSwap(args.owner_id, args.target_id, args.count);
+            this.bouncePlayerBoards([args.owner_id, args.target_id]);
             return;
+        }
 
         const iAmOwner = args.owner_id === this.myPlayerID;
-        const cardsILose = (iAmOwner ? args.owner_gives : args.target_gives) ?? [];
-        const cardsIGet = (iAmOwner ? args.target_gives : args.owner_gives) ?? [];
+        const cardsILose = iAmOwner ? args._private.owner_gives : args._private.target_gives;
+        const cardsIGet = iAmOwner ? args._private.target_gives : args._private.owner_gives;
         const otherPlayer = this.players[iAmOwner ? args.target_id : args.owner_id];
         const boardRect = otherPlayer?.getAvatarRect() ?? this.handHandler.getHandContainer().getBoundingClientRect();
 
@@ -632,28 +636,17 @@ export class Game {
         this.bouncePlayerBoards([args.owner_id, args.target_id]);
     }
 
-    //public: the owner and the victim already animated their private notification
-    public async notif_cardsSwappedPublic_POWER10(args: CardsSwappedPOWER10Args) {
-        if(args.owner_id === this.myPlayerID || args.target_id === this.myPlayerID)
-            return;
-
-        await this.animateCardBacksSwap(args.owner_id, args.target_id, args.count);
-        this.bouncePlayerBoards([args.owner_id, args.target_id]);
-    }
-
-    //private, to the owner only
+    //the owner gets the cards (_private) and redraws in their hand. Hand sizes don't change, so everyone else only sees the
+    //owner's board bounce
     public async notif_cardsRedrawn_POWER10(args: CardsRedrawnPOWER10Args) {
-        if(!this.handHandler)
+        if(!args._private || !this.handHandler){
+            this.bouncePlayerBoards([args.player_id]);
             return;
+        }
 
-        await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
-        await this.handHandler.addCards(args.drawn ?? [], null);
+        await this.handHandler.removeCards(args._private.discarded.map(card => card.card_id));
+        await this.handHandler.addCards(args._private.drawn, null);
         this.tooltipHandler.addTooltipsToCards();
-    }
-
-    //public: hand sizes don't change, so only the owner's board bounces (for everyone but the owner)
-    public async notif_cardsRedrawnPublic_POWER10(args: CardsRedrawnPOWER10Args) {
-        this.bouncePlayerBoards([args.player_id]);
     }
 
     //card 10: the boards of the players involved bounce once the cards have landed, except my own (a swapper or victim

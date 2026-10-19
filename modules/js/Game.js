@@ -1750,12 +1750,10 @@ class LogMutationObserver {
             const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //a card-1 chain: the first card, then "+" and each card added to it
             const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getCardIconsHTML([extraCard])}`).join('');
-            //a long name is cut with an ellipsis, so its title shows it whole
-            const nameText = (reveal.player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(reveal.player_id);
             //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
-                    ${this.game.divColoredPlayer(reveal.player_id, { class: 'playername', title: nameText.replace(/"/g, '&quot;') })}
+                    ${this.getCutPlayerNameHTML(reveal.player_id)}
                     <i class="fa6 fa-arrow-right reveal-arrow" aria-hidden="true"></i>
                     <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
                 </div>`;
@@ -1861,25 +1859,22 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'die-modified-power9-log');
     }
-    //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
-    //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
+    //card 10: one row for everyone. The owner and the victim got the cards (ownerGives / targetGives set, from the
+    //notification's _private); everyone else sees card backs
     createLogCardsSwappedPOWER10(owner_id, target_id, ownerGives, targetGives, count) {
-        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
-        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+        //the backs go in the icons' container too, so both views space their cards the same way
+        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
+        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
+        //"owner [cards] ⇄ [cards] target", on one line: each side's cards next to its player
         let logHTML = `
             <div class="cards-swapped-row">
-                ${this.game.divColoredPlayer(owner_id, { class: 'playername' })} ${ownerCardsHTML}
+                ${this.getCutPlayerNameHTML(owner_id)}${ownerCardsHTML}
                 <span class="log-arrow">⇄</span>
-                ${this.game.divColoredPlayer(target_id, { class: 'playername' })} ${targetCardsHTML}
+                ${targetCardsHTML}${this.getCutPlayerNameHTML(target_id)}
             </div>` + ' &nbsp;';
-        const isPublicRow = ownerGives === null;
-        const isInvolved = [owner_id, target_id].includes(this.game.getMyPlayerID());
-        let logRow = this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
-        if (isPublicRow && isInvolved)
-            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
-        return logRow;
+        return this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
     }
-    //card 10 with no opponent left: the owner sees the cards, everyone else card backs (the owner hides the public row)
+    //card 10 with no opponent left: one row for everyone. The owner sees the cards (from _private), everyone else card backs
     createLogCardsRedrawnPOWER10(player_id, discarded, drawn, count) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
         const redrawnText = player_id === this.game.getMyPlayerID()
@@ -1891,10 +1886,7 @@ class LogMutationObserver {
             <div class="cards-redrawn-row">
                 ${redrawnText.replace('${discarded}', discardedHTML).replace('${drawn}', drawnHTML)}
             </div>` + ' &nbsp;';
-        let logRow = this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
-        if (discarded === null && player_id === this.game.getMyPlayerID())
-            logRow = this.addLogClassTag(logRow.log_html, 'duplicate-log');
-        return logRow;
+        return this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
     }
     createLogPowerSkipped(player_id, value, card, reason) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
@@ -1938,6 +1930,11 @@ class LogMutationObserver {
         for (let i = 0; i < count; i++)
             backsHTML += `<div class="minimised-card-icon">${this.game.createCardBackDiv().outerHTML}</div>`;
         return backsHTML;
+    }
+    //a player name the row's CSS cuts with an ellipsis (max-width), so its title shows it whole
+    getCutPlayerNameHTML(player_id) {
+        const nameText = (player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(player_id);
+        return this.game.divColoredPlayer(player_id, { class: 'playername', title: nameText.replace(/"/g, '&quot;') });
     }
     getMiniDieHTML(die) {
         return this.game.diceHandler.createDieDiv(die).outerHTML;
@@ -2313,9 +2310,9 @@ class Game {
                         else if (key == 'DIE_MODIFIED_POWER9_LOG_STR')
                             log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
                         else if (key == 'CARDS_SWAPPED_POWER10_LOG_STR')
-                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['owner_gives'] ?? null, args['target_gives'] ?? null, args['count']).log_html;
+                            log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['_private']?.['owner_gives'] ?? null, args['_private']?.['target_gives'] ?? null, args['count']).log_html;
                         else if (key == 'CARDS_REDRAWN_POWER10_LOG_STR')
-                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['discarded'] ?? null, args['drawn'] ?? null, args['count']).log_html;
+                            log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['_private']?.['discarded'] ?? null, args['_private']?.['drawn'] ?? null, args['count']).log_html;
                         else if (key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if (key == 'GAME_END_LOG_STR')
@@ -2682,14 +2679,18 @@ class Game {
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);
     }
-    //private, to the owner and the victim only: my side of the swap. The cards I give fly to the other player's avatar while
-    //the cards I get fly from it into my hand and my other cards slide to their new places, all at once
+    //the owner and the victim get the cards (_private): my side of the swap. The cards I give fly to the other player's
+    //avatar while the cards I get fly from it into my hand and my other cards slide to their new places, all at once.
+    //Everyone else gets no cards: card backs slide each way between the two boards
     async notif_cardsSwapped_POWER10(args) {
-        if (!this.handHandler)
+        if (!args._private || !this.handHandler) {
+            await this.animateCardBacksSwap(args.owner_id, args.target_id, args.count);
+            this.bouncePlayerBoards([args.owner_id, args.target_id]);
             return;
+        }
         const iAmOwner = args.owner_id === this.myPlayerID;
-        const cardsILose = (iAmOwner ? args.owner_gives : args.target_gives) ?? [];
-        const cardsIGet = (iAmOwner ? args.target_gives : args.owner_gives) ?? [];
+        const cardsILose = iAmOwner ? args._private.owner_gives : args._private.target_gives;
+        const cardsIGet = iAmOwner ? args._private.target_gives : args._private.owner_gives;
         const otherPlayer = this.players[iAmOwner ? args.target_id : args.owner_id];
         const boardRect = otherPlayer?.getAvatarRect() ?? this.handHandler.getHandContainer().getBoundingClientRect();
         //the owner is still active in SwapCards until the state changes: once BGA unlocks the interface at the end of the
@@ -2699,24 +2700,16 @@ class Game {
         this.tooltipHandler.addTooltipsToCards();
         this.bouncePlayerBoards([args.owner_id, args.target_id]);
     }
-    //public: the owner and the victim already animated their private notification
-    async notif_cardsSwappedPublic_POWER10(args) {
-        if (args.owner_id === this.myPlayerID || args.target_id === this.myPlayerID)
-            return;
-        await this.animateCardBacksSwap(args.owner_id, args.target_id, args.count);
-        this.bouncePlayerBoards([args.owner_id, args.target_id]);
-    }
-    //private, to the owner only
+    //the owner gets the cards (_private) and redraws in their hand. Hand sizes don't change, so everyone else only sees the
+    //owner's board bounce
     async notif_cardsRedrawn_POWER10(args) {
-        if (!this.handHandler)
+        if (!args._private || !this.handHandler) {
+            this.bouncePlayerBoards([args.player_id]);
             return;
-        await this.handHandler.removeCards((args.discarded ?? []).map(card => card.card_id));
-        await this.handHandler.addCards(args.drawn ?? [], null);
+        }
+        await this.handHandler.removeCards(args._private.discarded.map(card => card.card_id));
+        await this.handHandler.addCards(args._private.drawn, null);
         this.tooltipHandler.addTooltipsToCards();
-    }
-    //public: hand sizes don't change, so only the owner's board bounces (for everyone but the owner)
-    async notif_cardsRedrawnPublic_POWER10(args) {
-        this.bouncePlayerBoards([args.player_id]);
     }
     //card 10: the boards of the players involved bounce once the cards have landed, except my own (a swapper or victim
     //sees only the other player's board bounce); nothing waits for it

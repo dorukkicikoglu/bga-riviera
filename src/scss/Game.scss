@@ -383,6 +383,7 @@ body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; marg
 #logs .log:not(.a-game-log), [id^="chatwindowlogs_zone_tablelog_"] .log:not(.a-game-log), [id^="replaylogs"] .gamelogreview:not(.a-game-log){ display: none !important; }
 
 $reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
+$swap-name-max-width: 80px; //card 10 swap rows: same, and a name shrinks further when the line is still too long
 $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
@@ -392,8 +393,6 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
     @each $log-type in $log-types {
         &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
     }
-    //card 10: the owner and the victim already have the private row with the cards, so they hide the public one
-    &.duplicate-log{ display: none; }
 
     .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row, .stars-banked-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
     .new-round-row{ font-weight: bold; font-size: 16px; }
@@ -431,6 +430,15 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
         .fa-play{ color: #2e8b2e; }
     }
     .log-arrow{ color: #240e52; @include text-shade(#c7d7d0, 1px); }
+    //card 10 swap: one line ("owner [cards] ⇄ [cards] target"), with smaller card icons than the other logs and the card
+    //backs other players see as tall as those icons. Only the names shrink (ellipsis, full name in their title)
+    &.cards-swapped-power10-log{ --log-card-icon-size: 24px;
+        .cards-swapped-row{ flex-wrap: nowrap; white-space: nowrap;
+            .playername{ display: block; min-width: 0; max-width: $swap-name-max-width; overflow: hidden; text-overflow: ellipsis; }
+            .log-card-icons, .log-arrow{ flex-shrink: 0; }
+            .minimised-card-icon .a-card{ --my-card-width: calc(var(--log-card-icon-size) / #{$card-aspect}); }
+        }
+    }
 }
 //the log backgrounds are pale, so light player colors get a dark outline to stay readable
 @each $light-player-color in "ffa500", "72c3b1", "bdd002", "ffffff" {
