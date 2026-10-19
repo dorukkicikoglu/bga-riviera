@@ -57,7 +57,7 @@ Choice and Undo:
 
 Reveal:
 - [x] When the last player confirms, every chosen card slides at once into its column: mine from my hand, the others from their player board's card backs. Hand counts drop by 1, the ★ totals update.
-- [x] One reveal log row (blue background) lists every player with a mini card.
+- [x] One reveal log row (blue background) lists every player with a mini card (a circular card icon since the log changes, see the last section).
 
 No valid card, Last Chance, Crash:
 - [x] `debug_setDice` to values none of my cards match (e.g. `'1,1,1,1,1'` and check). Status: "You cannot play any card", with only "Use Last Chance" and "Crash" (red, no confirm dialog).
@@ -335,3 +335,26 @@ Discard and draw fallback (`debug_POWER10(true)`, then More):
 - [ ] A third card replaces the oldest selected one here too, the title showing the new pair in selection order, still with Confirm. Confirm discards the 2 cards shown.
 - [ ] `debug_setDrawPile(1, 0)` first: "You may choose 1 card to discard [10][power]", then with 1 card selected "Discard [card] and draw 1?"; Confirm still shows the "Only 1 card is left to draw" confirmation.
 - [ ] F5 at either step: back to step 1 with nothing selected.
+
+## After M4: log card icons, player board card backs, power reference heading
+
+Deploy `modules/` and `riviera.css` (no schema change, no new table needed).
+
+Logs:
+- [ ] The reveal row shows each played card as the circular card icon (a ring in its color around its number, as in the status bar, smaller), not a mini card. A card-1 chain shows "+" and an icon per added card. Last Chance still shows as a mini card.
+- [ ] The reveal row shows one player per row, lined up as a table: names in one column, arrows ("Name → [card]") in the next, then the cards; the whole block is centered in the row. A card-1 chain keeps a single arrow ("Name → [1] + [2]").
+- [ ] A long name is cut with "..." (about 110px wide) and shows in full on hover; the arrows and cards stay lined up with the other rows.
+- [ ] Card 10 swap row: the owner and the victim see circular card icons for both sides; everyone else (spectators too) still sees card backs.
+- [ ] Hovering an icon of a 1, 2, 9, 10 or 11 in a log row shows its single-power tooltip with the same look as the mini cards' (not the status bar's plain background). Status bar icons keep their own look.
+- [ ] The dice in every roll row are bigger (28px), on desktop and on a phone, and in replay logs.
+- [ ] The redraw and "does not use" rows still show mini cards.
+
+Player boards:
+- [ ] 7 cards or fewer in hand: one card back per card, every 2nd one a little lower (a staircase). 8 or more: one back and "x N". Check 10 (start of round), 7 and 1.
+
+Power reference:
+- [ ] Hovering a 1, 2, 9, 10 or 11: its timing heading sits above its boxed entry at the top. Hovering a 2: "Before the next dice roll..." on top, and again below over cards 10 and 11. Hovering a 1: its heading on top only (no empty heading below).
+
+Layout:
+- [ ] Desktop: the background reads a little lighter than on a phone; a phone keeps the plain tile.
+- [ ] A little more space above the dice than before; the card 9 arrows still fit and the dice don't move when they appear.

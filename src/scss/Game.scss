@@ -126,8 +126,14 @@ $card-icon-number-frame-width: 76;
 $card-icon-number-frame-height: 63;
 $card-icon-number-height: 28px;
 $status-card-icon-size: 40px;
-.status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; width: $status-card-icon-size; height: $status-card-icon-size; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1;
-    .status-card-icon-number{ display: block; flex-shrink: 0; height: $card-icon-number-height; width: math.div($card-icon-number-height * $card-icon-number-frame-width, $card-icon-number-frame-height);
+$log-card-icon-size: 26px;
+//the ring, its border and the number scale together from the status bar's 40px icon
+@mixin card-icon-size($size){ width: $size; height: $size; border-width: math.div(3px * $size, $status-card-icon-size);
+    $number-height: math.div($card-icon-number-height * $size, $status-card-icon-size);
+    .status-card-icon-number{ height: $number-height; width: math.div($number-height * $card-icon-number-frame-width, $card-icon-number-frame-height); }
+}
+.status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1; @include card-icon-size($status-card-icon-size);
+    .status-card-icon-number{ display: block; flex-shrink: 0;
         background-image: var(--image-source-card-icon-numbers); background-size: #{$card-icon-number-frames * 100%} 100%; background-repeat: no-repeat; }
     @for $value from 1 through $card-icon-number-frames {
         &[data-value="#{$value}"] .status-card-icon-number{ background-position: math.div(($value - 1) * 100%, $card-icon-number-frames - 1) 0%; }
@@ -370,6 +376,7 @@ body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; marg
 //The text color is set too: every background is pale, so BGA's dark mode must not lighten the text
 .log .roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
 
+$reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
 $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
@@ -390,11 +397,23 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
     .grand-slam-row{ font-weight: bold; }
     .player-crashed-row .fa-bomb{ color: #a00000; }
 
+    &.dice-rolled-log{ --die-size: 28px; }
     .dice-rolled-row{ display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 5px; margin-bottom: -7px;
-        .a-die{ --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
+        .a-die{ box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
     }
-    .cards-revealed-row{ display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 5px; margin-bottom: -7px;
-        .reveal-entry{ display: inline-flex; align-items: center; gap: 5px; }
+    //circular card icons (LogMutationObserver.getCardIconsHTML) in the reveal and card 10 swap rows
+    .log-card-icons{ display: inline-flex; align-items: center; vertical-align: middle;
+        .status-card-icon{ margin: 0px 1px; @include card-icon-size($log-card-icon-size); }
+    }
+    //at most 2 entries per row; an odd last entry spans both columns, centered
+    //one entry per row, lined up as a table: names, arrows, cards. Each .reveal-entry hands its 3 children to the row's grid
+    //(display: contents); auto columns keep the block as narrow as its content, so justify-content centers it in the log row
+    .cards-revealed-row{ display: grid; grid-template-columns: auto auto auto; justify-content: center; align-items: center; gap: 4px 5px; margin-top: 5px; margin-bottom: -7px;
+        .reveal-entry{ display: contents; }
+        .playername{ display: block; justify-self: start; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        //"Name → [card]": one arrow before the first card, as big as the name; the 5px column gap spaces it on both sides
+        .reveal-arrow{ color: #000000; font-size: 1em; }
+        .reveal-cards{ display: inline-flex; align-items: center; gap: 5px; }
         .reveal-chain-plus{ font-weight: bold; color: #27271c; }
     }
     //power rows: text with mini dice or mini cards inline

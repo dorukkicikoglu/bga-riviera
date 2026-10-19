@@ -131,13 +131,18 @@ export class LogMutationObserver{
 
     public createLogCardsRevealed(reveals: CardReveal[]): LogRowData {
         const revealsHTML = reveals.map(reveal => {
-            const cardDiv = (reveal.choice === 'card' && reveal.card) ? this.game.createCardDiv(reveal.card) : this.game.createLastChanceDiv();
+            //a card as the status bar's circular card icon; Last Chance has no icon, so it stays a mini card
+            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //a card-1 chain: the first card, then "+" and each card added to it
-            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getMiniCardsHTML([extraCard])}`).join('');
+            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getCardIconsHTML([extraCard])}`).join('');
+            //a long name is cut with an ellipsis, so its title shows it whole
+            const nameText = (reveal.player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(reveal.player_id);
+            //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
-                    ${this.game.divColoredPlayer(reveal.player_id, {class: 'playername'})}
-                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>${chainHTML}
+                    ${this.game.divColoredPlayer(reveal.player_id, {class: 'playername', title: nameText.replace(/"/g, '&quot;')})}
+                    <i class="fa6 fa-arrow-right reveal-arrow" aria-hidden="true"></i>
+                    <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
                 </div>`;
         }).join('');
 
@@ -272,8 +277,8 @@ export class LogMutationObserver{
     //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
     //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
     public createLogCardsSwappedPOWER10(owner_id: number, target_id: number, ownerGives: RivieraCard[] | null, targetGives: RivieraCard[] | null, count: number): LogRowData {
-        const ownerCardsHTML = ownerGives ? this.getMiniCardsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
-        const targetCardsHTML = targetGives ? this.getMiniCardsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
+        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : this.getMiniCardBacksHTML(count);
 
         let logHTML = `
             <div class="cards-swapped-row">
@@ -353,6 +358,11 @@ export class LogMutationObserver{
 
     private getMiniCardsHTML(cards: RivieraCard[]): string {
         return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');
+    }
+
+    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons
+    private getCardIconsHTML(cards: RivieraCard[]): string {
+        return `<span class="log-card-icons">${cards.map(card => this.game.getStatusCardIconHTML(card)).join('')}</span>`;
     }
 
     private getMiniCardBacksHTML(count: number): string {

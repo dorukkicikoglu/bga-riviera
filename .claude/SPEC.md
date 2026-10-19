@@ -154,14 +154,14 @@ Level 1 (report it in the Game Metadata Manager):
 
 ## Power reference [BGA]
 
-Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. Hovering a power card (1, 2, 9, 10, 11) puts that card's power on top, on its own row as wide as the tooltip, in a stronger box; the other powers follow under their timing headings (a heading left with no power is dropped) in two balanced columns, never repeating the hovered one. The text follows our BGA rules, not the rulebook's wording:
+Hovering any card in the game area (my hand, every played column), power card or not, shows one power reference laid out like the rulebook's powers page: teal background, dark text, bold timing headings, each power's icon floated left with "Card N:" in bold. Two columns on desktop (left: card 1, then cards 2 and 10; right: card 11, then card 9), one column on narrow screens, about 640px wide at most. Hovering a power card (1, 2, 9, 10, 11) puts that card's power on top, under its timing heading, on its own row as wide as the tooltip, in a stronger box; the other powers follow under their timing headings (a heading left with no power is dropped, one with other powers is repeated) in two balanced columns, never repeating the hovered one. The text follows our BGA rules, not the rulebook's wording:
 - Immediately after playing the card: card 1.
 - Before the next dice roll, only if you choose More: card 2 (automatic), card 10 (an opponent who chose More with at least 2 cards, otherwise discard and draw), card 11.
 - After the next dice roll and before playing a card: card 9 (the golden or a reserved die can be turned, only if you are still in the round).
 
 Entries are separated by spacing only: no borders or boxes, except the hovered card's power, which gets a box (soft lighter background, rounded corners, thin border) so it stands out at a glance. Hovering a card with no power shows the whole reference, split as above. A thin vertical line separates the two columns (none when they stack).
 
-Log mini cards keep a single-power tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
+Log mini cards keep a single-power tooltip. The reveal and card 10 swap rows show cards as the circular card icon instead (Last Chance and card backs stay mini cards), with the same tooltip. Safari on a phone shows the same reference at the bottom of the page instead of tooltips.
 
 Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card]" / "<name> may use [card]", the card that gave the power drawn as the circular card icon (a ring in its color around its number) followed by its power icon, as in "Play [card]?", both with the same single-power tooltip as the log mini cards. Buttons stay short ("Add golden die", "Skip"); steps inside a power get their own short titles ("Turn [die] 4 → 5?"). Card 10's owner sees "You may choose 2 cards to swap [10]" with only Skip, then, with 2 cards selected, "Choose an opponent to swap [card][card]" with one button per opponent, ringed in their color (fallback: "You may choose 2 cards to discard [10]", then "Discard [card][card] and draw 2?" with Confirm); everyone else sees "<name> may use [10]". Card 2 has no prompt (automatic).
 
@@ -178,7 +178,7 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 
 ### Player board display
 
-- Hand count: 6 cards or fewer, one small card back per card; more than 6, one card back followed by "x N". Visible to everyone, spectators included.
+- Hand count: 7 cards or fewer, one small card back per card, every 2nd one a little lower (a staircase); more than 7, one card back followed by "x N". Visible to everyone, spectators included.
 - Last Chance card to the right of the card backs; it disappears once used.
 - Round status (in / stopped / crashed) and the Start token. The token is a single element on the top-left corner of its owner's board, over the board content and taking no layout space. When it passes it lifts out of the boards area (to the side of the boards column on desktop, down to 40% of the screen on mobile), growing to 200%, holds still for a moment at the peak, then curves into the new owner's corner, shrinking back. No flight on F5.
 

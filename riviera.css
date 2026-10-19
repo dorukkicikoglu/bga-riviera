@@ -298,8 +298,6 @@ body .sliding-clone {
   position: relative;
   display: inline-flex;
   box-sizing: border-box;
-  width: 40px;
-  height: 40px;
   margin: 0 3px;
   align-items: center;
   justify-content: center;
@@ -308,12 +306,17 @@ body .sliding-clone {
   border-radius: 50%;
   background: #05141a;
   line-height: 1;
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+.status-card-icon .status-card-icon-number {
+  height: 28px;
+  width: 33.7777777778px;
 }
 .status-card-icon .status-card-icon-number {
   display: block;
   flex-shrink: 0;
-  height: 28px;
-  width: 33.7777777778px;
   background-image: var(--image-source-card-icon-numbers);
   background-size: 1200% 100%;
   background-repeat: no-repeat;
@@ -1050,6 +1053,9 @@ body .start-token.flying-start-token {
 .log .player-crashed-row .fa-bomb, .gamelogreview .player-crashed-row .fa-bomb {
   color: #a00000;
 }
+.log.dice-rolled-log, .gamelogreview.dice-rolled-log {
+  --die-size: 28px;
+}
 .log .dice-rolled-row, .gamelogreview .dice-rolled-row {
   display: flex;
   justify-content: center;
@@ -1059,18 +1065,48 @@ body .start-token.flying-start-token {
   margin-bottom: -7px;
 }
 .log .dice-rolled-row .a-die, .gamelogreview .dice-rolled-row .a-die {
-  --die-size: 18px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000;
 }
+.log .log-card-icons, .gamelogreview .log-card-icons {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.log .log-card-icons .status-card-icon, .gamelogreview .log-card-icons .status-card-icon {
+  margin: 0px 1px;
+  width: 26px;
+  height: 26px;
+  border-width: 1.95px;
+}
+.log .log-card-icons .status-card-icon .status-card-icon-number, .gamelogreview .log-card-icons .status-card-icon .status-card-icon-number {
+  height: 18.2px;
+  width: 21.9555555556px;
+}
 .log .cards-revealed-row, .gamelogreview .cards-revealed-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto auto;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  align-items: center;
+  gap: 4px 5px;
   margin-top: 5px;
   margin-bottom: -7px;
 }
 .log .cards-revealed-row .reveal-entry, .gamelogreview .cards-revealed-row .reveal-entry {
+  display: contents;
+}
+.log .cards-revealed-row .playername, .gamelogreview .cards-revealed-row .playername {
+  display: block;
+  justify-self: start;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log .cards-revealed-row .reveal-arrow, .gamelogreview .cards-revealed-row .reveal-arrow {
+  color: #000000;
+  font-size: 1em;
+}
+.log .cards-revealed-row .reveal-cards, .gamelogreview .cards-revealed-row .reveal-cards {
   display: inline-flex;
   align-items: center;
   gap: 5px;

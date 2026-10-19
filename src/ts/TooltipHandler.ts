@@ -55,11 +55,12 @@ export class TooltipHandler{
         if(this.isSafariMobile() || !container)
             return;
 
-        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id
+        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
+        //Circular card icons also appear in log rows, where they keep the log mini cards' tooltip look
         container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card: HTMLElement) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if(card.classList.contains(TooltipHandler.getPowerCardClass(value)))
-                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.matches('.status-card-icon, .power-icon') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.closest('#pagemaintitletext') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
             else if(card.classList.contains('last-chance-card'))
                 this.game.bga.gameui.addTooltip(card.id, this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
         });

@@ -992,11 +992,12 @@ class TooltipHandler {
     addTooltipsToCardsIn(container) {
         if (this.isSafariMobile() || !container)
             return;
-        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id
+        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
+        //Circular card icons also appear in log rows, where they keep the log mini cards' tooltip look
         container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
-                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.matches('.status-card-icon, .power-icon') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.closest('#pagemaintitletext') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
             else if (card.classList.contains('last-chance-card'))
                 this.game.bga.gameui.addTooltip(card.id, this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
         });
@@ -1745,13 +1746,18 @@ class LogMutationObserver {
     }
     createLogCardsRevealed(reveals) {
         const revealsHTML = reveals.map(reveal => {
-            const cardDiv = (reveal.choice === 'card' && reveal.card) ? this.game.createCardDiv(reveal.card) : this.game.createLastChanceDiv();
+            //a card as the status bar's circular card icon; Last Chance has no icon, so it stays a mini card
+            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //a card-1 chain: the first card, then "+" and each card added to it
-            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getMiniCardsHTML([extraCard])}`).join('');
+            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getCardIconsHTML([extraCard])}`).join('');
+            //a long name is cut with an ellipsis, so its title shows it whole
+            const nameText = (reveal.player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(reveal.player_id);
+            //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
-                    ${this.game.divColoredPlayer(reveal.player_id, { class: 'playername' })}
-                    <div class="minimised-card-icon">${cardDiv.outerHTML}</div>${chainHTML}
+                    ${this.game.divColoredPlayer(reveal.player_id, { class: 'playername', title: nameText.replace(/"/g, '&quot;') })}
+                    <i class="fa6 fa-arrow-right reveal-arrow" aria-hidden="true"></i>
+                    <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
                 </div>`;
         }).join('');
         let logHTML = `
@@ -1858,8 +1864,8 @@ class LogMutationObserver {
     //card 10: the owner and the victim get the private row with the cards (ownerGives / targetGives set); everyone else
     //gets the public row with card backs. The owner and victim get the public row too, and hide it (duplicate-log)
     createLogCardsSwappedPOWER10(owner_id, target_id, ownerGives, targetGives, count) {
-        const ownerCardsHTML = ownerGives ? this.getMiniCardsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
-        const targetCardsHTML = targetGives ? this.getMiniCardsHTML(targetGives) : this.getMiniCardBacksHTML(count);
+        const ownerCardsHTML = ownerGives ? this.getCardIconsHTML(ownerGives) : this.getMiniCardBacksHTML(count);
+        const targetCardsHTML = targetGives ? this.getCardIconsHTML(targetGives) : this.getMiniCardBacksHTML(count);
         let logHTML = `
             <div class="cards-swapped-row">
                 ${this.game.divColoredPlayer(owner_id, { class: 'playername' })} ${ownerCardsHTML}
@@ -1922,6 +1928,10 @@ class LogMutationObserver {
     }
     getMiniCardsHTML(cards) {
         return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');
+    }
+    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons
+    getCardIconsHTML(cards) {
+        return `<span class="log-card-icons">${cards.map(card => this.game.getStatusCardIconHTML(card)).join('')}</span>`;
     }
     getMiniCardBacksHTML(count) {
         let backsHTML = '';
