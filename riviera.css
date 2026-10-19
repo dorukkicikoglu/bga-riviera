@@ -32,8 +32,8 @@
   --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
   --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
   --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
-  --bg-log-last-chance: linear-gradient(135deg, #fcdcd7, #eba49b);
-  --bg-log-crash: linear-gradient(135deg, #fbe6e3, #f1c2bc);
+  --bg-log-last-chance: linear-gradient(135deg, #fbe4dc, #f3c6ba);
+  --bg-log-crash: linear-gradient(135deg, #ffd1c9, #e9a297);
   --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
   --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
   --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
@@ -1105,8 +1105,28 @@ body .start-token.flying-start-token {
 .log .grand-slam-row, .gamelogreview .grand-slam-row {
   font-weight: bold;
 }
+.log .player-crashed-row, .gamelogreview .player-crashed-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.log .player-crashed-row .playername, .gamelogreview .player-crashed-row .playername {
+  display: block;
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 16px;
+}
 .log .player-crashed-row .fa-bomb, .gamelogreview .player-crashed-row .fa-bomb {
-  color: #a00000;
+  flex-shrink: 0;
+  font-size: 1.2em;
+  color: #800000;
+}
+.log.crash-log .playername, .gamelogreview.crash-log .playername {
+  text-shadow: 1px 0 rgba(255, 255, 255, 0.8), -1px 0 rgba(255, 255, 255, 0.8), 0 1px rgba(255, 255, 255, 0.8), 0 -1px rgba(255, 255, 255, 0.8), 0.5px 0.5px rgba(255, 255, 255, 0.8), -0.5px -0.5px rgba(255, 255, 255, 0.8), 0.5px -0.5px rgba(255, 255, 255, 0.8), -0.5px 0.5px rgba(255, 255, 255, 0.8);
 }
 .log.dice-rolled-log, .gamelogreview.dice-rolled-log {
   --die-size: 28px;
@@ -1724,3 +1744,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

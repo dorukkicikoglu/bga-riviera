@@ -43,8 +43,8 @@
     --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
     --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
     --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
-    --bg-log-last-chance: linear-gradient(135deg, #fcdcd7, #eba49b);
-    --bg-log-crash: linear-gradient(135deg, #fbe6e3, #f1c2bc);
+    --bg-log-last-chance: linear-gradient(135deg, #fbe4dc, #f3c6ba); //a soft peach: warmer than the neutral rows, lighter than a crash
+    --bg-log-crash: linear-gradient(135deg, #ffd1c9, #e9a297); //the reddest row: player names get a light outline on it (crash-log)
     --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
     --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
     --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
@@ -415,7 +415,14 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .fa-trophy{ color: #b8860b; }
     }
     .grand-slam-row{ font-weight: bold; }
-    .player-crashed-row .fa-bomb{ color: #a00000; }
+    //"[bomb] name [bomb]", centred; the name is cut like the reveal rows' (full name in its title)
+    .player-crashed-row{ display: flex; justify-content: center; align-items: center; gap: 6px; white-space: nowrap;
+        .playername{ display: block; min-width: 0; max-width: $reveal-name-max-width; overflow: hidden; text-overflow: ellipsis; font-size: 16px; }
+        .fa-bomb{ flex-shrink: 0; font-size: 1.2em; color: #800000; }
+    }
+    //the crash background is a strong red, so a red (or any dark) player name gets a light outline to stay readable. Light
+    //player colors keep their dark outline: that rule (below) has the same specificity and comes later
+    &.crash-log .playername{ @include text-shade(#ffffffcc, 1px); }
 
     &.dice-rolled-log{ --die-size: 28px; }
     .dice-rolled-row{ display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 5px; margin-bottom: -7px;

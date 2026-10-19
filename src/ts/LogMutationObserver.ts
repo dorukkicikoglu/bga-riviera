@@ -166,14 +166,12 @@ export class LogMutationObserver{
     }
 
     public createLogPlayerCrashed(player_id: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const crashText = player_id === this.game.getMyPlayerID()
-            ? _('${you} crash').replace('${you}', playerNameHTML)
-            : _('${playerName} crashes').replace('${playerName}', playerNameHTML);
-
+        //icons only: "[bomb] name [bomb]" (the server's CRASH_LOG_STR is the plain-text fallback)
         let logHTML = `
             <div class="player-crashed-row">
-                <i class="fa6 fa-bomb"></i>&nbsp;${crashText}
+                <i class="fa6 fa-bomb" aria-hidden="true"></i>
+                ${this.getCutPlayerNameHTML(player_id)}
+                <i class="fa6 fa-bomb" aria-hidden="true"></i>
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'crash-log');
