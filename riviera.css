@@ -917,9 +917,9 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .start-token.mini-start-token {
   display: inline-block;
   vertical-align: middle;
-  width: 14px;
-  height: 14px;
-  --start-token-outline-width: 1.4px;
+  width: var(--log-card-icon-size);
+  height: var(--log-card-icon-size);
+  --start-token-outline-width: calc(var(--log-card-icon-size) * 3.5 / 34);
 }
 .start-token .start-token-pawn {
   position: absolute;
@@ -1027,6 +1027,29 @@ body .start-token.flying-start-token {
 }
 .log.game-end-log .roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.gamelogreview.game-end-log {
   background: var(--bg-log-game-end);
+}
+.log .start-token-row, .gamelogreview .start-token-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+}
+.log .start-token-row .playername, .gamelogreview .start-token-row .playername {
+  display: block;
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log .start-token-row .start-token-arrow, .gamelogreview .start-token-row .start-token-arrow {
+  flex-shrink: 0;
+  margin: 0 5px;
+  color: #000000;
+  font-size: 1em;
+  line-height: 1;
+}
+.log .start-token-row .mini-start-token, .gamelogreview .start-token-row .mini-start-token {
+  flex-shrink: 0;
 }
 .log .new-round-row, .log .player-crashed-row, .log .grand-slam-row, .log .start-token-row, .log .stars-banked-row, .gamelogreview .new-round-row, .gamelogreview .player-crashed-row, .gamelogreview .grand-slam-row, .gamelogreview .start-token-row, .gamelogreview .stars-banked-row {
   text-align: center;

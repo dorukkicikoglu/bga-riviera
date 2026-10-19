@@ -1787,13 +1787,12 @@ class LogMutationObserver {
         return this.addLogClassTag(logHTML, 'grand-slam-log');
     }
     createLogStartTokenPassed(player_id) {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
-        const startTokenText = player_id === this.game.getMyPlayerID()
-            ? _('${you} receive the Start token').replace('${you}', playerNameHTML)
-            : _('${playerName} receives the Start token').replace('${playerName}', playerNameHTML);
+        //icons only: "name ⇐ [Start token]" (the server's START_TOKEN_LOG_STR is the plain-text fallback)
         let logHTML = `
             <div class="start-token-row">
-                <div class="start-token mini-start-token" style="--start-token-color: #${this.game.getPlayerColor(player_id) ?? '000000'}">${StartTokenHandler.LAYERS_HTML}</div>&nbsp;${startTokenText}
+                ${this.getCutPlayerNameHTML(player_id)}
+                <span class="start-token-arrow" aria-hidden="true">⇐</span>
+                <div class="start-token mini-start-token" style="--start-token-color: #${this.game.getPlayerColor(player_id) ?? '000000'}">${StartTokenHandler.LAYERS_HTML}</div>
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'start-token-log');
     }

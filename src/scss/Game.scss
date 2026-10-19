@@ -348,8 +348,9 @@ $start-token-masks: start-token-ring-masks();
 
 .start-token{ position: relative; box-sizing: border-box; width: 34px; height: 34px;
     --start-token-outline-width: 3.5px; //the stroke in the owner's color
-    &.mini-start-token{ display: inline-block; vertical-align: middle; width: 14px; height: 14px;
-        --start-token-outline-width: 1.4px; //the same look, scaled to the 14px token
+    //the log rows' token, as big as their circular card icons; the stroke keeps the board token's 3.5px : 34px ratio
+    &.mini-start-token{ display: inline-block; vertical-align: middle; width: var(--log-card-icon-size); height: var(--log-card-icon-size);
+        --start-token-outline-width: calc(var(--log-card-icon-size) * 3.5 / 34);
     }
 
     .start-token-pawn{ position: absolute; inset: 0; background: var(--image-source-start-token) center / contain no-repeat; }
@@ -394,6 +395,12 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
         &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
     }
 
+    //"name ⇐ [Start token]": the name is cut like the reveal rows' (full name in its title)
+    .start-token-row{ display: flex; justify-content: center; align-items: center; white-space: nowrap;
+        .playername{ display: block; min-width: 0; max-width: $reveal-name-max-width; overflow: hidden; text-overflow: ellipsis; }
+        .start-token-arrow{ flex-shrink: 0; margin: 0 5px; color: #000000; font-size: 1em; line-height: 1; }
+        .mini-start-token{ flex-shrink: 0; }
+    }
     .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row, .stars-banked-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
     .new-round-row{ font-weight: bold; font-size: 16px; }
     .game-end-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
