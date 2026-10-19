@@ -193,7 +193,7 @@ $status-card-icon-size: 40px;
     $pips-by-value: (1: (5), 2: (1, 9), 3: (1, 5, 9), 4: (1, 3, 7, 9), 5: (1, 3, 5, 7, 9), 6: (1, 3, 4, 6, 7, 9));
     @each $value, $pips in $pips-by-value {
         @each $pip in $pips {
-            &[data-value="#{$value}"] .die-pip:nth-child(#{$pip}){ visibility: visible; }
+            &[data-value="#{$value}"] .die-pip:nth-child(#{$pip}){ visibility: inherit; } //inherit, not visible: a hidden die (waiting for its rolling copy) must hide its pips too
         }
     }
     &[data-value=""]{ display: none; } //no value: never shown. DiceHandler only blanks a die on a roll, so the golden die stays up until the next roll

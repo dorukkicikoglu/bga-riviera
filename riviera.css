@@ -507,67 +507,67 @@ body .sliding-clone {
   --pip-y: calc(var(--die-size) * 0.78);
 }
 .a-die[data-value="1"] .die-pip:nth-child(5) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="2"] .die-pip:nth-child(1) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="2"] .die-pip:nth-child(9) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="3"] .die-pip:nth-child(1) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="3"] .die-pip:nth-child(5) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="3"] .die-pip:nth-child(9) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="4"] .die-pip:nth-child(1) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="4"] .die-pip:nth-child(3) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="4"] .die-pip:nth-child(7) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="4"] .die-pip:nth-child(9) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="5"] .die-pip:nth-child(1) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="5"] .die-pip:nth-child(3) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="5"] .die-pip:nth-child(5) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="5"] .die-pip:nth-child(7) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="5"] .die-pip:nth-child(9) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(1) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(3) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(4) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(6) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(7) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value="6"] .die-pip:nth-child(9) {
-  visibility: visible;
+  visibility: inherit;
 }
 .a-die[data-value=""] {
   display: none;
@@ -1744,5 +1744,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */
