@@ -972,6 +972,10 @@ body .start-token.flying-start-token {
   color: #27271c;
 }
 
+#logs .log:not(.a-game-log), [id^=chatwindowlogs_zone_tablelog_] .log:not(.a-game-log), [id^=replaylogs] .gamelogreview:not(.a-game-log) {
+  display: none !important;
+}
+
 .log.a-game-log, .gamelogreview.a-game-log {
   position: relative;
 }

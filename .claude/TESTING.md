@@ -358,3 +358,12 @@ Power reference:
 Layout:
 - [ ] Desktop: the background reads a little lighter than on a phone; a phone keeps the plain tile.
 - [ ] A little more space above the dice than before; the card 9 arrows still fit and the dice don't move when they appear.
+
+## After M4: non-game log rows hidden
+
+- [ ] Desktop: the game log shows only our colored rows (rounds, rolls, reveals, Stop/More, banking, powers, token, game end). BGA's own rows (player joined or left, time-outs, zombie mode, "end of game" messages, debug output) don't show.
+- [ ] Phone: the same in the table log tab of the chat bar. The table chat tab still shows every chat message.
+- [ ] Desktop: table chat messages, which BGA also copies into `#logs`, no longer show in the log column (they are rows without `a-game-log`); they still show in the chat window and the chat bubbles.
+- [ ] End-of-game replay log (bottom of the page) and an in-game replay from a log row: only our rows.
+- [ ] No empty gaps where hidden rows were, and the timestamps of our rows still show.
+

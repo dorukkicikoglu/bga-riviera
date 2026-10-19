@@ -376,6 +376,11 @@ body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; marg
 //The text color is set too: every background is pale, so BGA's dark mode must not lighten the text
 .log .roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
 
+//only our own rows (every one gets .a-game-log from LogMutationObserver) show in the game log: BGA's other rows are hidden in
+//the desktop log (#logs), the mobile table log and the replay log. The chat zones are never touched. BGA sets an inline
+//display: block on each row, hence !important
+#logs .log:not(.a-game-log), [id^="chatwindowlogs_zone_tablelog_"] .log:not(.a-game-log), [id^="replaylogs"] .gamelogreview:not(.a-game-log){ display: none !important; }
+
 $reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
 $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
