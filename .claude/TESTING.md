@@ -96,7 +96,7 @@ Deploy as before (`modules/`, `riviera.css`, `dbmodel.sql`). The schema changed 
 
 Every debug function below is in the Studio debug menu and reloads the page. Use a 3-player table for card 10 (a victim and a bystander).
 
-Power timing (settled with the publisher after M4): cards 2, 10 and 11 resolve after Stop or More, only for owners who chose **More**, clockwise from the player who just received the Start token. So for those cards: play it, then choose More.
+Power timing (settled with the publisher after M4): cards 2 and 11 resolve after Stop or More, only for owners who chose **More**, clockwise from the player who just received the Start token. So for those cards: play it, then choose More. Card 10 (2026-10-19) resolves right after the reveal, before Stop or More, for every owner still in the round, clockwise from the current holder: play it and the prompt comes at once (see "Card 10 before Stop or More" at the end).
 
 Card 1 / Grand Slam (`debug_POWER1()`: gives me two 1s and a 2, all playable):
 - [ ] The play button reads "Confirm".
@@ -109,7 +109,7 @@ Card 1 / Grand Slam (`debug_POWER1()`: gives me two 1s and a 2, all playable):
 - [ ] I press F5 in the middle of a chain: the chosen cards are still set aside and the "You may use [1]" prompt (the 1 as a circular card icon) is back. Same after F5 once the chain is finished (waiting for others).
 - [ ] The other player only sees that I'm still choosing or done, and their network traffic shows no card id.
 - [ ] After confirming a 1, the status bar reads "You may use [1]", the 1 drawn as the circular card icon (a ring in its color around the number, like "Play [card]?"); hovering it shows the card 1 power tooltip, the same as a 1 in the log. Selecting a card switches the title to "Add [card]?".
-- [ ] My chain ends on a 2, 10 or 11: that card's power resolves after Stop or More if I choose More. A chain that ends on a 1 triggers no other power.
+- [ ] My chain ends on a 2 or 11: that card's power resolves after Stop or More if I choose More. My chain ends on a 10: its swap prompt comes right after the reveal, before Stop or More. A chain that ends on a 1 triggers no other power.
 - [ ] The reveal log row shows the chain as card + card + card.
 - [ ] I play my last cards through a chain (`debug_trimHands(3)`, then `debug_POWER1()`): Grand Slam, the game ends, and the last card's power does not resolve.
 - [ ] Two players empty their hands on the same reveal, one with a chain and one with a single card: both get the Grand Slam score and share the win.
@@ -151,16 +151,16 @@ Card 9 (`debug_POWER9(true)` to start at once, or `debug_POWER9()` to play the 9
 - [ ] "Skip" works and logs a skip row.
 - [ ] An owner who chose Stop after playing the 9 is not asked (no row).
 
-Card 10 (`debug_POWER10()`, then More; fallback: `debug_POWER10(true)`, then More):
+Card 10 (`debug_POWER10()`, the prompt comes right after the reveal; fallback: `debug_POWER10(true)`):
 - [ ] Others and spectators see "<my name> may use [10][power]" the whole time. My own title and buttons follow the "After M4: card 10 status bar steps" checks below.
 - [ ] Swap: I select 2 cards, then "Swap with <name>" (no confirm). My 2 cards fade out and 2 random cards slide in from their board.
 - [ ] The victim never has to click. Their hand changes the same way.
 - [ ] The owner and victim each see a single pink log row with the real cards. A third player and a spectator see a single row with 2 backs, and 2 backs slide each way between the two boards. Hand counts don't change.
-- [ ] Targets: only opponents who chose More this turn and have at least 2 cards get a "Swap with" button. An opponent who chose Stop in the same Stop or More gets none.
-- [ ] If I choose Stop instead: no swap prompt, no row.
-- [ ] An opponent down to 1 card gets no button, and if every opponent who chose More is down to 1 card (or all of them stopped) I get the discard-and-draw fallback instead (no debug helper trims a single hand: play the opponent's hand down).
+- [ ] Targets: only opponents still in the round with at least 2 cards get a "Swap with" button. An opponent who crashed on this reveal or stopped in an earlier turn gets none.
+- [ ] I can swap and then choose Stop: the swap stands and I bank my column.
+- [ ] An opponent down to 1 card gets no button, and if every opponent still in the round is down to 1 card (or none is still in) I get the discard-and-draw fallback instead (no debug helper trims a single hand: play the opponent's hand down).
 - [ ] With fewer than 2 cards in my own hand, my 10 is skipped with a "(fewer than 2 cards in hand)" row: `debug_trimHands(2)`, then `debug_POWER10()` (the 10 replaces one of my 2 cards), then play the 10 so 1 card is left.
-- [ ] Redraw fallback (`debug_POWER10(true)`, then More): with nobody else in the round I discard and draw; a lime log row shows my cards to me and backs to others.
+- [ ] Redraw fallback (`debug_POWER10(true)`): with nobody else in the round I discard and draw; a lime log row shows my cards to me and backs to others.
 - [ ] `debug_setDrawPile(1, 0)` first: only 1 card is replaced, after the confirmation.
 - [ ] `debug_setDrawPile(0, 3)` first: the discard pile is reshuffled in, and the cards just discarded never come back.
 - [ ] `debug_setDrawPile(0, 0)` first: the power is skipped with a "no card left to draw" log row.
@@ -172,7 +172,7 @@ Every power:
 - [ ] Each new log type has its own background, in the live log, in replay and in the mobile chatbar.
 - [ ] Zombies: see the M4 Zombie items (M4 replaced the M3 zombies).
 - [ ] A new round clears every pending power and dice effect.
-- [ ] Owners of 2, 10 and 11 resolve clockwise from the player who received the Start token this turn (two owners who both chose More: the one closer after the new holder goes first).
+- [ ] Owners of 2 and 11 resolve clockwise from the player who received the Start token this turn (two owners who both chose More: the one closer after the new holder goes first). Card 10 owners resolve clockwise from the holder at the reveal, before the token moves.
 - [ ] A Grand Slam ends the game before the token passes and before any power.
 - [ ] No terracotta "stops: ..." cancel row ever appears (that row type is gone).
 - [ ] If two power owners in a row are both asked in the same state (two 11s cannot be, but two 9s or two 10s can), the second one really becomes active. If not, paste what happens: re-entering the same active state is the one thing I couldn't verify locally.
@@ -189,7 +189,7 @@ Deploy as before (`modules/`, `riviera.css`, `dbmodel.sql`, `*.jsonc`). The sche
 
 Tooltips:
 - [ ] Hovering any card in my hand or in any played column, power card or not, shows the power reference: teal, three bold timing headings, five entries each with its icon on the left and the text wrapping around it.
-- [ ] Desktop: two columns (left: card 1, then cards 2 and 10; right: card 11, then card 9), about 640px wide at most. Phone or narrow window: one column, same order. The tooltip is not cut off (if it is, paste a screenshot: BGA may cap tooltip widths).
+- [ ] Desktop: two columns (left: card 1, then card 10; right: cards 2 and 11, then card 9), about 640px wide at most. Phone or narrow window: one column, same order. The tooltip is not cut off (if it is, paste a screenshot: BGA may cap tooltip widths).
 - [ ] Entries have no border or box, only spacing between them. Hovering a 1, 2, 9, 10 or 11 boxes that card's entry (lighter background, rounded corners, thin border); hovering any other value boxes nothing.
 - [ ] Desktop: a thin vertical line between the two columns; no line when they stack in one column.
 - [ ] All five icons are about two lines tall and none shows a sliver of its neighbor; card 10's is the wider one.
@@ -206,7 +206,7 @@ Statistics (play a game to the end, then the Statistics tab):
 - [ ] A player who never used the Last Chance shows no Last Chance round (if the end of the game fails with a stats error on `lastChanceRound`, paste it: it then needs an init to 0).
 - [ ] Best round, rounds stopped and rounds played are right.
 - [ ] A chain of three cards counts 3 cards played and 2 extra cards (card 1).
-- [ ] Cards 2, 10 and 11 count only when they resolve (owner chose More): a 2 played before a Stop adds nothing. Card 9 counts each die turned, card 10 the cards swapped or redrawn (2 per use).
+- [ ] Cards 2 and 11 count only when they resolve (owner chose More): a 2 played before a Stop adds nothing. Card 10 counts when it resolves, before Stop or More, so a swap followed by a Stop still counts. Card 9 counts each die turned, card 10 the cards swapped or redrawn (2 per use).
 - [ ] A Grand Slam sets Grand Slam to yes.
 
 End-game display:
@@ -218,17 +218,17 @@ End-game display:
 - [ ] Full replay to the end shows the table without errors.
 
 Zombie (friendly mode, kick a player in each state; a 3-player table helps):
-- [ ] Card play: the zombie plays a playable card with the most stars. If it is a 1 and more cards are playable, it chains in the same turn (check the reveal row). No playable card: Last Chance, then crash.
-- [ ] Stop or More: the zombie stops.
-- [ ] A zombie always stops, so its own 2, 9, 10 and 11 never resolve (no prompt, no row).
+- [ ] Card play: the zombie plays a random playable card (over a few turns, not always the one with the most stars). After a 1 with more cards playable, it adds a random playable card or skips, again after each extra 1, all in the same turn (check the reveal row). No playable card: Last Chance (while available) or crash, at random.
+- [ ] Stop or More: the zombie stops or chooses More at random; over a few turns both happen, and a zombie that chose More plays the next turn.
+- [ ] A zombie's 10 always resolves (random swap, redraw or skip, before Stop or More). Its 2, 11 and next-roll 9 resolve only when it chose More (2 automatic, 9 and 11 random), and never after a Stop (no prompt, no row).
 - [ ] Kick a player while they are the active power owner in ModifyDie, ResolvePowers or SwapCards: the game never blocks. Over a few tries the zombie sometimes uses the power (turns a die, adds the golden die, swaps 2 cards with a real player) and sometimes skips.
 - [ ] A zombie swap with me: my hand changes and I get the private row with the real cards.
 
 Start token (passes after Stop or More, skips players out of the round), on a 3- or 4-player table:
-- [ ] The token no longer moves after the card reveal: it passes once the Stop/More row and any "banks N ★" rows are in the log, with its usual flight and log row, before any card 2, 10 or 11 power (reservation row, golden die prompt, swap prompt).
+- [ ] The token no longer moves after the card reveal: it passes once the Stop/More row and any "banks N ★" rows are in the log, with its usual flight and log row, before any card 2 or 11 power (reservation row, golden die prompt). Card 10 swaps come before Stop or More, so before the pass.
 - [ ] It skips players who stopped or crashed, this turn's stoppers included, and slides to the next player clockwise who is still in.
 - [ ] A player who crashes on this reveal is skipped by this turn's pass too.
-- [ ] Card 2, 10 and 11 owners who chose More resolve clockwise from the player who just received the token; card 9 owners at the next roll start from that same player.
+- [ ] Card 2 and 11 owners who chose More resolve clockwise from the player who just received the token; card 9 owners at the next roll start from that same player.
 - [ ] If the holder is the only player who chose More, the token stays with them: no slide and no log row.
 - [ ] Everyone crashes on the reveal (no Stop or More): the token still slides to the next player in turn order, right after the crash rows, then the round ends.
 - [ ] Nobody chooses More (everyone stopped or crashed): the token slides to the next player in turn order after the Stop/More and banks rows, before the new round's columns clear.
@@ -297,6 +297,8 @@ BGA alpha checklist:
 
 ## After M4: card 10 before the Start token pass, token and roll together
 
+(The card 10 order checks below are superseded by "Card 10 before Stop or More" at the end: card 10 no longer waits for More. The token and roll checks still apply.)
+
 Card 10 order (2 players, `debug_POWER10()` for each player in turn, both choose More):
 - [ ] A holds the Start token and both A and B played a 10. After the More reveal: A is asked for card 10 first, then B, and only then "B receives the Start token". The token has not moved while either is choosing.
 - [ ] Two card 10 owners: both get their turn, also when the first one swaps with the second. Check it three ways: the first owner swaps with the second, swaps with a third player, and skips. The second owner is always asked next, then the token passes.
@@ -319,7 +321,7 @@ Start token and roll together:
 
 ## After M4: card 10 status bar steps
 
-Swap (`debug_POWER10()`, then More with an opponent who also chose More):
+Swap (`debug_POWER10()` with an opponent still in the round; the prompt comes right after the reveal):
 - [ ] Before any card is selected: "You may choose 2 cards to swap [10][power]" (my 10 as the circular icon, then its power icon, both with the card 10 tooltip) and only Skip. No "Swap with" button, not even a disabled one.
 - [ ] With 1 card selected: the same title and only Skip.
 - [ ] With 2 cards selected: "Choose an opponent to swap [card][card]" with my 2 selected cards as circular icons (each with its power tooltip if it has one), one "Swap with **name**" button per eligible opponent (white, ringed in their color), then Skip.
@@ -329,7 +331,7 @@ Swap (`debug_POWER10()`, then More with an opponent who also chose More):
 - [ ] "Swap with" sends the swap with the cards shown in the title; Skip skips at either step.
 - [ ] Others and spectators see "<name> may use [10][power]" throughout, never my steps.
 
-Discard and draw fallback (`debug_POWER10(true)`, then More):
+Discard and draw fallback (`debug_POWER10(true)`):
 - [ ] Before 2 cards are selected: "You may choose 2 cards to discard [10][power]" and only Skip.
 - [ ] With 2 cards selected: "Discard [card][card] and draw 2?" with Confirm and Skip. Unselecting a card goes back.
 - [ ] A third card replaces the oldest selected one here too, the title showing the new pair in selection order, still with Confirm. Confirm discards the 2 cards shown.
@@ -353,7 +355,7 @@ Player boards:
 - [ ] 7 cards or fewer in hand: one card back per card, every 2nd one a little lower (a staircase). 8 or more: one back and "x N". Check 10 (start of round), 7 and 1.
 
 Power reference:
-- [ ] Hovering a 1, 2, 9, 10 or 11: its timing heading sits above its boxed entry at the top. Hovering a 2: "Before the next dice roll..." on top, and again below over cards 10 and 11. Hovering a 1: its heading on top only (no empty heading below).
+- [ ] Hovering a 1, 2, 9, 10 or 11: its timing heading sits above its boxed entry at the top. Hovering a 2: "Before the next dice roll..." on top, and again below over card 11. Hovering a 1: its heading on top only (no empty heading below).
 
 Layout:
 - [ ] Desktop: the background reads a little lighter than on a phone; a phone keeps the plain tile.
@@ -366,4 +368,37 @@ Layout:
 - [ ] Desktop: table chat messages, which BGA also copies into `#logs`, no longer show in the log column (they are rows without `a-game-log`); they still show in the chat window and the chat bubbles.
 - [ ] End-of-game replay log (bottom of the page) and an in-game replay from a log row: only our rows.
 - [ ] No empty gaps where hidden rows were, and the timestamps of our rows still show.
+
+## After M4: card 10 before Stop or More
+
+Deploy `modules/` and `riviera.css` (no schema change). New turn order: reveal, Grand Slam check, card 10 swaps, Stop or More, Start token pass, cards 2 and 11, roll. Use a 3-player table (A, B, C, clockwise), `debug_POWER10()` gives the current player a playable 10.
+
+Timing:
+- [ ] Play a 10: right after the reveal row, before any Stop or More buttons, I get "You may choose 2 cards to swap [10][power]". Others see "<my name> may use [10][power]". The Start token hasn't moved.
+- [ ] After my swap (or Skip), everyone still in gets Stop or More as usual.
+- [ ] Player swaps, then stops: swap with B, then choose Stop. The swap stands, I bank my column, no extra row or prompt.
+- [ ] Player swaps, then chooses More: same swap, then the token passes and any card 2 / 11 resolve after it, then the roll.
+- [ ] Card 10 from a card 1 chain: `debug_POWER1()` plus a 10 in hand (`debug_POWER10()` too), play the 1 and chain the 10. After the reveal, the 10's swap prompt comes before Stop or More.
+
+Owners and targets:
+- [ ] Two owners (A holds the token, A and C played a 10): A is asked first, then C, then Stop or More. With B holding the token and A and C owners: C first, then A.
+- [ ] Owner order still works when the first owner swaps with the second owner, with a third player, or skips: the second owner is always asked next.
+- [ ] A player who crashes on this reveal is never an owner (a crash has no card) and never a target: B crashes, A plays a 10, A's swap buttons show only C. With only A left in, A gets the discard and draw fallback.
+- [ ] A player who stopped in an earlier turn is never a target: B stopped last turn, A plays a 10, only C is offered.
+- [ ] `debug_POWER10(true)` (everyone else stopped): I get the discard and draw fallback ("You may choose 2 cards to discard [10][power]"), then Stop or More.
+- [ ] A target with fewer than 2 cards is not offered; with no target at all, the fallback.
+- [ ] Owner with fewer than 2 cards: "does not use their 10 (fewer than 2 cards in hand)" row, then straight to Stop or More.
+
+Ends and edge cases:
+- [ ] Grand Slam on the same reveal as someone's 10: the game ends, no swap prompt.
+- [ ] Everyone crashes on a reveal: no card 10 prompt; the token passes, as before.
+- [ ] Zombie with a 10 (kick a player who just played one, or kick them during their swap prompt): it resolves its 10 at random (swap with a real player, redraw or skip), then auto-Stops. The game never blocks.
+- [ ] F5 while a card 10 owner is choosing: the same owner is still asked, the next one follows, then Stop or More.
+- [ ] Swap animation, the swap / redraw log rows (real cards for the owner and victim, backs for others), the status bar steps and the board bounce look exactly as before.
+- [ ] Stop or More "Stop and bank N ★" shows the right stars after a swap (a swap never touches columns).
+
+Power reference:
+- [ ] Hovering a card with no power: left column "Power activated immediately after playing the card:" card 1, then "Power activated before Stop or More:" card 10; right column "Powers activated before the next dice roll:" cards 2 and 11, then the card 9 heading and card 9.
+- [ ] Hovering a 10: "Power activated before Stop or More:" on top over its boxed entry, and that heading doesn't appear again below. Hovering a 2: its heading on top, and again below over card 11 only.
+- [ ] Card 10's text: "Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead." No "Only if you choose More." Cards 2 and 11 keep it.
 

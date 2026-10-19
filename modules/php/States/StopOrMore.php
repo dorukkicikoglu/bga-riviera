@@ -83,7 +83,12 @@ class StopOrMore extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * A zombie banks what it has.
+     * Zombie level 1: Stop or More at random.
      */
-    function zombie(int $playerId) { return $this->actStop($playerId); }
+    function zombie(int $playerId) {
+        if($this->getRandomZombieChoice(['stop', 'more']) === 'stop')
+            return $this->actStop($playerId);
+
+        return $this->actMore($playerId);
+    }
 }

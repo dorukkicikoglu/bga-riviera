@@ -234,8 +234,9 @@ class PlayCard extends GameState
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
-     * Zombie level 1: the playable card with the most stars (ties at random); a 1 chains greedily the same way.
-     * With no playable card: the Last Chance if still available, else a crash.
+     * Zombie level 1: a random possible action. A random playable card; after a 1, each step of the chain is random
+     * between every playable extra card and Skip. With no playable card, random between the buttons a player would
+     * see: Last Chance (if still available) and Crash.
      * Never use getCurrentPlayerId() here: there is no current player in a zombie call.
      */
     function zombie(int $playerId) {
@@ -246,13 +247,16 @@ class PlayCard extends GameState
 
         $playableCardIDs = $this->game->tableManager->getPlayableCardIDs($playerId);
         if(count($playableCardIDs) > 0){
-            if($this->playCard($this->getBestZombieCardID($playableCardIDs), $playerId))
+            if($this->playCard((int) $this->getRandomZombieChoice($playableCardIDs), $playerId))
                 $this->zombieChainPOWER1($playerId);
             return;
         }
 
-        $lastChanceUsed = $this->game->getUniqueValueFromDB("SELECT `last_chance_used` FROM `player` WHERE `player_id` = $playerId");
-        if($lastChanceUsed === 'no')
+        $choices = ['crash'];
+        if($this->game->getUniqueValueFromDB("SELECT `last_chance_used` FROM `player` WHERE `player_id` = $playerId") === 'no')
+            $choices[] = 'last_chance';
+
+        if($this->getRandomZombieChoice($choices) === 'last_chance')
             return $this->actUseLastChance($playerId);
 
         return $this->actCrash($playerId);
@@ -263,26 +267,16 @@ class PlayCard extends GameState
     {
         for($step = 0; $step < CARDS_PER_HAND && $this->isMidChainPOWER1($playerID); $step++){
             $nextCardIDs = $this->getRemainingPlayableCardIDs($playerID);
-            if(empty($nextCardIDs)){
+            $choice = empty($nextCardIDs) ? 'skip' : $this->getRandomZombieChoice(['skip', ...array_map('strval', $nextCardIDs)]);
+            if($choice === 'skip'){
                 $this->actFinishChain_POWER1($playerID);
                 return;
             }
 
-            $this->actAddChainCard_POWER1($this->getBestZombieCardID($nextCardIDs), $playerID);
+            $this->actAddChainCard_POWER1((int) $choice, $playerID);
         }
 
         if($this->isMidChainPOWER1($playerID))
             $this->actFinishChain_POWER1($playerID);
-    }
-
-    private function getBestZombieCardID(array $cardIDs): int
-    {
-        $cardValuesDB = $this->game->getCollectionFromDB("SELECT `card_id`, `value` FROM `cards` WHERE `card_id` IN (".implode(',', array_map('intval', $cardIDs)).")", true);
-
-        $starsByCardID = [];
-        foreach($cardValuesDB as $cardID => $value)
-            $starsByCardID[(int) $cardID] = STARS_BY_VALUE[(int) $value];
-
-        return (int) $this->getBestZombieChoice($starsByCardID);
     }
 }

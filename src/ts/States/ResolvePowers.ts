@@ -13,7 +13,7 @@ import { Game } from "../Game";
 
 /**
  * Card 11, after Stop or More (the owner chose More), before the next roll: the active owner may add the golden die
- * to the next roll, or skip. (Card 2 needs no choice and card 10 has its own SwapCards state.)
+ * to the next roll, or skip. (Card 2 needs no choice and card 10 has its own SwapCards state, before Stop or More.)
  * The server skips a second 11 when the golden die is already added, so this always offers to add it.
  */
 export class ResolvePowers {

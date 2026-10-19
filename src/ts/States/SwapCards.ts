@@ -12,9 +12,9 @@
 import { Game } from "../Game";
 
 /**
- * Card 10, after Stop or More (the owner chose More), before the Start token passes: the active owner selects 2 cards
- * from their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents who chose More
- * and have at least 2 cards can be chosen.
+ * Card 10, after the reveal and before Stop or More (the owner is still in the round): the active owner selects 2 cards
+ * from their hand, then the opponent to swap them with (the opponent's cards are random). Only opponents still in the
+ * round with at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
  * Everyone else sees the power prompt ("<name> may use [10]") throughout.
  */

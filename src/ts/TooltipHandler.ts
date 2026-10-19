@@ -114,8 +114,8 @@ export class TooltipHandler{
     /**
      * The power reference, laid out like the rulebook's powers page: entries grouped by timing, each with its icon
      * (img/power_icons_sprite.webp) floated left. Two columns on desktop, one on narrow screens.
-     * focusedValue 0 (a card with no power): the whole reference, split like the rulebook (left: card 1, then cards 2 and 10;
-     * right: card 11, then card 9). A power card: its own entry on top under its timing heading, as wide as the tooltip, then the other powers under
+     * focusedValue 0 (a card with no power): the whole reference, split in two (left: card 1, then card 10;
+     * right: cards 2 and 11, then card 9). A power card: its own entry on top under its timing heading, as wide as the tooltip, then the other powers under
      * their timing headings (a group left empty loses its heading) in two columns the browser balances (CSS columns).
      * The text follows our BGA rules (SPEC.md), not the rulebook's wording.
      */
@@ -125,7 +125,7 @@ export class TooltipHandler{
 
         const headingHTML = (heading: string) => `<div class="power-reference-heading">${heading}</div>`;
         const timingGroups = this.getPowerTimingGroups();
-        const [immediateGroup, beforeRollGroup, afterRollGroup] = timingGroups;
+        const [immediateGroup, beforeStopOrMoreGroup, beforeRollGroup, afterRollGroup] = timingGroups;
 
         let referenceHTML: string;
         if(focusedValue === 0) {
@@ -134,11 +134,12 @@ export class TooltipHandler{
                     <div class="power-reference-column">
                         ${headingHTML(immediateGroup.heading)}
                         ${this.getPowerEntryHTML(1)}
-                        ${headingHTML(beforeRollGroup.heading)}
-                        ${this.getPowerEntryHTML(2)}
+                        ${headingHTML(beforeStopOrMoreGroup.heading)}
                         ${this.getPowerEntryHTML(10)}
                     </div>
                     <div class="power-reference-column">
+                        ${headingHTML(beforeRollGroup.heading)}
+                        ${this.getPowerEntryHTML(2)}
                         ${this.getPowerEntryHTML(11)}
                         ${headingHTML(afterRollGroup.heading)}
                         ${this.getPowerEntryHTML(9)}
@@ -171,11 +172,12 @@ export class TooltipHandler{
         return referenceHTML;
     }
 
-    //the powers by timing, in the rulebook's order: the only source of the reference's headings
+    //the powers by timing, in turn order: the only source of the reference's headings
     private getPowerTimingGroups(): {heading: string, values: number[]}[] {
         return [
             {heading: _('Power activated immediately after playing the card:'), values: [1]},
-            {heading: _('Powers activated before the next dice roll:'), values: [2, 10, 11]},
+            {heading: _('Power activated before Stop or More:'), values: [10]},
+            {heading: _('Powers activated before the next dice roll:'), values: [2, 11]},
             {heading: _('Power activated after the next dice roll and before playing a card:'), values: [9]},
         ];
     }
@@ -204,7 +206,7 @@ export class TooltipHandler{
         const powerTexts: Record<number, string> = {
             1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
             2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Only if you choose More.'),
-            10: _('Swap 2 cards of your choice for 2 random cards of an opponent who chose More and has at least 2 cards. If there is none, discard up to 2 cards and draw as many instead. Only if you choose More.'),
+            10: _('Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead.'),
             11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Only if you choose More.'),
             9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
         };
