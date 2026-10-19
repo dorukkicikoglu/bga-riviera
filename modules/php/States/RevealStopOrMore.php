@@ -34,10 +34,9 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
      * Applies every Stop choice and reveals all choices in one notification. [BGA] Each player who stops banks the stars
      * of their played column at once (score, "banks N stars" row, round_scores, stats): a stopped column can't change,
      * so the stars are final. The 40-point check still waits for EndRound.
-     * Then this turn's powers, [BGA, confirmed with publisher] only for owners who chose More: [BGA] card 10 first,
-     * clockwise from the current holder, its order computed once here, before the token moves; then the Start token
-     * passes (PassStartToken), which starts cards 2 and 11 clockwise from the new holder, before the next roll.
-     * With nobody who chose More there is no card 10 and PassStartToken ends the round.
+     * Then the Start token passes (PassStartToken), which starts this turn's cards 2 and 11, [BGA, confirmed with
+     * publisher] only for owners who chose More, clockwise from the new holder, before the next roll. Card 10 has
+     * resolved already, before Stop or More. With nobody who chose More, PassStartToken ends the round.
      */
     function onEnteringState() {
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
@@ -75,8 +74,7 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
             $this->bankStars($playerID, $roundNumber);
 
         $this->game->powerManager->clearPreRollPowersOfPlayersOut();
-        $this->game->powerManager->saveOwnerOrderPOWER10();
-        return NextPOWER10Owner::class;
+        return PassStartToken::class;
     }
 
     //the stopper's column goes into their score now, clockwise from the Start token holder like the Stop/More row

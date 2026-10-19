@@ -15,9 +15,9 @@ namespace Bga\Games\Riviera;
 
 use Bga\Games\Riviera\Game;
 use Bga\Games\Riviera\States\ModifyDie;
-use Bga\Games\Riviera\States\PassStartToken;
 use Bga\Games\Riviera\States\PlayCard;
 use Bga\Games\Riviera\States\ResolvePowers;
+use Bga\Games\Riviera\States\StopOrMore;
 use Bga\Games\Riviera\States\SwapCards;
 use Bga\Games\Riviera\States\RollDice;
 
@@ -25,11 +25,11 @@ use Bga\Games\Riviera\States\RollDice;
  * Powers of cards 2, 9, 10 and 11. Each player reveals at most one of them per turn (a card-1 chain only goes on
  * with 1s), so the last card a player reveals leaves a pending_POWER<n> marker, and owners are walked one by one
  * clockwise from the Start token holder, like Fugu's NextPlayer: change the active player, then go to the state.
- * [BGA, confirmed with publisher] A player who stops doesn't benefit from their powers: cards 2, 10 and 11 resolve
- * after Stop or More, only for owners who chose More. [BGA] Card 10 goes first, clockwise from the holder before the
- * Start token passes (RevealStopOrMore starts that walk); cards 2 and 11 after the pass, clockwise from the new holder
- * (PassStartToken starts that walk); card 9 after the next roll, only for owners still in. Card 1 lives in PlayCard:
- * its chain is part of the player's choice.
+ * [BGA, confirmed with publisher] Card 10 resolves right after the reveal (and the Grand Slam check), before Stop or
+ * More, for owners still in the round, clockwise from the Start token holder (RevealCards starts that walk). A player
+ * who stops doesn't benefit from their cards 2 and 11: they resolve after Stop or More and the Start token pass, only
+ * for owners who chose More, clockwise from the new holder (PassStartToken starts that walk); card 9 after the next
+ * roll, only for owners still in. Card 1 lives in PlayCard: its chain is part of the player's choice.
  */
 class RIVPowerManager{
     public Game $game;
@@ -53,16 +53,16 @@ class RIVPowerManager{
     }
 
     /**
-     * Owners who stopped (or crashed) lose their pending card 2, 10 and 11 powers, silently. RevealStopOrMore, once
-     * the Stops are applied, before any of them resolves: everyone still 'in' chose More.
+     * Owners who stopped (or crashed) lose their pending card 2 and 11 powers, silently. RevealStopOrMore, once the
+     * Stops are applied, before any of them resolves: everyone still 'in' chose More. Card 10 has resolved already.
      */
     function clearPreRollPowersOfPlayersOut(): void{
-        $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER10` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
+        $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
     }
 
     /**
      * [BGA] A card-2 reservation and the golden die only last for the turn after the power is used: they are
-     * cleared after that turn's reveal, before this turn's powers (after Stop or More) can set them again.
+     * cleared after that turn's reveal, before this turn's cards 2 and 11 (after Stop or More) can set them again.
      */
     function expireDiceEffects(): void{
         $activeEffectCount = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `dice` WHERE `reserved_by_POWER2` IS NOT NULL OR `in_use_by_POWER11` = 'yes'");
@@ -76,9 +76,10 @@ class RIVPowerManager{
     }
 
     /**
-     * [BGA] Card 10 resolves after Stop or More and before the Start token passes, clockwise from the holder before the
-     * pass. RevealStopOrMore computes that order once, here, from the owners who chose More (still 'in' once the Stops
-     * are applied), and stores it: goToNextPOWER10Owner() only walks the stored order, it never reads the holder again.
+     * [BGA, confirmed with publisher] Card 10 resolves after the reveal and before Stop or More, clockwise from the Start
+     * token holder (the token only passes after Stop or More). RevealCards computes that order once, here, from the
+     * owners still 'in' (this turn's crashes are already applied, so a player who just crashed is not an owner), and
+     * stores it: goToNextPOWER10Owner() only walks the stored order, it never reads the holder again.
      * Stored as a comma-separated string of player ids (a plain scalar global, like startPlayerId), read back by
      * getOwnerOrderPOWER10() in every later request.
      */
@@ -102,10 +103,10 @@ class RIVPowerManager{
 
     /**
      * Card 10 owners in the order saveOwnerOrderPOWER10() stored: the next one still pending becomes the active player
-     * of SwapCards. Called from NextPOWER10Owner (a GAME state), which RevealStopOrMore and every SwapCards action go to,
+     * of SwapCards. Called from NextPOWER10Owner (a GAME state), which RevealCards and every SwapCards action go to,
      * so an owner's swap or skip, or having been an earlier owner's victim, never takes the next owner's turn: only
-     * their own action clears their pending_POWER10. Once nobody is left, the Start token passes (PassStartToken), which
-     * starts the card 2 and 11 walk. With nobody who chose More, the order is empty and it goes straight there.
+     * their own action clears their pending_POWER10. Once nobody is left, everyone still in chooses Stop or More
+     * (StopOrMore). With no card 10 owner, the order is empty and it goes straight there.
      */
     function goToNextPOWER10Owner(): string{
         $pendingPOWER10DB = $this->game->getCollectionFromDB("SELECT `player_id`, `pending_POWER10` FROM `player`", true);
@@ -132,14 +133,14 @@ class RIVPowerManager{
         //every owner in the order has resolved their 10: nothing pending may leak into a later turn's order
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER10` = 'no'");
         $this->game->bga->globals->set('ownerOrder_POWER10', '');
-        return PassStartToken::class;
+        return StopOrMore::class;
     }
 
     /**
      * Cards 2 and 11, after the Start token pass, for owners who chose More (still 'in'), clockwise from the new holder.
      * Card 2 is applied on the spot; a card-11 owner becomes the active player of ResolvePowers, whose every action
      * returns this again, so the walk goes on until nobody has a pending card 2 or 11, then the next roll.
-     * Card 10 has already resolved, before the pass (goToNextPOWER10Owner()).
+     * Card 10 has already resolved, before Stop or More (goToNextPOWER10Owner()).
      */
     function goToNextPreRollPower(): string{
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
@@ -221,8 +222,8 @@ class RIVPowerManager{
     }
 
     /**
-     * Card 10 targets: opponents who chose More (still 'in' once the Stops are applied) with at least 2 cards in hand.
-     * With none, the owner discards and draws instead.
+     * Card 10 targets: opponents still in the round (not crashed, this turn's crashes included, and not stopped in an
+     * earlier turn) with at least 2 cards in hand. With none, the owner discards and draws instead.
      */
     function getSwapTargetsPOWER10(int $ownerID): array{
         $handCounts = $this->game->tableManager->getHandCounts();

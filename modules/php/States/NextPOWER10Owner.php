@@ -19,10 +19,10 @@ use Bga\GameFramework\StateType;
 use Bga\Games\Riviera\Game;
 
 /**
- * Hands card 10 over to the next owner, like Fugu's NextPlayer between two PlayerTurns: RevealStopOrMore and every
+ * Hands card 10 over to the next owner, like Fugu's NextPlayer between two PlayerTurns: RevealCards and every
  * SwapCards action come here, so SwapCards is always entered from a GAME state and never re-enters itself.
  * RIVPowerManager::goToNextPOWER10Owner() picks the next owner in the stored order (SwapCards) or, once everyone has
- * resolved their 10, the Start token pass (PassStartToken).
+ * resolved their 10, Stop or More (StopOrMore).
  */
 class NextPOWER10Owner extends \Bga\GameFramework\States\GameState
 {

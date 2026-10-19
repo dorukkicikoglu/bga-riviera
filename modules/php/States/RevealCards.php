@@ -35,9 +35,10 @@ class RevealCards extends \Bga\GameFramework\States\GameState
      * Applies every pending play choice clockwise from the Start token holder, reveals the played cards (card-1
      * chains included) and Last Chances in one notification, then one notification per crash. A player whose hand
      * is now empty made a Grand Slam, which ends the game before any power. Otherwise last turn's dice effects
-     * expire and this turn's powers are marked pending: after Stop or More and only for owners who chose More, card 10
-     * before the Start token pass (see RevealStopOrMore), cards 2 and 11 after it (see PassStartToken); card 9 after
-     * the next roll.
+     * expire and this turn's powers are marked pending. [BGA, confirmed with publisher] Card 10 resolves right away,
+     * before Stop or More, for owners still in the round, clockwise from the Start token holder (NextPOWER10Owner, then
+     * StopOrMore); cards 2 and 11 after Stop or More and the token pass, only for owners who chose More (see
+     * PassStartToken); card 9 after the next roll.
      */
     function onEnteringState() {
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
@@ -149,7 +150,10 @@ class RevealCards extends \Bga\GameFramework\States\GameState
         $this->game->powerManager->expireDiceEffects();
         $this->game->powerManager->markPendingPowers($lastCardValueByPlayer);
 
-        return StopOrMore::class;
+        //this turn's crashes are already 'crashed' (set in the loop above), so a player who just crashed is neither a
+        //card 10 owner nor a target
+        $this->game->powerManager->saveOwnerOrderPOWER10();
+        return NextPOWER10Owner::class;
     }
 
     private function moveCardToColumn(array $cardDB, int $playerID): array {
