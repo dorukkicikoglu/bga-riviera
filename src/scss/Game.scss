@@ -16,6 +16,7 @@
     //capped so cards stop growing past a comfortable size on very large/ultra-wide screens
     --card-width: min(6vw, 110px);
     --die-size: min(2.8vw, 40px);
+    --log-card-icon-size: 32px; //the circular card icons in every log row (.log-card-icons)
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
 	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
@@ -126,11 +127,11 @@ $card-icon-number-frame-width: 76;
 $card-icon-number-frame-height: 63;
 $card-icon-number-height: 28px;
 $status-card-icon-size: 40px;
-$log-card-icon-size: 26px;
-//the ring, its border and the number scale together from the status bar's 40px icon
-@mixin card-icon-size($size){ width: $size; height: $size; border-width: math.div(3px * $size, $status-card-icon-size);
-    $number-height: math.div($card-icon-number-height * $size, $status-card-icon-size);
-    .status-card-icon-number{ height: $number-height; width: math.div($number-height * $card-icon-number-frame-width, $card-icon-number-frame-height); }
+//the ring, its border and the number scale together from the status bar's 40px icon. $size can be a CSS variable
+//(the logs' --log-card-icon-size), so the sizes are calc() ratios of it
+@mixin card-icon-size($size){ width: $size; height: $size; border-width: calc(#{$size} * #{math.div(3px, $status-card-icon-size)});
+    $number-height: calc(#{$size} * #{math.div($card-icon-number-height, $status-card-icon-size)});
+    .status-card-icon-number{ height: $number-height; width: calc(#{$number-height} * #{math.div($card-icon-number-frame-width, $card-icon-number-frame-height)}); }
 }
 .status-card-icon{ position: relative; display: inline-flex; box-sizing: border-box; margin: 0 3px; align-items: center; justify-content: center; vertical-align: middle; border: 3px solid; border-radius: 50%; background: #05141a; line-height: 1; @include card-icon-size($status-card-icon-size);
     .status-card-icon-number{ display: block; flex-shrink: 0;
@@ -408,14 +409,13 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "crash", "grand-slam",
     }
     //circular card icons (LogMutationObserver.getCardIconsHTML) in the reveal and card 10 swap rows
     .log-card-icons{ display: inline-flex; align-items: center; vertical-align: middle;
-        .status-card-icon{ margin: 0px 1px; @include card-icon-size($log-card-icon-size); }
+        .status-card-icon{ margin: 0px 1px; @include card-icon-size(var(--log-card-icon-size)); }
     }
-    //at most 2 entries per row; an odd last entry spans both columns, centered
     //one entry per row, lined up as a table: names, arrows, cards. Each .reveal-entry hands its 3 children to the row's grid
-    //(display: contents); auto columns keep the block as narrow as its content, so justify-content centers it in the log row
-    .cards-revealed-row{ display: grid; grid-template-columns: auto auto auto; justify-content: center; align-items: center; gap: 4px 5px; margin-top: 5px; margin-bottom: -7px;
+    //(display: contents); auto columns keep the block as narrow as its content, at the left of the log row
+    .cards-revealed-row{ display: grid; grid-template-columns: auto auto auto; justify-content: start; justify-items: start; align-items: center; gap: 4px 5px; margin-top: 5px; margin-bottom: -7px;
         .reveal-entry{ display: contents; }
-        .playername{ display: block; justify-self: start; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .playername{ display: block; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         //"Name → [card]": one arrow before the first card, as big as the name; the 5px column gap spaces it on both sides
         .reveal-arrow{ color: #000000; font-size: 1em; }
         .reveal-cards{ display: inline-flex; align-items: center; gap: 5px; }

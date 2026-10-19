@@ -342,7 +342,7 @@ Deploy `modules/` and `riviera.css` (no schema change, no new table needed).
 
 Logs:
 - [ ] The reveal row shows each played card as the circular card icon (a ring in its color around its number, as in the status bar, smaller), not a mini card. A card-1 chain shows "+" and an icon per added card. Last Chance still shows as a mini card.
-- [ ] The reveal row shows one player per row, lined up as a table: names in one column, arrows ("Name → [card]") in the next, then the cards; the whole block is centered in the row. A card-1 chain keeps a single arrow ("Name → [1] + [2]").
+- [ ] The reveal row shows one player per row, lined up as a table: names in one column, arrows ("Name → [card]") in the next, then the cards; the whole block sits at the left of the row, with the same space around it as the dice roll row. A card-1 chain keeps a single arrow ("Name → [1] + [2]").
 - [ ] A long name is cut with "..." (about 110px wide) and shows in full on hover; the arrows and cards stay lined up with the other rows.
 - [ ] Card 10 swap row: the owner and the victim see circular card icons for both sides; everyone else (spectators too) still sees card backs.
 - [ ] Hovering an icon of a 1, 2, 9, 10 or 11 in a log row shows its single-power tooltip with the same look as the mini cards' (not the status bar's plain background). Status bar icons keep their own look.

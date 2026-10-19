@@ -11,6 +11,7 @@
 :root {
   --card-width: min(6vw, 110px);
   --die-size: min(2.8vw, 40px);
+  --log-card-icon-size: 32px;
   --image-source-riviera-cards: url(img/riviera_cards.webp);
   --image-source-start-token: url(img/start_token.webp);
   --image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
@@ -308,11 +309,11 @@ body .sliding-clone {
   line-height: 1;
   width: 40px;
   height: 40px;
-  border-width: 3px;
+  border-width: calc(40px * 0.075);
 }
 .status-card-icon .status-card-icon-number {
-  height: 28px;
-  width: 33.7777777778px;
+  height: calc(40px * 0.7);
+  width: calc(calc(40px * 0.7) * 1.2063492063);
 }
 .status-card-icon .status-card-icon-number {
   display: block;
@@ -1078,18 +1079,19 @@ body .start-token.flying-start-token {
 }
 .log .log-card-icons .status-card-icon, .gamelogreview .log-card-icons .status-card-icon {
   margin: 0px 1px;
-  width: 26px;
-  height: 26px;
-  border-width: 1.95px;
+  width: var(--log-card-icon-size);
+  height: var(--log-card-icon-size);
+  border-width: calc(var(--log-card-icon-size) * 0.075);
 }
 .log .log-card-icons .status-card-icon .status-card-icon-number, .gamelogreview .log-card-icons .status-card-icon .status-card-icon-number {
-  height: 18.2px;
-  width: 21.9555555556px;
+  height: calc(var(--log-card-icon-size) * 0.7);
+  width: calc(calc(var(--log-card-icon-size) * 0.7) * 1.2063492063);
 }
 .log .cards-revealed-row, .gamelogreview .cards-revealed-row {
   display: grid;
   grid-template-columns: auto auto auto;
-  justify-content: center;
+  justify-content: start;
+  justify-items: start;
   align-items: center;
   gap: 4px 5px;
   margin-top: 5px;
@@ -1100,7 +1102,6 @@ body .start-token.flying-start-token {
 }
 .log .cards-revealed-row .playername, .gamelogreview .cards-revealed-row .playername {
   display: block;
-  justify-self: start;
   max-width: 110px;
   white-space: nowrap;
   overflow: hidden;
