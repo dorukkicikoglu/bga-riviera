@@ -44,6 +44,7 @@ class RoundSetup extends \Bga\GameFramework\States\GameState
         $this->game->powerManager->clearPendingPowers();
         $this->game->tableManager->resetDice();
         $this->game->tableManager->shuffleAndDealCards();
+        $this->game->bga->globals->set('isFirstRollOfRound', true);
 
         $this->bga->notify->all('newRound', '${NEW_ROUND_LOG_STR}', [
             'preserve' => ['round_number'],

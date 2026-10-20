@@ -366,6 +366,19 @@ class Game extends \Bga\GameFramework\Table
     // each player keeps $count random hand cards, the rest are discarded (to test Grand Slam)
     #[Debug(reload: true)]
     public function debug_trimHands(int $count = 1) {
+        $this->debugTrimHands($count);
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
+    }
+
+    // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies; each re-roll writes a "First roll re-rolled" line in the Studio server log
+    #[Debug(reload: true)]
+    public function debug_firstRoll(int $count = 2) {
+        $this->debugTrimHands($count);
+        $this->bga->globals->set('isFirstRollOfRound', true);
+        $this->gamestate->jumpToState(10); //RollDice
+    }
+
+    private function debugTrimHands(int $count): void {
         $playerIDs = $this->getObjectListFromDB("SELECT `player_id` FROM `player`", true);
 
         foreach($playerIDs as $playerID){
@@ -373,8 +386,6 @@ class Game extends \Bga\GameFramework\Table
             $keptCardsCondition = empty($keptCardIDs) ? "" : " AND `card_id` NOT IN (".implode(',', $keptCardIDs).")";
             self::DbQuery("UPDATE `cards` SET `card_location` = 'discard' WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID".$keptCardsCondition);
         }
-
-        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
     }
 
     // card 1: two 1s and a 2, all playable on the same roll, to chain 1 -> 1 -> 2 (the 2 then reserves its die)

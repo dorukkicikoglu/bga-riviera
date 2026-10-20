@@ -402,3 +402,14 @@ Power reference:
 - [ ] Hovering a 10: "Power activated before Stop or More:" on top over its boxed entry, and that heading doesn't appear again below. Hovering a 2: its heading on top, and again below over card 11 only.
 - [ ] Card 10's text: "Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead." No "Only if you choose More." Cards 2 and 11 keep it.
 
+## After M4: fairer first roll
+
+Deploy `modules/` (no schema change, no client change). Re-rolls are silent: the only way to see them is the Studio server log (the table's "BGA request&SQL logs" link), which gets one `First roll re-rolled (N/2): no playable card for player(s) ...` line per re-roll.
+
+- [ ] `debug_firstRoll(1)` (every hand trimmed to 1 card, so someone almost always has nothing to play): the server log shows 1 or 2 "First roll re-rolled" lines for that request, never 3. The game log gets a single "Dice:" row (the page reloads, so no roll-in), and the `turns` stat goes up by 1. Don't play the last card (Grand Slam): use `debug_firstRoll(1)` only to read the log.
+- [ ] Repeat `debug_firstRoll(1)` a few times: sometimes the kept 3rd roll still leaves a player with nothing playable (they get only Last Chance / Crash), which is expected after 2 re-rolls.
+- [ ] `debug_firstRoll(10)` (full hands): re-roll lines are much rarer.
+- [ ] Later rolls are untouched: after `debug_firstRoll(2)`, play the turn and choose More; the next roll's request has no "First roll re-rolled" line, even when a player then has no playable card.
+- [ ] A real new round (`debug_redeal()`, or finishing a round): its first roll may show re-roll lines, the second roll of that round never does.
+- [ ] `debug_setDice('1,1,1,1,1')` sets exactly those dice and is never re-rolled, even with a player left with no playable card.
+- [ ] `debug_POWER9(true)` (re-enters the roll mid-round): no re-roll line.

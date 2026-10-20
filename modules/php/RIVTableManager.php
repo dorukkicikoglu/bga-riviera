@@ -236,6 +236,13 @@ class RIVTableManager{
         return $playableCardIDs;
     }
 
+    /**
+     * Players still in the round with no playable card on the current dice.
+     */
+    function getPlayerIDsWithNoPlayableCard(): array{
+        return array_values(array_filter($this->game->getPlayerIDsInRound(), fn(int $playerID) => empty($this->getPlayableCardIDs($playerID))));
+    }
+
     function getHandCards(int $playerID): array{
         $handCardsDB = $this->game->getObjectListFromDB("SELECT * FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY `color` ASC, `value` ASC");
         return array_map(fn(array $cardDB) => $this->formatCard($cardDB), $handCardsDB);

@@ -32,9 +32,27 @@ class RollDice extends \Bga\GameFramework\States\GameState
 
     /**
      * Rolls every die in play, then card-9 owners may change a die, then everyone still in the round picks a card.
+     * [BGA] The first roll of a round is silently re-rolled (up to FIRST_ROLL_MAX_REROLLS times) while a player has no playable card:
+     * only the last roll is notified.
      */
     function onEnteringState() {
         $this->game->tableManager->rollDice();
+
+        if($this->game->bga->globals->get('isFirstRollOfRound', false)){
+            $this->game->bga->globals->set('isFirstRollOfRound', false);
+
+            for($reroll = 1; $reroll <= FIRST_ROLL_MAX_REROLLS; $reroll++){
+                $playerIDsWithNoPlayableCard = $this->game->tableManager->getPlayerIDsWithNoPlayableCard();
+                if(empty($playerIDsWithNoPlayableCard))
+                    break;
+
+                if($this->game->getBgaEnvironment() === 'studio')
+                    $this->game->trace("First roll re-rolled ($reroll/".FIRST_ROLL_MAX_REROLLS."): no playable card for player(s) ".implode(', ', $playerIDsWithNoPlayableCard));
+
+                $this->game->tableManager->rollDice();
+            }
+        }
+
         $this->game->bga->tableStats->inc('turns', 1);
         $dice = $this->game->tableManager->getDice();
 

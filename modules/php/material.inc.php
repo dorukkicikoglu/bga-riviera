@@ -31,6 +31,7 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("WINNING_SCORE", 40);
     define("GRAND_SLAM_MIN_SCORE", 100); //a Grand Slam score is max(this, highest other score + 1) so BGA ranks that player first
     define("DIE_FACES", 6);
+    define("FIRST_ROLL_MAX_REROLLS", 2); //the first roll of a round is silently re-rolled up to this many times while a player has no playable card
 
     define("POWER_CARD_VALUES", [2, 9, 10, 11]); //non-1 powers: the last card a player reveals in a turn leaves a pending_POWER<n> marker
     define("CHAIN_CARD_VALUE_POWER1", 1); //a card 1 lets its player add another card to the same choice
