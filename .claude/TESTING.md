@@ -413,3 +413,20 @@ Deploy `modules/` (no schema change, no client change). Re-rolls are silent: the
 - [ ] A real new round (`debug_redeal()`, or finishing a round): its first roll may show re-roll lines, the second roll of that round never does.
 - [ ] `debug_setDice('1,1,1,1,1')` sets exactly those dice and is never re-rolled, even with a player left with no playable card.
 - [ ] `debug_POWER9(true)` (re-enters the roll mid-round): no re-roll line.
+
+## After M4: first-roll reroll option
+
+Deploy `gameoptions.jsonc` and `modules/` (no schema change, no client change). In Studio, reload the game's options (Control Panel > "Reload game options configuration") before creating a table, then create **new** tables: an existing table has no value for the option and plays as On. Re-rolls are still only visible in the Studio server log ("First roll re-rolled (N/2) ..." lines).
+
+Table setup and lobby:
+- [ ] The table creation screen shows "Reroll busting first-time rolls" with "On" selected by default and "Off" as the other value; each value shows its description.
+- [ ] With On, the table's option summary (lobby / table page) reads "Up to 2 rerolls on first-roll bust". With Off, no label appears.
+
+On:
+- [ ] `debug_firstRoll(1)`: the server log shows 1 or 2 "First roll re-rolled" lines for that request, never 3; one "Dice:" row in the game log.
+- [ ] Later rolls are untouched: play the turn after `debug_firstRoll(2)` and choose More; the next roll's request has no re-roll line, even if a player then has no playable card.
+- [ ] `debug_setDice('1,1,1,1,1')` sets exactly those dice and is never re-rolled.
+
+Off:
+- [ ] `debug_firstRoll(1)` a few times: never a "First roll re-rolled" line, and a player left with no playable card keeps that roll (only Last Chance / Crash).
+- [ ] `debug_setDice('1,1,1,1,1')` still sets exactly those dice.

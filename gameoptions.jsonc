@@ -20,4 +20,20 @@
     "default": 0
   }
   */
+
+  "100": {
+    "name": "Reroll busting first-time rolls",
+    "values": {
+      "1": {
+        "name": "On",
+        "tmdisplay": "Up to 2 rerolls on first-roll bust",
+        "description": "On the first roll of each round, the dice are rerolled (up to 2 times) if a player has no playable card."
+      },
+      "0": {
+        "name": "Off",
+        "description": "Physical game rules: the first roll is never rerolled."
+      }
+    },
+    "default": 1
+  }
 }

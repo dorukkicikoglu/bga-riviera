@@ -370,7 +370,7 @@ class Game extends \Bga\GameFramework\Table
         $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
     }
 
-    // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies; each re-roll writes a "First roll re-rolled" line in the Studio server log
+    // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies (if the option is on); each re-roll writes a "First roll re-rolled" line in the Studio server log
     #[Debug(reload: true)]
     public function debug_firstRoll(int $count = 2) {
         $this->debugTrimHands($count);
