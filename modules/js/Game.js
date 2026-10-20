@@ -205,7 +205,7 @@ class StopOrMore {
             //the ★ gets its own span so its fallback font can't make this button taller than the others (see #stop-button in Game.scss)
             const stopLabel = _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
             this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
-            this.bga.statusBar.addActionButton(_('Stay for More'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
+            this.bga.statusBar.addActionButton(_('Keep Going'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
         }
         else if (this.pendingChoice) {
             const pendingChoiceTitles = {

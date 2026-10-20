@@ -69,7 +69,7 @@ Start token:
 - [x] After each reveal the token slides to the next board in turn order, with a log row (grey, mini token). Also on a turn where everyone crashed. (Changed after M4: it now skips players out of the round, and sits on the board's corner with a curved two-phase flight, and since 2026-10-15 passes after the Stop/More reveal instead of after the card reveal, see M4 > Start token.)
 
 Stop or More:
-- [x] Status: "You may bank your stars or risk more", buttons "Stop and bank N ★" (N = my ★ total) and "Stay for More".
+- [x] Status: "You may bank your stars or risk more", buttons "Stop and bank N ★" (N = my ★ total) and "Keep Going".
 - [x] Choosing shows "You chose to stop / to continue. Waiting for other players" + "Undo", which works as in card play. F5 restores it.
 - [x] Nobody sees choices before the last player decides. Then one log row (lavender) lists "Stop: ..." and "More: ...". Stoppers' boards show "Stopped".
 - [x] A stopped player is not active in the next card play ("Other players must choose a card").
