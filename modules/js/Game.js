@@ -1184,6 +1184,7 @@ class HandHandler {
         `;
         this.cardsContainer = this.handContainer.querySelector('.cards-container');
         this.cardsContainer.addEventListener('click', (event) => { this.cardsContainerClicked(event); });
+        this.cardsContainer.addEventListener('animationstart', (event) => { this.syncCardGlow(event); });
         this.displayHand();
     }
     displayHand() {
@@ -1311,6 +1312,20 @@ class HandHandler {
             card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, isSelectable);
             card.classList.toggle(HandHandler.PLAYABLE_POWER_CARD_CLASS, isSelectable && isPlay && POWER_CARD_VALUES.includes(parseInt(card.getAttribute('data-value'))));
         }
+    }
+    //cards that start glowing together are already in phase; a card that starts while others already pulse (a later
+    //setSelectableCards that keeps some cards playable) joins their phase, so gold and power cards always peak together
+    syncCardGlow(event) {
+        if (!HandHandler.CARD_GLOW_ANIMATIONS.includes(event.animationName))
+            return;
+        const isCardGlow = (animation) => animation instanceof CSSAnimation && HandHandler.CARD_GLOW_ANIMATIONS.includes(animation.animationName);
+        const runningGlow = this.cardsContainer.getAnimations({ subtree: true })
+            .find(animation => isCardGlow(animation) && animation.effect?.target !== event.target && animation.startTime !== null);
+        if (!runningGlow)
+            return;
+        for (let animation of event.target.getAnimations())
+            if (isCardGlow(animation))
+                animation.startTime = runningGlow.startTime;
     }
     clearSelectableCards() {
         this.clearSelection();
@@ -1450,6 +1465,7 @@ HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
 HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
+HandHandler.CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
 HandHandler.FADE_ANIM_TIME = 400;
 //new hand (setHand): the previous round's leftover cards sweep out left while the new hand is dealt right to left,
 //every new card travelling the same path, shifted to its own slot

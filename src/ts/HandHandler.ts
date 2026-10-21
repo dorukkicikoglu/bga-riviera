@@ -18,6 +18,7 @@ export class HandHandler{
     private static readonly CHOSEN_CARD_CLASS = 'chosen-card';
     private static readonly SELECTABLE_CARD_CLASS = 'selectable-card';
     private static readonly PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
+    private static readonly CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
     private static readonly FADE_ANIM_TIME = 400;
     //new hand (setHand): the previous round's leftover cards sweep out left while the new hand is dealt right to left,
     //every new card travelling the same path, shifted to its own slot
@@ -58,6 +59,7 @@ export class HandHandler{
 
         this.cardsContainer = this.handContainer.querySelector('.cards-container') as HTMLDivElement;
         this.cardsContainer.addEventListener('click', (event: Event) => { this.cardsContainerClicked(event); });
+        this.cardsContainer.addEventListener('animationstart', (event: AnimationEvent) => { this.syncCardGlow(event); });
 
         this.displayHand();
     }
@@ -215,6 +217,23 @@ export class HandHandler{
             card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, isSelectable);
             card.classList.toggle(HandHandler.PLAYABLE_POWER_CARD_CLASS, isSelectable && isPlay && POWER_CARD_VALUES.includes(parseInt(card.getAttribute('data-value'))));
         }
+    }
+
+    //cards that start glowing together are already in phase; a card that starts while others already pulse (a later
+    //setSelectableCards that keeps some cards playable) joins their phase, so gold and power cards always peak together
+    private syncCardGlow(event: AnimationEvent): void{
+        if(!HandHandler.CARD_GLOW_ANIMATIONS.includes(event.animationName))
+            return;
+
+        const isCardGlow = (animation: Animation) => animation instanceof CSSAnimation && HandHandler.CARD_GLOW_ANIMATIONS.includes(animation.animationName);
+        const runningGlow = this.cardsContainer.getAnimations({ subtree: true })
+            .find(animation => isCardGlow(animation) && (animation.effect as KeyframeEffect)?.target !== event.target && animation.startTime !== null);
+        if(!runningGlow)
+            return;
+
+        for(let animation of (event.target as HTMLElement).getAnimations())
+            if(isCardGlow(animation))
+                animation.startTime = runningGlow.startTime;
     }
 
     public clearSelectableCards(): void{
