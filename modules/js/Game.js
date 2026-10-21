@@ -1803,7 +1803,7 @@ class LogMutationObserver {
         let logHTML = `
             <div class="start-token-row">
                 ${this.getCutPlayerNameHTML(player_id)}
-                <span class="start-token-arrow" aria-hidden="true">⇐</span>
+                ${LogMutationObserver.getDoubleArrowLeftHTML('start-token-arrow')}
                 <div class="start-token mini-start-token" style="--start-token-color: #${this.game.getPlayerColor(player_id) ?? '000000'}">${StartTokenHandler.LAYERS_HTML}</div>
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'start-token-log');
@@ -1946,6 +1946,25 @@ class LogMutationObserver {
     getCutPlayerNameHTML(player_id) {
         const nameText = (player_id === this.game.getMyPlayerID()) ? _('You') : this.game.getPlayerName(player_id);
         return this.game.divColoredPlayer(player_id, { class: 'playername', title: nameText.replace(/"/g, '&quot;') });
+    }
+    //"⇐" in the fa6 arrows' style: Font Awesome 6 Free's solid arrow-left (same viewBox, same arrowhead, same length), its
+    //single 64-unit shaft replaced by two bars, centered on the arrow's middle line. Each bar's outer edge meets the inside of
+    //an arm and the gap ends in the head's inner corner, so the bars join the head at any gap. Filled in the text color, 1em
+    //tall like the fa6 glyphs
+    static getDoubleArrowLeftHTML(className) {
+        const barThickness = 40; //viewBox units (the fa6 shaft is 64). Thinner bars blur into one shaft at the logs' 15px
+        const gap = 64; //viewBox units between the two bars; at most 194, where the bars reach the ends of the arms
+        //the head's inner edges: the upper arm runs along x = 333.3 - y, the lower one along x = y - 178.8, meeting at (77.3, 256)
+        const gapTop = 256 - gap / 2, gapBottom = 256 + gap / 2;
+        const barsTop = gapTop - barThickness, barsBottom = gapBottom + barThickness;
+        const barEndX = 448 - barThickness / 2; //where each bar's rounded end starts, so it ends at the shaft's x = 448
+        const roundEnd = `a${barThickness / 2} ${barThickness / 2} 0 0 0 0-${barThickness}`;
+        const path = 'M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3'
+            + `L${barsBottom - 178.8} ${barsBottom}H${barEndX}${roundEnd}H${gapBottom - 178.8}L77.3 256L${333.3 - gapTop} ${gapTop}H${barEndX}${roundEnd}H${333.3 - barsTop}`
+            + 'L214.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z';
+        return `<svg class="${className}" width="0.875em" height="1em" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true">
+                    <path d="${path}"/>
+                </svg>`;
     }
     getMiniDieHTML(die) {
         return this.game.diceHandler.createDieDiv(die).outerHTML;

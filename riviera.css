@@ -572,9 +572,13 @@ body .sliding-clone {
 .a-die[data-value=""] {
   display: none;
 }
+.a-die {
+  --reserved-ring-width: calc(var(--die-size) * 0.075);
+  --reserved-ring-gap: calc(var(--die-size) * 0.08);
+}
 .a-die:not([data-reserved-by-power2=""]) {
-  outline: 3px solid var(--reserver-color);
-  outline-offset: 2px;
+  outline: var(--reserved-ring-width) solid var(--reserver-color);
+  outline-offset: var(--reserved-ring-gap);
 }
 .a-die[data-modified-by-power9=true]::after {
   content: "±";
@@ -594,6 +598,11 @@ body .sliding-clone {
 }
 .a-die.die-changed {
   animation: die-changed 300ms ease;
+}
+
+#dice-container .a-die, body .a-die.rolling-die {
+  --reserved-ring-width: 3px;
+  --reserved-ring-gap: 2px;
 }
 
 #dice-container {
@@ -916,11 +925,12 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   --start-token-outline-width: 3.5px;
 }
 .start-token.mini-start-token {
+  --mini-start-token-size: var(--log-card-icon-size);
   display: inline-block;
   vertical-align: middle;
-  width: var(--log-card-icon-size);
-  height: var(--log-card-icon-size);
-  --start-token-outline-width: calc(var(--log-card-icon-size) * 3.5 / 34);
+  width: var(--mini-start-token-size);
+  height: var(--mini-start-token-size);
+  --start-token-outline-width: calc(var(--mini-start-token-size) * 3.5 / 34);
 }
 .start-token .start-token-pawn {
   position: absolute;
@@ -1075,11 +1085,10 @@ body .start-token.flying-start-token {
   flex-shrink: 0;
   margin: 0 5px;
   color: #000000;
-  font-size: 1em;
-  line-height: 1;
 }
 .log .start-token-row .mini-start-token, .gamelogreview .start-token-row .mini-start-token {
   flex-shrink: 0;
+  --mini-start-token-size: calc(var(--log-card-icon-size) * 0.9);
 }
 .log .new-round-row, .log .player-crashed-row, .log .grand-slam-row, .log .start-token-row, .log .stars-banked-row, .gamelogreview .new-round-row, .gamelogreview .player-crashed-row, .gamelogreview .grand-slam-row, .gamelogreview .start-token-row, .gamelogreview .stars-banked-row {
   text-align: center;
@@ -1209,6 +1218,9 @@ body .start-token.flying-start-token {
 }
 .log .die-reserved-row .minimised-card-icon + .minimised-card-icon, .log .golden-die-row .minimised-card-icon + .minimised-card-icon, .log .die-modified-row .minimised-card-icon + .minimised-card-icon, .log .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .log .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .log .power-skipped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-reserved-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .golden-die-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .die-modified-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-swapped-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .cards-redrawn-row .minimised-card-icon + .minimised-card-icon, .gamelogreview .power-skipped-row .minimised-card-icon + .minimised-card-icon {
   margin-left: 2px;
+}
+.log .dice-rolled-row .a-die:not([data-reserved-by-power2=""]), .log .die-reserved-row .a-die:not([data-reserved-by-power2=""]), .log .die-modified-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .dice-rolled-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .die-reserved-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .die-modified-row .a-die:not([data-reserved-by-power2=""]) {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0px 0px 2px #000000;
 }
 .log .stop-or-more-row, .gamelogreview .stop-or-more-row {
   color: #27271c;
