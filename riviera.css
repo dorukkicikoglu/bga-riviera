@@ -403,6 +403,11 @@ body .sliding-clone {
   line-height: 0;
 }
 
+.mobile_version #generalactions::before {
+  content: "";
+  display: block;
+}
+
 .bgabutton.player-choice-button {
   --player-color: #000000;
   --player-choice-ring: 0px 0px 0px 2px var(--player-color), 0px 2px 8px color-mix(in srgb, var(--player-color) 55%, transparent);

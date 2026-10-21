@@ -1010,7 +1010,7 @@ class TooltipHandler {
     }
     //player boards and played columns: the parts that aren't self-explanatory
     addTooltipsToBoards() {
-        this.game.bga.gameui.addTooltip('start-token', _('Start token: powers resolve clockwise from this player. Every turn it passes to the next player still in the round.'), '', TooltipHandler.TOOLTIP_DELAY);
+        this.game.bga.gameui.addTooltipHtml('start-token', this.getStartTokenTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
         for (let player_id in this.game.players) {
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltipHtml('round-status-' + player_id, this.getRoundStatusTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
@@ -1137,6 +1137,14 @@ class TooltipHandler {
             9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
         };
         return powerTexts[value];
+    }
+    //on the card tooltips' background: the single-power tooltip's wrapper, with the text in place of a power entry
+    getStartTokenTooltipHTML() {
+        return `
+            <div class="tooltip-wrapper power-reference single-power-reference">
+                <div>${_('<b>Start token:</b> Powers resolve clockwise from this player. Every turn it passes to the next player who is still in the round.')}</div>
+            </div>
+        `;
     }
     getLastChanceTooltipText() {
         return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');

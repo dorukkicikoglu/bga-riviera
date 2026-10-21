@@ -153,6 +153,9 @@ $status-card-icon-size: 40px;
     &:hover{ background: #437f24; border-color: #437f24; }
     .button-star{ line-height: 0; }
 }
+//mobile: a line break right before the action buttons, like a <br>, so they and BGA's arrow button start a second line
+//under the status bar title (the hourglass stays inline with it). Desktop keeps them next to the title
+.mobile_version #generalactions::before{ content: ""; display: block; }
 
 //a button that picks a player (card 10's "Swap with <name>"; Game.addPlayerChoiceButton): BGA's secondary button recolored,
 //white with black text, ringed and softly glowing in the player's color (--player-color, set inline on the button). Its
