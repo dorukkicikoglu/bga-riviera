@@ -41,6 +41,8 @@ class RevealCards extends \Bga\GameFramework\States\GameState
      * PassStartToken); card 9 after the next roll.
      */
     function onEnteringState() {
+        $this->game->bga->globals->delete('undoableDieChange_POWER9'); //card 9's undo ends with PlayCard
+
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
         $playChoicesDB = $this->game->getCollectionFromDB("SELECT `player_id`, `play_choice`, `play_choice_card_id` FROM `player` WHERE `round_status` = 'in'");
 

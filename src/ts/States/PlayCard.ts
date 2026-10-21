@@ -20,6 +20,8 @@ import { Game } from "../Game";
  * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
  * "Undo" takes it back.
  * [BGA] Card 1: confirming a 1 keeps me active to add another playable card or finish, again after each extra 1.
+ * [BGA] Card 9: when I am the only player still in and just turned a die, "Undo" takes me back to the card 9 prompt
+ * until I confirm a card (then Undo takes the card back, as usual).
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
  */
 export class PlayCard {
@@ -30,6 +32,7 @@ export class PlayCard {
     private chainOpen: boolean = false;
     private playableCardIDs: number[] = [];
     private canUseLastChance: boolean = false;
+    private canUndoDieChange: boolean = false;
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -43,6 +46,7 @@ export class PlayCard {
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
+        this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
         this.setPendingChoice(privateArgs?.pendingPlayChoice ?? null); //restores the set-aside cards after F5
 
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
@@ -105,6 +109,9 @@ export class PlayCard {
                 //no confirm dialog: Undo is the safety net until the last player has chosen
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), {id: 'crash-button', color: 'alert'});
             }
+
+            if(this.canUndoDieChange)
+                this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         } else {
             if(this.pendingChoice.choice === 'card'){
                 const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardIconHTML(handHandler.getCardData(cardID))).join('');

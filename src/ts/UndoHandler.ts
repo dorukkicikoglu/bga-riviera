@@ -13,7 +13,8 @@ import { Game } from "./Game";
 
 //"Undo", shared by every multiactive state where a choice stays pending until the last player has chosen.
 //The player is inactive by then, so the action skips the active-player check (checkAction: false) and the
-//server checks the state itself (#[CheckAction(false)] + checkPossibleAction)
+//server checks the state itself (#[CheckAction(false)] + checkPossibleAction).
+//[BGA] Card 9's undo (actUndoDieChange_POWER9) uses the same button; its player is still active, so the server's own check applies
 export class UndoHandler{
     constructor(private game: Game) {
     }

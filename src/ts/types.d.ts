@@ -95,6 +95,7 @@ interface PlayCardArgs {
         pendingPlayChoice: PendingPlayChoice | null;
         chainCardIDs_POWER1: number[];
         chainOpen_POWER1: boolean;
+        canUndoDieChange_POWER9: boolean;
     };
 }
 
@@ -177,6 +178,13 @@ interface DieModifiedPOWER9Args {
     die_color: DieColor;
     old_value: number;
     new_value: number;
+    move_id: number;
+    dice: RivieraDie[];
+}
+
+interface DieChangeUndonePOWER9Args {
+    player_id: number;
+    move_id: number;
     dice: RivieraDie[];
 }
 

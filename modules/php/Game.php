@@ -400,10 +400,14 @@ class Game extends \Bga\GameFramework\Table
         $this->debugGiveCards((int) $this->getCurrentPlayerId(), [2]);
     }
 
-    // card 9: a playable 9. With $resolveNow, my card 9 is pending at once and the dice are rerolled, so ModifyDie starts right away
+    // card 9: a playable 9. With $resolveNow, my card 9 is pending at once and the dice are rerolled, so ModifyDie starts right away.
+    // With $othersStopped, every other player is stopped, so I am the only player in (card 9's undo)
     #[Debug(reload: true)]
-    public function debug_POWER9(bool $resolveNow = false) {
+    public function debug_POWER9(bool $resolveNow = false, bool $othersStopped = false) {
         $currentPlayerID = (int) $this->getCurrentPlayerId();
+
+        if($othersStopped)
+            self::DbQuery("UPDATE `player` SET `round_status` = 'stopped' WHERE `player_id` <> $currentPlayerID AND `round_status` = 'in'");
 
         if($resolveNow){
             self::DbQuery("UPDATE `player` SET `pending_POWER9` = 'yes' WHERE `player_id` = $currentPlayerID");

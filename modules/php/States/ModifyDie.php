@@ -27,6 +27,7 @@ use Bga\Games\Riviera\Game;
  * Card 9, after the roll that follows it: the owner may turn one die by +1 or -1 (6 wraps to 1, 1 wraps to 6),
  * for everyone. A die changed this roll can't be changed again. Owners still in the round go one by one,
  * clockwise from the Start token holder. The golden die and a reserved die are valid targets.
+ * [BGA] When the owner is the only player still in the round, PlayCard offers Undo to bring them back here.
  */
 class ModifyDie extends GameState
 {
@@ -68,16 +69,30 @@ class ModifyDie extends GameState
         $this->game->powerManager->clearPendingPower($activePlayerId, 9);
         $this->game->bga->playerStats->inc('powerUsed_POWER9', 1, $activePlayerId);
 
+        //the log row's move: an undo removes every log from it (PlayCard::actUndoDieChange_POWER9)
+        $moveID = $this->game->bga->logs->getCurrentMoveId();
+
         $dieModifiedLogStr = $this->game->getPlayerNameById($activePlayerId).' turns the '.$dieColor.' die from '.$oldValue.' to '.$newValue;
         $this->bga->notify->all('dieModified_POWER9', '${DIE_MODIFIED_POWER9_LOG_STR}', [
-            'preserve' => ['player_id', 'die_color', 'old_value', 'new_value'],
+            'preserve' => ['player_id', 'die_color', 'old_value', 'new_value', 'move_id'],
             'player_id' => $activePlayerId,
             'die_color' => $dieColor,
             'old_value' => $oldValue,
             'new_value' => $newValue,
+            'move_id' => $moveID,
             'dice' => $this->game->tableManager->getDice(),
             'DIE_MODIFIED_POWER9_LOG_STR' => $dieModifiedLogStr,
         ]);
+
+        //[BGA] the only player still in the round may take the change back in PlayCard, until they confirm a card. Never a zombie
+        if($this->game->getPlayerIDsInRound() === [$activePlayerId] && !$this->game->undoManager->isPlayerZombie($activePlayerId)){
+            $this->game->bga->globals->set('undoableDieChange_POWER9', [
+                'player_id' => $activePlayerId,
+                'die_color' => $dieColor,
+                'old_value' => $oldValue,
+                'move_id' => $moveID,
+            ]);
+        }
 
         return $this->game->powerManager->goToNextPOWER9Owner();
     }

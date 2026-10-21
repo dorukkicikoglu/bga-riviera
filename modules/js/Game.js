@@ -7,6 +7,8 @@
  * playable, their Last Chance or a crash. The choice stays pending until the last player has chosen, and
  * "Undo" takes it back.
  * [BGA] Card 1: confirming a 1 keeps me active to add another playable card or finish, again after each extra 1.
+ * [BGA] Card 9: when I am the only player still in and just turned a die, "Undo" takes me back to the card 9 prompt
+ * until I confirm a card (then Undo takes the card back, as usual).
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
  */
 class PlayCard {
@@ -20,6 +22,7 @@ class PlayCard {
         this.chainOpen = false;
         this.playableCardIDs = [];
         this.canUseLastChance = false;
+        this.canUndoDieChange = false;
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
@@ -30,6 +33,7 @@ class PlayCard {
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
+        this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
         this.setPendingChoice(privateArgs?.pendingPlayChoice ?? null); //restores the set-aside cards after F5
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
     }
@@ -83,6 +87,8 @@ class PlayCard {
                 //no confirm dialog: Undo is the safety net until the last player has chosen
                 this.bga.statusBar.addActionButton(_('Crash'), () => this.bga.actions.performAction('actCrash'), { id: 'crash-button', color: 'alert' });
             }
+            if (this.canUndoDieChange)
+                this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         }
         else {
             if (this.pendingChoice.choice === 'card') {
@@ -1857,7 +1863,8 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');
     }
-    createLogDieModifiedPOWER9(player_id, dieColor, oldValue, newValue) {
+    //moveID tags the row, so a card 9 undo can remove it (removeDieModifiedLogPOWER9)
+    createLogDieModifiedPOWER9(player_id, dieColor, oldValue, newValue, moveID) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
         const modifiedText = player_id === this.game.getMyPlayerID()
             ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
@@ -1865,10 +1872,16 @@ class LogMutationObserver {
         const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         const newDie = { ...oldDie, value: newValue };
         let logHTML = `
-            <div class="die-modified-row">
+            <div class="die-modified-row" data-move-id="${moveID}">
                 ${modifiedText.replace('${oldDie}', this.getMiniDieHTML(oldDie)).replace('${newDie}', this.getMiniDieHTML(newDie))}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'die-modified-power9-log');
+    }
+    //the server removes the row from the stored logs (F5, replay); this removes it from the logs already on the page (desktop and mobile)
+    removeDieModifiedLogPOWER9(moveID) {
+        document.querySelectorAll(`.die-modified-row[data-move-id="${moveID}"]`).forEach(row => {
+            (row.closest('.log, .gamelogreview') ?? row).remove();
+        });
     }
     //card 10: one row for everyone. The owner and the victim got the cards (ownerGives / targetGives set, from the
     //notification's _private); everyone else sees card backs
@@ -1973,7 +1986,8 @@ class LogMutationObserver {
 
 //"Undo", shared by every multiactive state where a choice stays pending until the last player has chosen.
 //The player is inactive by then, so the action skips the active-player check (checkAction: false) and the
-//server checks the state itself (#[CheckAction(false)] + checkPossibleAction)
+//server checks the state itself (#[CheckAction(false)] + checkPossibleAction).
+//[BGA] Card 9's undo (actUndoDieChange_POWER9) uses the same button; its player is still active, so the server's own check applies
 class UndoHandler {
     constructor(game) {
         this.game = game;
@@ -2340,7 +2354,7 @@ class Game {
                         else if (key == 'GOLDEN_DIE_POWER11_LOG_STR')
                             log = this.logMutationObserver.createLogGoldenDiePOWER11(args['player_id']).log_html;
                         else if (key == 'DIE_MODIFIED_POWER9_LOG_STR')
-                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
+                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value'], args['move_id']).log_html;
                         else if (key == 'CARDS_SWAPPED_POWER10_LOG_STR')
                             log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['_private']?.['owner_gives'] ?? null, args['_private']?.['target_gives'] ?? null, args['count']).log_html;
                         else if (key == 'CARDS_REDRAWN_POWER10_LOG_STR')
@@ -2713,6 +2727,11 @@ class Game {
     }
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);
+    }
+    //[BGA] the only player still in took their card 9 change back: the die goes back and its log row goes away
+    async notif_dieChangeUndone_POWER9(args) {
+        this.diceHandler.updateDice(args.dice);
+        this.logMutationObserver.removeDieModifiedLogPOWER9(args.move_id);
     }
     //the owner and the victim get the cards (_private): my side of the swap. The cards I give fly to the other player's
     //avatar while the cards I get fly from it into my hand and my other cards slide to their new places, all at once.

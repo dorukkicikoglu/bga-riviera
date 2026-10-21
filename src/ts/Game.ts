@@ -178,7 +178,7 @@ export class Game {
                         else if(key == 'GOLDEN_DIE_POWER11_LOG_STR')
                             log = this.logMutationObserver.createLogGoldenDiePOWER11(args['player_id']).log_html;
                         else if(key == 'DIE_MODIFIED_POWER9_LOG_STR')
-                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value']).log_html;
+                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value'], args['move_id']).log_html;
                         else if(key == 'CARDS_SWAPPED_POWER10_LOG_STR')
                             log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['_private']?.['owner_gives'] ?? null, args['_private']?.['target_gives'] ?? null, args['count']).log_html;
                         else if(key == 'CARDS_REDRAWN_POWER10_LOG_STR')
@@ -616,6 +616,12 @@ export class Game {
 
     public async notif_dieModified_POWER9(args: DieModifiedPOWER9Args) {
         this.diceHandler.updateDice(args.dice);
+    }
+
+    //[BGA] the only player still in took their card 9 change back: the die goes back and its log row goes away
+    public async notif_dieChangeUndone_POWER9(args: DieChangeUndonePOWER9Args) {
+        this.diceHandler.updateDice(args.dice);
+        this.logMutationObserver.removeDieModifiedLogPOWER9(args.move_id);
     }
 
     //the owner and the victim get the cards (_private): my side of the swap. The cards I give fly to the other player's

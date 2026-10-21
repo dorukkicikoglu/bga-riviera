@@ -265,7 +265,8 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');
     }
 
-    public createLogDieModifiedPOWER9(player_id: number, dieColor: DieColor, oldValue: number, newValue: number): LogRowData {
+    //moveID tags the row, so a card 9 undo can remove it (removeDieModifiedLogPOWER9)
+    public createLogDieModifiedPOWER9(player_id: number, dieColor: DieColor, oldValue: number, newValue: number, moveID: number): LogRowData {
         const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
         const modifiedText = player_id === this.game.getMyPlayerID()
             ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
@@ -274,11 +275,18 @@ export class LogMutationObserver{
         const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         const newDie: RivieraDie = { ...oldDie, value: newValue };
         let logHTML = `
-            <div class="die-modified-row">
+            <div class="die-modified-row" data-move-id="${moveID}">
                 ${modifiedText.replace('${oldDie}', this.getMiniDieHTML(oldDie)).replace('${newDie}', this.getMiniDieHTML(newDie))}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'die-modified-power9-log');
+    }
+
+    //the server removes the row from the stored logs (F5, replay); this removes it from the logs already on the page (desktop and mobile)
+    public removeDieModifiedLogPOWER9(moveID: number): void {
+        document.querySelectorAll(`.die-modified-row[data-move-id="${moveID}"]`).forEach(row => {
+            (row.closest('.log, .gamelogreview') ?? row).remove();
+        });
     }
 
     //card 10: one row for everyone. The owner and the victim got the cards (ownerGives / targetGives set, from the

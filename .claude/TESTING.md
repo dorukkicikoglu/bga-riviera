@@ -430,3 +430,28 @@ On:
 Off:
 - [ ] `debug_firstRoll(1)` a few times: never a "First roll re-rolled" line, and a player left with no playable card keeps that roll (only Last Chance / Crash).
 - [ ] `debug_setDice('1,1,1,1,1')` still sets exactly those dice.
+
+## After M4: card 9 undo when I'm the only player in
+
+Deploy `modules/` (no schema change, no new stat). Rebuild is done (`modules/js/Game.js`). Use a 2 or 3 player table. Setup each time: be in `PlayCard` with a playable card, run `debug_POWER9(true, true)` (everyone else stopped, my card 9 pending, dice re-rolled), so I am at the card 9 prompt as the only player in.
+
+Server-side unknowns to watch first:
+- [ ] Clicking Undo returns to the card 9 prompt with no error (a MULTIPLE_ACTIVE_PLAYER action returning `ModifyDie::class`; if it fails, the fallback is `jumpToState(15)`).
+- [ ] After Undo, F5: the "turns ... to ..." row is gone from the log (`bga->logs->remove()` worked). If it is back after F5, tell me.
+- [ ] After Undo, the other player's page (or a spectator tab): the row is gone without F5, and the die is back on their screen too.
+
+The undo:
+- [ ] Turn a die (Confirm): in Play a card the status bar shows "You must choose a card to play" with an "Undo" button (red, like the change-my-mind Undo). Without a playable card: "Use Last Chance", "Crash" and "Undo".
+- [ ] Undo: the die goes back to its old value (quick `die-changed` scale), the log row disappears, and I am back at the card 9 prompt with arrows on every die, including the one I had turned.
+- [ ] From there, turn a different die: it works, one log row (only the new one), and Undo is offered again. Undo again, then Skip: the "does not use their 9" row appears and Play a card has no Undo.
+- [ ] Stats: the `powerUsed_POWER9` stat (end-game stats, or the DB) counts only the change I kept: turn, Undo, turn again, play on: +1, not +2.
+- [ ] F5 in Play a card after turning a die: Undo is still there and still works.
+- [ ] Confirm a non-1 card: the reveal happens at once (I am the last chooser), no Undo anywhere after.
+- [ ] Card-1 chain: confirm a 1 with another card playable: Undo now takes the chain back (as before). After that Undo, the card 9 Undo is back; using it returns to the card 9 prompt.
+- [ ] "One-click card play" on: the arrow click turns the die at once, and Undo still appears in Play a card.
+
+Undo never offered:
+- [ ] Two or more players still in: `debug_POWER9(true)` (without `true` for othersStopped), turn a die: Play a card shows no card 9 Undo.
+- [ ] The next turn (after the reveal and More): no card 9 Undo.
+- [ ] A zombie card 9 owner (quit a player who is the only one in with a pending 9): it plays on with no undo and no error.
+

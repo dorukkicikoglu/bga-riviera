@@ -29,6 +29,8 @@ use Bga\Games\Riviera\Game;
  * [BGA] Card 1: confirming a 1 keeps the player active to add another playable card (same roll) or finish,
  * again after each extra 1. The whole chain is one pending choice: the extra cards are marked with
  * chain_position_POWER1, and Undo takes the whole chain back.
+ * [BGA] Card 9: the only player still in the round who just turned a die can take it back with Undo until they
+ * confirm a card, which returns them to ModifyDie with the die, the log and the stat as before.
  */
 class PlayCard extends GameState
 {
@@ -80,6 +82,7 @@ class PlayCard extends GameState
                 'pendingPlayChoice' => $pendingPlayChoice,
                 'chainCardIDs_POWER1' => $this->game->tableManager->getChainCardIDsPOWER1($playerID),
                 'chainOpen_POWER1' => $this->isMidChainPOWER1($playerID),
+                'canUndoDieChange_POWER9' => $pendingPlayChoice === null && $this->getUndoableDieChangePOWER9($playerID) !== null,
             ];
         }
 
@@ -160,6 +163,45 @@ class PlayCard extends GameState
         $notifArgs = ['playableCardIDs' => $this->game->tableManager->getPlayableCardIDs($currentPlayerId)];
         $this->game->undoManager->undo('actUndoPlayCard', $currentPlayerId, self::CHOICE_COLUMNS, 'playChoiceReverted', $notifArgs);
         $this->game->tableManager->clearChainPOWER1($currentPlayerId);
+    }
+
+    //[BGA] card 9: the die goes back to its value, the power is pending again, and the player is back at the card 9 prompt
+    #[PossibleAction]
+    public function actUndoDieChange_POWER9(int $currentPlayerId)
+    {
+        $this->checkNoPendingChoice($currentPlayerId);
+
+        $dieChange = $this->getUndoableDieChangePOWER9($currentPlayerId);
+        if($dieChange === null)
+            throw new UserException(clienttranslate('You have no die change to undo'));
+
+        $dieColor = $dieChange['die_color']; //checked against the die colors by actModifyDie_POWER9
+        $oldValue = (int) $dieChange['old_value'];
+        $moveID = (int) $dieChange['move_id'];
+
+        $this->game->DbQuery("UPDATE `dice` SET `die_value` = $oldValue, `modified_by_POWER9` = 'no' WHERE `die_color` = '$dieColor'");
+        $this->game->DbQuery("UPDATE `player` SET `pending_POWER9` = 'yes' WHERE `player_id` = $currentPlayerId");
+        $this->game->bga->playerStats->inc('powerUsed_POWER9', -1, $currentPlayerId);
+        $this->game->bga->globals->delete('undoableDieChange_POWER9');
+
+        //the die modified row and everything logged after it
+        $this->game->bga->logs->remove($moveID);
+
+        $this->bga->notify->all('dieChangeUndone_POWER9', '', [
+            'player_id' => $currentPlayerId,
+            'move_id' => $moveID,
+            'dice' => $this->game->tableManager->getDice(),
+        ]);
+
+        $this->game->gamestate->changeActivePlayer($currentPlayerId);
+        return ModifyDie::class;
+    }
+
+    //the card 9 change saved by ModifyDie, if it was this player's (RevealCards drops it)
+    private function getUndoableDieChangePOWER9(int $playerID): ?array
+    {
+        $dieChange = $this->game->bga->globals->get('undoableDieChange_POWER9');
+        return (is_array($dieChange) && (int) $dieChange['player_id'] === $playerID) ? $dieChange : null;
     }
 
     /**
