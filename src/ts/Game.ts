@@ -377,6 +377,11 @@ export class Game {
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
 
+    //the circular card icon (getStatusCardIconHTML) at text size, to sit inline in a sentence (tooltips), sized by .inline-card-icon
+    public getInlineCardIconHTML(color: CardColor, value: number): string {
+        return `<span class="inline-card-icon">${this.getStatusCardIconHTML({ card_id: null, color: color, value: value })}</span>`;
+    }
+
     //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
     //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
     //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. Cards without a power get the card icon alone

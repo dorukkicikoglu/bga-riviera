@@ -391,6 +391,21 @@ body .sliding-clone {
   border-color: var(--die-color-orange);
 }
 
+.inline-card-icon {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.inline-card-icon .status-card-icon {
+  margin: 0px 2px;
+  width: 1.6em;
+  height: 1.6em;
+  border-width: calc(1.6em * 0.075);
+}
+.inline-card-icon .status-card-icon .status-card-icon-number {
+  height: calc(1.6em * 0.7);
+  width: calc(calc(1.6em * 0.7) * 1.2063492063);
+}
+
 #stop-button {
   background: var(--button-color-green);
   border-color: var(--button-color-green);
@@ -585,6 +600,10 @@ body .sliding-clone {
   outline: var(--reserved-ring-width) solid var(--reserver-color);
   outline-offset: var(--reserved-ring-gap);
 }
+.a-die.die-reservation-pending-power2 {
+  outline: var(--reserved-ring-width) dashed var(--reserver-color);
+  outline-offset: var(--reserved-ring-gap);
+}
 .a-die[data-modified-by-power9=true]::after {
   content: "±";
   position: absolute;
@@ -606,8 +625,16 @@ body .sliding-clone {
 }
 
 #dice-container .a-die, body .a-die.rolling-die {
-  --reserved-ring-width: 3px;
-  --reserved-ring-gap: 2px;
+  --reserved-ring-width: 4.5px;
+  --reserved-ring-gap: 3px;
+}
+
+#dice-container {
+  --die-size: calc(min(2.8vw, 40px) * 1.5);
+}
+
+.mobile_version #dice-container {
+  --die-size: calc(min(13.3vw, 55px) * 1.5);
 }
 
 #dice-container {
@@ -1581,6 +1608,31 @@ body .start-token.flying-start-token {
 
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after {
   background: #13a6ba;
+}
+
+.tooltip-playername[player-color=ffa500] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.tooltip-playername[player-color="72c3b1"] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.tooltip-playername[player-color=bdd002] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.tooltip-playername[player-color="008000"] {
+  text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
+}
+.tooltip-playername[player-color=ffffff] {
+  text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
+}
+
+.tooltip-wrapper.single-power-reference.die-tooltip {
+  width: fit-content;
+  max-width: min(340px, 92vw);
+}
+.tooltip-wrapper.single-power-reference.die-tooltip.die-reservation-tooltip-power2 {
+  white-space: nowrap;
+  max-width: none;
 }
 
 .dijitTooltipContainer:has(.power-reference) {

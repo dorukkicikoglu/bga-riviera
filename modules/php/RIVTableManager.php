@@ -116,17 +116,47 @@ class RIVTableManager{
     function getDice(): array{
         $diceDB = $this->game->getObjectListFromDB("SELECT * FROM `dice` WHERE `die_location` = 'in_play' ORDER BY `die_color` ASC");
 
+        $pendingReserverIDsPOWER2 = $this->getPendingReserverIDsPOWER2();
+        $isReservationAwaitingRollPOWER2 = $this->isReservationAwaitingRollPOWER2();
+
         $dice = [];
         foreach($diceDB as $dieDB){
+            $reservedByPOWER2 = ($dieDB['reserved_by_POWER2'] === null) ? null : (int) $dieDB['reserved_by_POWER2'];
             $dice[] = [
                 'color' => $dieDB['die_color'],
                 'value' => ($dieDB['die_value'] === null) ? null : (int) $dieDB['die_value'],
-                'reserved_by_POWER2' => ($dieDB['reserved_by_POWER2'] === null) ? null : (int) $dieDB['reserved_by_POWER2'],
+                'reserved_by_POWER2' => $reservedByPOWER2,
+                'pending_reserved_by_POWER2' => ($reservedByPOWER2 === null) ? ($pendingReserverIDsPOWER2[$dieDB['die_color']] ?? null) : ($isReservationAwaitingRollPOWER2 ? $reservedByPOWER2 : null),
                 'modified_by_POWER9' => $dieDB['modified_by_POWER9'] === 'yes',
                 'in_use_by_POWER11' => $dieDB['in_use_by_POWER11'] === 'yes',
             ];
         }
         return $dice;
+    }
+
+    /**
+     * Card 2 revealed but not applied yet (pending_POWER2, from the reveal until the walk after the Start token pass):
+     * die color => owner id, for owners still in whose column still ends with that 2. Derived from the DB, so the dice
+     * area shows it after F5, to spectators and in replays.
+     */
+    function getPendingReserverIDsPOWER2(): array{
+        $ownerIDs = $this->game->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `pending_POWER2` = 'yes' AND `round_status` = 'in'", true);
+
+        $pendingReserverIDs = [];
+        foreach($ownerIDs as $ownerID){
+            $card = $this->getLastPlayedCard((int) $ownerID);
+            if($card && $card['value'] === 2)
+                $pendingReserverIDs[$card['color']] = (int) $ownerID;
+        }
+        return $pendingReserverIDs;
+    }
+
+    /**
+     * A reservation applied in the walk after the Start token pass (PassStartToken 40, ResolvePowers 30) is for the next
+     * roll: until that roll, the dice shown are the last roll's, so it still shows as pending (dashed) on them.
+     */
+    private function isReservationAwaitingRollPOWER2(): bool{
+        return in_array($this->game->gamestate->getCurrentMainStateId(), [30, 40], true);
     }
 
     function resetDice(){

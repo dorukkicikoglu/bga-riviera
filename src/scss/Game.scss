@@ -12,10 +12,14 @@
  * -----
  */
 
+$die-size: min(2.8vw, 40px);
+$mobile-die-size: min(13.3vw, 55px);
+$dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger than --die-size; log and status bar dice set their own size
+
 :root{
     //capped so cards stop growing past a comfortable size on very large/ultra-wide screens
     --card-width: min(6vw, 110px);
-    --die-size: min(2.8vw, 40px);
+    --die-size: #{$die-size};
     --log-card-icon-size: 32px; //the circular card icons in every log row (.log-card-icons)
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
@@ -65,7 +69,7 @@
 
 //mobile, like Fugu: BGA lays the game out at least 740px wide (gameinfos game_interface_width) and scales it down to the
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
-.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: min(13.3vw, 55px); }
+.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; }
 
 //img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
 //tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
@@ -147,6 +151,10 @@ $status-card-icon-size: 40px;
 @each $color in $card-colors {
     .status-card-icon[data-color="#{$color}"]{ border-color: var(--die-color-#{$color}); }
 }
+//a circular card icon inside a sentence (Game.getInlineCardIconHTML), a little taller than the text around it
+.inline-card-icon{ display: inline-flex; vertical-align: middle;
+    .status-card-icon{ margin: 0px 2px; @include card-icon-size(1.6em); }
+}
 
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
 //metrics, which grew the button: its span gets line-height 0 so it can't
@@ -206,6 +214,8 @@ $status-card-icon-size: 40px;
     //and gap are shares of --die-size (3px and 3.2px at 40px); the dice area and its rolling copies keep their own px values
     --reserved-ring-width: calc(var(--die-size) * 0.075); --reserved-ring-gap: calc(var(--die-size) * 0.08);
     &:not([data-reserved-by-power2=""]){ outline: var(--reserved-ring-width) solid var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
+    //a card 2 whose roll hasn't come yet (revealed, or applied before the roll): the same ring, dashed
+    &.die-reservation-pending-power2{ outline: var(--reserved-ring-width) dashed var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
     &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
 
     &.die-changed{ animation: die-changed 300ms ease; }
@@ -214,7 +224,9 @@ $status-card-icon-size: 40px;
 //the space above and below the dice is always reserved for the card-9 arrows (just their height plus a gap), in every
 //state, so the dice never move when the arrows appear or go. The die's drop shadow falls 2px below it, so the gap below
 //is 2px wider: the two gaps then look the same
-#dice-container .a-die, body .a-die.rolling-die{ --reserved-ring-width: 3px; --reserved-ring-gap: 2px; }
+#dice-container .a-die, body .a-die.rolling-die{ --reserved-ring-width: #{3px * $dice-area-die-scale}; --reserved-ring-gap: #{2px * $dice-area-die-scale}; }
+#dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
+.mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
     display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 10px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
     position: relative; //for the fading copies
@@ -582,6 +594,21 @@ $power-reference-text: #051121;
     .power-reference-entry{ margin-bottom: 0px; }
 }
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
+//a player name in a tooltip on the card tooltips' teal (divColoredPlayer with the tooltip-playername class), by the player's
+//color, not by who is looking: green and white get a soft white glow, the other light colors the logs' dark outline
+.tooltip-playername{
+    @each $outlined-player-color in "ffa500", "72c3b1", "bdd002" {
+        &[player-color="#{$outlined-player-color}"]{ @include text-shade(#27271cBF, 1px); }
+    }
+    @each $glowing-player-color in "008000", "ffffff" {
+        &[player-color="#{$glowing-player-color}"]{ text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff; }
+    }
+}
+//dice tooltips (TooltipHandler.updateDieTooltip): the single power look, as wide as their text up to the single power width.
+//A card 2 reservation is one line that never wraps
+.tooltip-wrapper.single-power-reference.die-tooltip{ width: fit-content; max-width: min(340px, 92vw);
+    &.die-reservation-tooltip-power2{ white-space: nowrap; max-width: none; }
+}
 .dijitTooltipContainer:has(.power-reference){ max-width: none; } //in case BGA caps tooltip widths: the reference sets its own
 //the status bar's card icon and power icon tooltips (Game.getStatusCardWithPowerHTML): the plain tooltip background and arrow
 //behind the power row, which keeps its play-area look: the highlight's translucent white laid over the reference's teal

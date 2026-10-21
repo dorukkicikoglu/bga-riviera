@@ -46,6 +46,15 @@ class RIVPowerManager{
             if(in_array($cardValue, POWER_CARD_VALUES, true))
                 $this->game->DbQuery("UPDATE `player` SET `pending_POWER$cardValue` = 'yes' WHERE `player_id` = $playerID");
         }
+
+        //a pending card 2 shows on its die until it is applied (getDice() pending_reserved_by_POWER2)
+        if(in_array(2, $lastCardValueByPlayer, true))
+            $this->notifyDiceUpdated();
+    }
+
+    //no log row: the dice area only follows the dice data
+    private function notifyDiceUpdated(): void{
+        $this->game->bga->notify->all('diceUpdated', '', ['dice' => $this->game->tableManager->getDice()]);
     }
 
     function clearPendingPowers(): void{
@@ -57,7 +66,11 @@ class RIVPowerManager{
      * Stops are applied, before any of them resolves: everyone still 'in' chose More. Card 10 has resolved already.
      */
     function clearPreRollPowersOfPlayersOut(): void{
+        $lostPOWER2Count = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `player` WHERE `pending_POWER2` = 'yes' AND `round_status` <> 'in'");
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
+
+        if($lostPOWER2Count > 0) //their dice lose the pending card 2 look
+            $this->notifyDiceUpdated();
     }
 
     /**
@@ -72,7 +85,7 @@ class RIVPowerManager{
         $this->game->DbQuery("UPDATE `dice` SET `reserved_by_POWER2` = NULL");
         $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'no', `die_value` = NULL WHERE `die_color` = 'gold'");
 
-        $this->game->bga->notify->all('diceUpdated', '', ['dice' => $this->game->tableManager->getDice()]);
+        $this->notifyDiceUpdated();
     }
 
     /**
@@ -253,8 +266,10 @@ class RIVPowerManager{
 
         $dieColor = $card['color'];
         $this->game->DbQuery("UPDATE `dice` SET `reserved_by_POWER2` = $playerID WHERE `die_color` = '$dieColor' AND `die_location` = 'in_play' AND `reserved_by_POWER2` IS NULL");
-        if($this->game->DbAffectedRow() === 0)
+        if($this->game->DbAffectedRow() === 0){
+            $this->notifyDiceUpdated(); //not applied: the die loses its pending card 2 look
             return;
+        }
 
         $this->game->bga->playerStats->inc('powerUsed_POWER2', 1, $playerID);
 

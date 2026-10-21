@@ -17,6 +17,7 @@ export class DiceHandler{
     private static readonly MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows its card-9 arrows
     private static readonly SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
     private static readonly PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
+    private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its ring, dashed
     private static readonly DIE_FACES = 6;
 
     //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
@@ -154,7 +155,7 @@ export class DiceHandler{
     //a die with no value is never displayed (Game.scss hides data-value=""). Only a roll ($isRoll) or a new die takes a
     //face away: any other update without a value (the golden die expiring after the reveal) keeps the last roll's face up,
     //so the dice area shows the last roll until the next one, where it fades out with the others
-    private applyDieData(aDie: HTMLDivElement, dieData: RivieraDie, isRoll: boolean = false): void {
+    private applyDieData(aDie: HTMLDivElement, dieData: RivieraDie, isRoll: boolean = false, withRing: boolean = true): void {
         if(dieData.value !== null)
             aDie.setAttribute('data-value', dieData.value.toString());
         else if(isRoll || !aDie.getAttribute('data-value'))
@@ -162,10 +163,19 @@ export class DiceHandler{
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
 
-        const reserverID = dieData.reserved_by_POWER2;
+        this.applyReservationRingPOWER2(aDie, withRing ? dieData : null);
+    }
+
+    //card 2: pending (dashed ring) from the reveal until the roll it is for, reserved (solid ring) from then. null: no ring
+    //(a die rolling in gets its ring once it has landed)
+    private applyReservationRingPOWER2(aDie: HTMLDivElement, dieData: RivieraDie | null): void {
+        const reserverID = dieData?.reserved_by_POWER2 ?? null;
+        const pendingReserverID = dieData?.pending_reserved_by_POWER2 ?? null;
         aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
-        if(reserverID !== null)
-            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(reserverID));
+        aDie.classList.toggle(DiceHandler.RESERVATION_PENDING_CLASS_POWER2, pendingReserverID !== null);
+        const ringOwnerID = pendingReserverID ?? reserverID;
+        if(ringOwnerID !== null)
+            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(ringOwnerID));
         else
             aDie.style.removeProperty('--reserver-color');
     }
@@ -197,6 +207,8 @@ export class DiceHandler{
      * golden die left out of this roll only fades out). Resolves once the last die has stopped, so the notification waits
      * for it. With BGA's animations off (fast replay, hidden tab) the dice just change. A card 9 change is not a roll: it
      * goes through updateDice.
+     * The fading copies keep the rings they had (a pending reservation stays dashed); the dice rolling in have none, and
+     * each gets its card 2 ring when it lands.
      */
     public async rollDice(diceData: RivieraDie[]): Promise<void> {
         if(this.previewedColorPOWER9)
@@ -214,16 +226,16 @@ export class DiceHandler{
                 continue;
 
             this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
-            this.game.tooltipHandler?.updateDieTooltip(dieData);
             aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
-            this.applyDieData(aDie, dieData, true);
+            const rollsIn = animate && dieData.value !== null;
+            this.applyDieData(aDie, dieData, true, !rollsIn);
+            this.game.tooltipHandler?.updateDieTooltip(dieData, !rollsIn);
 
-            if(dieData.value !== null)
+            if(rollsIn)
                 rolledDice.push({ aDie: aDie, dieData: dieData });
         }
 
-        if(animate)
-            await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
+        await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
     }
 
     //each shown die leaves a copy at its place, under the dice rolling in (prepended), that fades out and is removed
@@ -309,6 +321,8 @@ export class DiceHandler{
         ]);
 
         faceTimers.forEach(faceTimer => window.clearTimeout(faceTimer));
+        this.applyReservationRingPOWER2(aDie, dieData); //landed: its card 2 ring shows with it, in the same frame
+        this.game.tooltipHandler?.updateDieTooltip(dieData);
         aDie.style.visibility = null;
         rollingDie.remove();
     }

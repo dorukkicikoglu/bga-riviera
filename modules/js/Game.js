@@ -329,17 +329,25 @@ class DiceHandler {
     //a die with no value is never displayed (Game.scss hides data-value=""). Only a roll ($isRoll) or a new die takes a
     //face away: any other update without a value (the golden die expiring after the reveal) keeps the last roll's face up,
     //so the dice area shows the last roll until the next one, where it fades out with the others
-    applyDieData(aDie, dieData, isRoll = false) {
+    applyDieData(aDie, dieData, isRoll = false, withRing = true) {
         if (dieData.value !== null)
             aDie.setAttribute('data-value', dieData.value.toString());
         else if (isRoll || !aDie.getAttribute('data-value'))
             aDie.setAttribute('data-value', '');
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
-        const reserverID = dieData.reserved_by_POWER2;
+        this.applyReservationRingPOWER2(aDie, withRing ? dieData : null);
+    }
+    //card 2: pending (dashed ring) from the reveal until the roll it is for, reserved (solid ring) from then. null: no ring
+    //(a die rolling in gets its ring once it has landed)
+    applyReservationRingPOWER2(aDie, dieData) {
+        const reserverID = dieData?.reserved_by_POWER2 ?? null;
+        const pendingReserverID = dieData?.pending_reserved_by_POWER2 ?? null;
         aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
-        if (reserverID !== null)
-            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(reserverID));
+        aDie.classList.toggle(DiceHandler.RESERVATION_PENDING_CLASS_POWER2, pendingReserverID !== null);
+        const ringOwnerID = pendingReserverID ?? reserverID;
+        if (ringOwnerID !== null)
+            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(ringOwnerID));
         else
             aDie.style.removeProperty('--reserver-color');
     }
@@ -365,6 +373,8 @@ class DiceHandler {
      * golden die left out of this roll only fades out). Resolves once the last die has stopped, so the notification waits
      * for it. With BGA's animations off (fast replay, hidden tab) the dice just change. A card 9 change is not a roll: it
      * goes through updateDice.
+     * The fading copies keep the rings they had (a pending reservation stays dashed); the dice rolling in have none, and
+     * each gets its card 2 ring when it lands.
      */
     async rollDice(diceData) {
         if (this.previewedColorPOWER9)
@@ -379,14 +389,14 @@ class DiceHandler {
             if (!aDie)
                 continue;
             this.diceData = this.diceData.map(knownDie => (knownDie.color === dieData.color) ? dieData : knownDie);
-            this.game.tooltipHandler?.updateDieTooltip(dieData);
             aDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS);
-            this.applyDieData(aDie, dieData, true);
-            if (dieData.value !== null)
+            const rollsIn = animate && dieData.value !== null;
+            this.applyDieData(aDie, dieData, true, !rollsIn);
+            this.game.tooltipHandler?.updateDieTooltip(dieData, !rollsIn);
+            if (rollsIn)
                 rolledDice.push({ aDie: aDie, dieData: dieData });
         }
-        if (animate)
-            await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
+        await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
     }
     //each shown die leaves a copy at its place, under the dice rolling in (prepended), that fades out and is removed
     fadeOutShownDice() {
@@ -459,6 +469,8 @@ class DiceHandler {
             this.game.bga.gameui.wait(delay + DiceHandler.ROLL_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
         ]);
         faceTimers.forEach(faceTimer => window.clearTimeout(faceTimer));
+        this.applyReservationRingPOWER2(aDie, dieData); //landed: its card 2 ring shows with it, in the same frame
+        this.game.tooltipHandler?.updateDieTooltip(dieData);
         aDie.style.visibility = null;
         rollingDie.remove();
     }
@@ -543,6 +555,7 @@ DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
 DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows its card-9 arrows
 DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
 DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
+DiceHandler.RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its ring, dashed
 DiceHandler.DIE_FACES = 6;
 //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
 //shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once
@@ -1017,25 +1030,44 @@ class TooltipHandler {
             this.game.bga.gameui.addTooltip('column-stars-' + player_id, _('Stars of the cards played this round. A player who stops banks them; a crash loses them.'), '', TooltipHandler.TOOLTIP_DELAY);
         }
     }
-    //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11
-    updateDieTooltip(dieData) {
+    //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11, on the card tooltips' background
+    //(the power reference's single-entry look, like the Start token's). withRing false: the die is rolling in with no card 2
+    //ring yet (DiceHandler.rollDice), so its tooltip leaves the reservation out until it lands
+    updateDieTooltip(dieData, withRing = true) {
         const dieID = 'die-' + dieData.color;
         if (!document.getElementById(dieID))
             return;
-        const dieNames = {
-            red: _('Red die'),
-            green: _('Green die'),
-            purple: _('Purple die'),
-            blue: _('Blue die'),
-            orange: _('Orange die'),
-            gold: _('Golden die (card 11): it only counts in a sum with a colored die and never gives its color'),
-        };
-        const lines = [dieNames[dieData.color]];
-        if (dieData.reserved_by_POWER2 !== null)
-            lines.push(_('Reserved by ${player_name} (card 2): only they can use it on this roll').replace('${player_name}', this.game.getPlayerName(dieData.reserved_by_POWER2)));
+        //card 2: the same pending (dashed) / reserved (solid) split as the die's ring (DiceHandler.applyReservationRingPOWER2).
+        //A die with a ring gets this one line instead of its default text, kept on one line
+        const pendingReserverID = withRing ? (dieData.pending_reserved_by_POWER2 ?? null) : null;
+        const reserverID = withRing ? dieData.reserved_by_POWER2 : null;
+        if (pendingReserverID !== null || reserverID !== null) {
+            const reservationText = (pendingReserverID !== null) ? _('${player_name} may reserve ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}');
+            const reservationHTML = reservationText
+                .replace('${player_name}', this.game.divColoredPlayer(pendingReserverID ?? reserverID, { class: 'playername tooltip-playername' }))
+                .replace('${die_color}', this.getDieColorName(dieData.color))
+                .replace('${card_icon}', this.game.getInlineCardIconHTML(dieData.color, 2));
+            this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
+            return;
+        }
+        const lines = [dieData.color === 'gold'
+                ? _('Golden die (card 11): it only counts in a sum with a colored die and never gives its color')
+                : _('${die_color} die').replace('${die_color}', this.getDieColorName(dieData.color))];
         if (dieData.modified_by_POWER9)
             lines.push(_('Turned by a card 9 this roll: it cannot be turned again'));
-        this.game.bga.gameui.addTooltipHtml(dieID, `<div class="die-tooltip">${lines.join('<br>')}</div>`, TooltipHandler.TOOLTIP_DELAY);
+        this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(lines.join('<br>')), TooltipHandler.TOOLTIP_DELAY);
+    }
+    //the colored dice's names in their tooltips (the golden die has its own text)
+    getDieColorName(color) {
+        const dieColorNames = { red: _('Red'), green: _('Green'), purple: _('Purple'), blue: _('Blue'), orange: _('Orange') };
+        return dieColorNames[color] ?? '';
+    }
+    getDieTooltipHTML(contentHTML, modifierClass = '') {
+        return `
+            <div class="tooltip-wrapper power-reference single-power-reference die-tooltip ${modifierClass}">
+                <div>${contentHTML}</div>
+            </div>
+        `;
     }
     addTooltipToBottomForSafari() {
         if (document.querySelector('.safari-mobile-power-reference-container'))
@@ -1871,7 +1903,7 @@ class LogMutationObserver {
             : _('${playerName} reserves ${die} for the next roll').replace('${playerName}', playerNameHTML);
         let logHTML = `
             <div class="die-reserved-row">
-                ${reservedText.replace('${die}', this.getMiniDieHTML(die))}
+                ${reservedText.replace('${die}', this.getMiniDieHTML({ ...die, pending_reserved_by_POWER2: null }))}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
     }
@@ -1893,7 +1925,7 @@ class LogMutationObserver {
         const modifiedText = player_id === this.game.getMyPlayerID()
             ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
             : _('${playerName} turns ${oldDie} to ${newDie}').replace('${playerName}', playerNameHTML);
-        const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         const newDie = { ...oldDie, value: newValue };
         let logHTML = `
             <div class="die-modified-row" data-move-id="${moveID}">
@@ -2551,6 +2583,10 @@ class Game {
         const iconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
+    }
+    //the circular card icon (getStatusCardIconHTML) at text size, to sit inline in a sentence (tooltips), sized by .inline-card-icon
+    getInlineCardIconHTML(color, value) {
+        return `<span class="inline-card-icon">${this.getStatusCardIconHTML({ card_id: null, color: color, value: value })}</span>`;
     }
     //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
     //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,

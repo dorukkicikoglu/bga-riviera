@@ -244,7 +244,7 @@ export class LogMutationObserver{
 
         let logHTML = `
             <div class="die-reserved-row">
-                ${reservedText.replace('${die}', this.getMiniDieHTML(die))}
+                ${reservedText.replace('${die}', this.getMiniDieHTML({ ...die, pending_reserved_by_POWER2: null }))}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
@@ -272,7 +272,7 @@ export class LogMutationObserver{
             ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
             : _('${playerName} turns ${oldDie} to ${newDie}').replace('${playerName}', playerNameHTML);
 
-        const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         const newDie: RivieraDie = { ...oldDie, value: newValue };
         let logHTML = `
             <div class="die-modified-row" data-move-id="${moveID}">

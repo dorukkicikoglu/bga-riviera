@@ -77,28 +77,49 @@ export class TooltipHandler{
         }
     }
 
-    //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11
-    public updateDieTooltip(dieData: RivieraDie){
+    //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11, on the card tooltips' background
+    //(the power reference's single-entry look, like the Start token's). withRing false: the die is rolling in with no card 2
+    //ring yet (DiceHandler.rollDice), so its tooltip leaves the reservation out until it lands
+    public updateDieTooltip(dieData: RivieraDie, withRing: boolean = true){
         const dieID = 'die-' + dieData.color;
         if(!document.getElementById(dieID))
             return;
 
-        const dieNames: Record<DieColor, string> = {
-            red: _('Red die'),
-            green: _('Green die'),
-            purple: _('Purple die'),
-            blue: _('Blue die'),
-            orange: _('Orange die'),
-            gold: _('Golden die (card 11): it only counts in a sum with a colored die and never gives its color'),
-        };
+        //card 2: the same pending (dashed) / reserved (solid) split as the die's ring (DiceHandler.applyReservationRingPOWER2).
+        //A die with a ring gets this one line instead of its default text, kept on one line
+        const pendingReserverID = withRing ? (dieData.pending_reserved_by_POWER2 ?? null) : null;
+        const reserverID = withRing ? dieData.reserved_by_POWER2 : null;
+        if(pendingReserverID !== null || reserverID !== null){
+            const reservationText = (pendingReserverID !== null) ? _('${player_name} may reserve ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}');
+            const reservationHTML = reservationText
+                .replace('${player_name}', this.game.divColoredPlayer(pendingReserverID ?? reserverID, {class: 'playername tooltip-playername'}))
+                .replace('${die_color}', this.getDieColorName(dieData.color))
+                .replace('${card_icon}', this.game.getInlineCardIconHTML(dieData.color as CardColor, 2));
+            this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
+            return;
+        }
 
-        const lines = [dieNames[dieData.color]];
-        if(dieData.reserved_by_POWER2 !== null)
-            lines.push(_('Reserved by ${player_name} (card 2): only they can use it on this roll').replace('${player_name}', this.game.getPlayerName(dieData.reserved_by_POWER2)));
+        const lines = [dieData.color === 'gold'
+            ? _('Golden die (card 11): it only counts in a sum with a colored die and never gives its color')
+            : _('${die_color} die').replace('${die_color}', this.getDieColorName(dieData.color))];
         if(dieData.modified_by_POWER9)
             lines.push(_('Turned by a card 9 this roll: it cannot be turned again'));
 
-        this.game.bga.gameui.addTooltipHtml(dieID, `<div class="die-tooltip">${lines.join('<br>')}</div>`, TooltipHandler.TOOLTIP_DELAY);
+        this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(lines.join('<br>')), TooltipHandler.TOOLTIP_DELAY);
+    }
+
+    //the colored dice's names in their tooltips (the golden die has its own text)
+    private getDieColorName(color: DieColor): string {
+        const dieColorNames: Record<CardColor, string> = { red: _('Red'), green: _('Green'), purple: _('Purple'), blue: _('Blue'), orange: _('Orange') };
+        return dieColorNames[color as CardColor] ?? '';
+    }
+
+    private getDieTooltipHTML(contentHTML: string, modifierClass: string = ''): string {
+        return `
+            <div class="tooltip-wrapper power-reference single-power-reference die-tooltip ${modifierClass}">
+                <div>${contentHTML}</div>
+            </div>
+        `;
     }
 
     private addTooltipToBottomForSafari(){

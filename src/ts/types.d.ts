@@ -73,6 +73,7 @@ interface RivieraDie {
     color: DieColor;
     value: number | null;
     reserved_by_POWER2: number | null;
+    pending_reserved_by_POWER2: number | null; //a revealed card 2 not applied yet: its owner
     modified_by_POWER9: boolean;
     in_use_by_POWER11: boolean;
 }
