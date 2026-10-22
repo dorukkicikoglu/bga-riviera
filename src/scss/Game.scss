@@ -239,7 +239,10 @@ $status-card-icon-size: 40px;
     //can be turned. The up one (+1) runs from its triangle's tip down to the die's middle line, the down one (-1) from that
     //line to its triangle's tip, so together they cover the arrows, the gaps and the die with no dead zone. Only the
     //filled triangle inside each one is visible, centered at its outer end; hovering the container lights it
-    .die-arrow{ position: absolute; left: 0px; right: 0px; z-index: 2; cursor: pointer;
+    //no tap highlight, focus ring, selection or callout menu on a press or long press (mobile); keyboard focus keeps a ring
+    .die-arrow{ position: absolute; left: 0px; right: 0px; z-index: 2; cursor: pointer; -webkit-tap-highlight-color: transparent; @include non-selectable();
+        &:focus{ outline: none; }
+        &:focus-visible{ outline: 2px solid #ffd700; outline-offset: 2px; }
         &[data-delta="1"]{ top: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap))); bottom: 50%;
             .die-arrow-triangle{ top: 0px; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transform-origin: 50% 100%; }
         }

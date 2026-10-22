@@ -665,6 +665,20 @@ body .sliding-clone {
   right: 0px;
   z-index: 2;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+#dice-container .die-arrow:focus {
+  outline: none;
+}
+#dice-container .die-arrow:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
 }
 #dice-container .die-arrow[data-delta="1"] {
   top: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap)));
