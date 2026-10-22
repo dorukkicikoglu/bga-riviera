@@ -595,13 +595,13 @@ $power-reference-text: #051121;
 }
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
 //a player name in a tooltip on the card tooltips' teal (divColoredPlayer with the tooltip-playername class), by the player's
-//color, not by who is looking: green and white get a soft white glow, the other light colors the logs' dark outline
+//color, not by who is looking: green and white get a dense white glow (the soft one was too faint on mobile), the other light colors the logs' dark outline
 .tooltip-playername{
     @each $outlined-player-color in "ffa500", "72c3b1", "bdd002" {
         &[player-color="#{$outlined-player-color}"]{ @include text-shade(#27271cBF, 1px); }
     }
     @each $glowing-player-color in "008000", "ffffff" {
-        &[player-color="#{$glowing-player-color}"]{ text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff; }
+        &[player-color="#{$glowing-player-color}"]{ text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff; }
     }
 }
 //dice tooltips (TooltipHandler.updateDieTooltip): the single power look, as wide as their text up to the single power width.

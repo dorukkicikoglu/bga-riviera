@@ -1620,10 +1620,10 @@ body .start-token.flying-start-token {
   text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
 }
 .tooltip-playername[player-color="008000"] {
-  text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
+  text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff;
 }
 .tooltip-playername[player-color=ffffff] {
-  text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
+  text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff;
 }
 
 .tooltip-wrapper.single-power-reference.die-tooltip {
