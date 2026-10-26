@@ -300,13 +300,24 @@ body.current_player_is_active:not(.lockedInterface){
     &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation-name: mobile-selectable-card-glow-pulse; }
 }
 
+//a column is never narrower than $played-column-min-width, the width a typical 12-character name ("fenadoruk123", Roboto
+//16px) needs beside a two-digit score badge in the title, which leaves 22px of insets and borders. Mobile columns are wider already
+$played-column-min-width: 170px;
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
-    .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
+    .a-played-column{ position: relative; box-sizing: border-box; min-width: max(calc(var(--card-width) + 28px), #{$played-column-min-width}); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
         //name docked top-left (shrinks with an ellipsis), stars docked top-right (never shrink)
         .played-column-title{ left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--column-owner-color); font-size: 16px;
             .played-column-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px; margin: -2px; } //padding keeps the text shade from being clipped
-            .played-column-stars{ flex-shrink: 0; color: #b8860b; }
+            //bigger than the name (16px) for readability; line-height 1 keeps the star's taller fallback-font metrics from growing the title.
+            //A pill in the player's color, no outline: its border and padding sit in negative margins, so the score stays where it was
+            //without it (the pill reaches into the title's inset after it). On the left, only 4px of the 8px go into the 6px gap,
+            //so the pill stays 2px clear of the name: the other 4px come out of the name's room, which $played-column-min-width gives back
+            .played-column-stars{ flex-shrink: 0; display: flex; align-items: center; gap: 2px; color: #ffffff; font-size: 22px; line-height: 1; text-shadow: none; background-color: var(--column-owner-color); border: 1px solid color-mix(in srgb, var(--column-owner-color) 75%, #000000); border-radius: 999px; padding: 3px 7px 2px 7px; margin: -3px -8px -3px -4px;
+                .played-column-star{ font-size: 0.55em; } //about the height of the number's lowercase letters
+            }
         }
+        //white, yellow, orange, teal, lime (PlayedColumnHandler.isLightColor): dark star and number on the pill
+        &[data-light-owner-color="true"] .played-column-stars{ color: #1d1d1d; }
 
         //only the star strip at the top of each covered card stays visible, as in the rules
         .cards-column{ display: flex; flex-direction: column; align-items: center;

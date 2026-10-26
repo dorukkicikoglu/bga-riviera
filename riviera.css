@@ -839,7 +839,7 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 #played-columns-container .a-played-column {
   position: relative;
   box-sizing: border-box;
-  min-width: calc(var(--card-width) + 28px);
+  min-width: max(var(--card-width) + 28px, 170px);
   border: 1px solid var(--column-owner-color);
   border-radius: 10px;
   padding: 24px 14px 14px 14px;
@@ -864,7 +864,24 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 }
 #played-columns-container .a-played-column .played-column-title .played-column-stars {
   flex-shrink: 0;
-  color: #b8860b;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+  text-shadow: none;
+  background-color: var(--column-owner-color);
+  border: 1px solid color-mix(in srgb, var(--column-owner-color) 75%, #000000);
+  border-radius: 999px;
+  padding: 3px 7px 2px 7px;
+  margin: -3px -8px -3px -4px;
+}
+#played-columns-container .a-played-column .played-column-title .played-column-stars .played-column-star {
+  font-size: 0.55em;
+}
+#played-columns-container .a-played-column[data-light-owner-color=true] .played-column-stars {
+  color: #1d1d1d;
 }
 #played-columns-container .a-played-column .cards-column {
   display: flex;
@@ -1832,3 +1849,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

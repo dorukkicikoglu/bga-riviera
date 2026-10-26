@@ -78,7 +78,7 @@ Round end and game end:
 - [x] When nobody is left in, each stopper gets a "banks N ★" row (apricot) and their score rises by N. Crashed players get nothing. (Changed after M4: banking now happens at the Stop reveal, see M4 > Banking.)
 - [x] A new round follows: "Round 2" row, fresh 10-card hand (fades in), every column empty, every status "In", every board "x 10". Used Last Chance cards stay gone. (Changed after M4: the hand is dealt card by card, see M4 > Layout.)
 - [x] `debug_setScores(38)`, then play a round where someone stops with 2 ★ or more: the game ends after the round and the highest score wins. Equal scores share the win.
-- [x] Grand Slam: `debug_trimHands(1)`, then `debug_setDice` so my last card is valid, and play it. A gold row "<name> plays all 10 cards: Grand Slam!", my score becomes max(100, best other + 1), my board and column glow gold, and the game ends with me first.
+- [x] Grand Slam: `debug_trimHands(1)`, then `debug_setDice` so my last card is valid, and play it. A gold row "<name> plays all 10 cards: Grand Slam!", my score becomes max(99, best other + 1), my board and column glow gold, and the game ends with me first.
 - [x] Grand Slam by two players on the same reveal: both get that score and share the win.
 
 Logs:

@@ -22,13 +22,14 @@ export class DiceHandler{
 
     //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
     //shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once
-    private static readonly ROLL_DURATION = 540; //ms of each die's travel
-    private static readonly ROLL_MAX_DELAY = 96; //ms, each die starts after a random delay up to this, so the dice don't move as one block
+    private static readonly ROLL_DURATION = 500; //ms of a die's travel on average. With ROLL_DURATION_VARIATION and ROLL_MAX_DELAY, the last die of a roll lands about 625ms in
+    private static readonly ROLL_DURATION_VARIATION = 0.15; //each die's travel is ROLL_DURATION up to this share longer or shorter, at random, so no two rolls look alike
+    private static readonly ROLL_MAX_DELAY = 120; //ms, each die starts after a random delay up to this, so the dice don't move as one block
     private static readonly ROLL_EASING_POINTS = [0.25, 0.8, 0.35, 1]; //x1, y1, x2, y2 of the roll's cubic-bezier: ease-out with no overshoot, the dice decelerate into place
     private static readonly ROLL_EASING = `cubic-bezier(${DiceHandler.ROLL_EASING_POINTS.join(', ')})`; //the faces follow the rotation through this same curve (getRollProgress)
     private static readonly ROLL_DISTANCE = 3; //die sizes (on screen) the die starts right of its slot, and as many above: D in translate(+D, -D). The dice container is about 1.6 die sizes tall, so every die starts above it
-    private static readonly ROLL_MIN_SPIN = 180; //deg from upright at the start, in a random direction
-    private static readonly ROLL_MAX_SPIN = 360; //deg
+    private static readonly ROLL_MIN_SPIN = 150; //deg from upright at the start, in a random direction
+    private static readonly ROLL_MAX_SPIN = 420; //deg
     private static readonly FACE_TURN = 90; //deg: the face changes each time the rotation passes a multiple of this, as if a new side rolled up
     private static readonly FACE_LOCK_FRACTION = 0.6; //share of the travel time from which the face is the real value: no change while the die slows down
     private static readonly MAX_SPIN_AFTER_LOCK = 90; //deg the die may still turn after FACE_LOCK_FRACTION; a bigger start spin is reduced to keep to it
@@ -208,7 +209,7 @@ export class DiceHandler{
      * for it. With BGA's animations off (fast replay, hidden tab) the dice just change. A card 9 change is not a roll: it
      * goes through updateDice.
      * The fading copies keep the rings they had (a pending reservation stays dashed); the dice rolling in have none, and
-     * each gets its card 2 ring when it lands.
+     * get their card 2 rings once the last die has landed (each die's travel and delay are random, so no fixed time).
      */
     public async rollDice(diceData: RivieraDie[]): Promise<void> {
         if(this.previewedColorPOWER9)
@@ -236,6 +237,12 @@ export class DiceHandler{
         }
 
         await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
+
+        //every die has landed: the card 2 rings show together
+        for(let rolledDie of rolledDice){
+            this.applyReservationRingPOWER2(rolledDie.aDie, rolledDie.dieData);
+            this.game.tooltipHandler?.updateDieTooltip(rolledDie.dieData);
+        }
     }
 
     //each shown die leaves a copy at its place, under the dice rolling in (prepended), that fades out and is removed
@@ -273,8 +280,9 @@ export class DiceHandler{
     //slides and spins into the slot, where the real die shows again. The copy is position: fixed in <body> (.rolling-die),
     //so no ancestor's overflow clips its entry and it adds no scrollable overflow, under the Start token (see Game.scss). It lives outside BGA's mobile
     //scaling of the game area, so it is scaled (scale property, set once) to the die's on-screen size; only translate and
-    //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. The face changes each time the
-    //rotation passes a multiple of FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel
+    //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. Its travel time is
+    //ROLL_DURATION give or take ROLL_DURATION_VARIATION. The face changes each time the rotation passes a multiple of
+    //FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel. Its card 2 ring waits for rollDice
     private async rollIn(aDie: HTMLDivElement, dieData: RivieraDie): Promise<void> {
         const dieRect = aDie.getBoundingClientRect();
         const cssSize = parseFloat(window.getComputedStyle(aDie).width) || dieRect.width;
@@ -286,6 +294,7 @@ export class DiceHandler{
         const distance = dieRect.width * DiceHandler.ROLL_DISTANCE;
         const spin = this.getRandomSpin();
         const delay = Math.random() * DiceHandler.ROLL_MAX_DELAY;
+        const duration = DiceHandler.ROLL_DURATION * (1 + (Math.random() * 2 - 1) * DiceHandler.ROLL_DURATION_VARIATION);
 
         const rollingDie = aDie.cloneNode(true) as HTMLDivElement;
         rollingDie.removeAttribute('id');
@@ -299,10 +308,10 @@ export class DiceHandler{
         const roll = rollingDie.animate([
             { translate: `${endX + distance}px ${endY - distance}px`, rotate: `${spin}deg` },
             { translate: `${endX}px ${endY}px`, rotate: '0deg' },
-        ], { duration: DiceHandler.ROLL_DURATION, delay: delay, easing: DiceHandler.ROLL_EASING, fill: 'backwards' });
+        ], { duration: duration, delay: delay, easing: DiceHandler.ROLL_EASING, fill: 'backwards' });
 
         //one face per FACE_TURN the die turns before FACE_LOCK_FRACTION, the last one the real value
-        const faceChangeTimes = this.getFaceChangeTimes(spin);
+        const faceChangeTimes = this.getFaceChangeTimes(spin, duration);
         const faces = this.getTumbleFaces(faceChangeTimes.length, dieData.value);
         rollingDie.setAttribute('data-value', faces[0].toString());
 
@@ -317,12 +326,10 @@ export class DiceHandler{
 
         await Promise.race([
             roll.finished.catch(() => undefined),
-            this.game.bga.gameui.wait(delay + DiceHandler.ROLL_DURATION + DiceHandler.FINISH_SAFETY_MARGIN),
+            this.game.bga.gameui.wait(delay + duration + DiceHandler.FINISH_SAFETY_MARGIN),
         ]);
 
         faceTimers.forEach(faceTimer => window.clearTimeout(faceTimer));
-        this.applyReservationRingPOWER2(aDie, dieData); //landed: its card 2 ring shows with it, in the same frame
-        this.game.tooltipHandler?.updateDieTooltip(dieData);
         aDie.style.visibility = null;
         rollingDie.remove();
     }
@@ -337,9 +344,9 @@ export class DiceHandler{
         return spinDirection * (minSpin + Math.random() * (maxSpin - minSpin));
     }
 
-    //ms into the travel at which the rotation, spin * (1 - eased progress), passes each multiple of FACE_TURN before
-    //FACE_LOCK_FRACTION, in order. The start angle itself is not a change
-    private getFaceChangeTimes(spin: number): number[] {
+    //ms into a travel of duration ms at which the rotation, spin * (1 - eased progress), passes each multiple of FACE_TURN
+    //before FACE_LOCK_FRACTION, in order. The start angle itself is not a change
+    private getFaceChangeTimes(spin: number, duration: number): number[] {
         const absSpin = Math.abs(spin);
         const spinLeftAtLock = absSpin * (1 - DiceHandler.getRollProgress(DiceHandler.FACE_LOCK_FRACTION));
 
@@ -347,7 +354,7 @@ export class DiceHandler{
         for(let turn = Math.ceil(absSpin / DiceHandler.FACE_TURN - 1) * DiceHandler.FACE_TURN; turn >= spinLeftAtLock && turn > 0; turn -= DiceHandler.FACE_TURN){
             if(turn >= absSpin)
                 continue;
-            faceChangeTimes.push(DiceHandler.getRollTimeFraction(1 - turn / absSpin) * DiceHandler.ROLL_DURATION);
+            faceChangeTimes.push(DiceHandler.getRollTimeFraction(1 - turn / absSpin) * duration);
         }
         return faceChangeTimes;
     }

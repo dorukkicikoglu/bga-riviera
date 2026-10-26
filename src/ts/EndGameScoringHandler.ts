@@ -127,7 +127,7 @@ export class EndGameScoringHandler{
         let cellContent: string;
 
         if(result === 'stopped')
-            cellContent = `${roundScore.stars} ★`;
+            cellContent = `${roundScore.stars}`;
         else if(result === 'crashed')
             cellContent = '<i class="fa6 fa-bomb"></i>';
         else if(result === 'grand_slam')

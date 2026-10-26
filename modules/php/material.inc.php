@@ -29,7 +29,7 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("MAX_REDEAL_ATTEMPTS", 1000); //safety cap for the silent redeal loop, never expected to be reached
     define("MAX_PLAYERS_WITH_ONE_COLOR_REMOVED", 4); //2 to 4 players play without one random color (its 12 cards and its die)
     define("WINNING_SCORE", 40);
-    define("GRAND_SLAM_MIN_SCORE", 100); //a Grand Slam score is max(this, highest other score + 1) so BGA ranks that player first
+    define("GRAND_SLAM_MIN_SCORE", 99); //a Grand Slam score is max(this, highest other score + 1) so BGA ranks that player first. 99 keeps it two digits (no other score gets near it)
     define("DIE_FACES", 6);
     define("FIRST_ROLL_MAX_REROLLS", 2); //the first roll of a round is silently re-rolled up to this many times while a player has no playable card
 

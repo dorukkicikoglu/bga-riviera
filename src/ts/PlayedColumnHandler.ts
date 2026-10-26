@@ -15,6 +15,7 @@ import { PlayerHandler } from "./PlayerHandler";
 export class PlayedColumnHandler{
     private static readonly SLIDE_ANIM_TIME = 600;
     private static readonly CLEAR_ANIM_TIME = 400;
+    private static readonly LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
 
     private columnContainer: HTMLDivElement;
     private cardsColumn: HTMLDivElement;
@@ -28,6 +29,7 @@ export class PlayedColumnHandler{
             this.columnContainer.setAttribute('data-owner-id', `${this.owner.getPlayerID()}`);
             this.columnContainer.setAttribute('data-is-myself', 'false');
             this.columnContainer.style.setProperty('--column-owner-color', '#' + this.owner.getPlayerColor());
+            this.columnContainer.setAttribute('data-light-owner-color', PlayedColumnHandler.isLightColor(this.owner.getPlayerColor()) ? 'true' : 'false');
 
             this.columnContainer.innerHTML = `
                 <div class="played-column-title">
@@ -103,7 +105,14 @@ export class PlayedColumnHandler{
     }
 
     private updateStarsTotal(): void{
-        this.starsText.textContent = `★ ${this.getStarsTotal()}`;
+        this.starsText.innerHTML = `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
+    }
+
+    //hexColor without the #, as BGA gives player colors
+    private static isLightColor(hexColor: string): boolean{
+        const channels = [0, 2, 4].map(offset => parseInt(hexColor.substring(offset, offset + 2), 16) / 255);
+        const [red, green, blue] = channels.map(channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue > PlayedColumnHandler.LIGHT_COLOR_LUMINANCE;
     }
 
     public setMyColumn(isMyColumn: boolean): void{
