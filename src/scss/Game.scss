@@ -228,7 +228,7 @@ $status-card-icon-size: 40px;
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
-    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 10px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
     position: relative; //for the fading copies
 
     .die-slot{ position: relative; }

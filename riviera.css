@@ -647,7 +647,7 @@ body .sliding-clone {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 10px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
+  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
   min-height: var(--die-size);
   position: relative;
 }
