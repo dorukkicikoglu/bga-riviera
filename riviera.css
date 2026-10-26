@@ -727,7 +727,7 @@ body .a-die.rolling-die {
   left: 0px;
   top: 0px;
   margin: 0px;
-  z-index: 1000;
+  z-index: 999;
   pointer-events: none;
   transform: none;
   transform-origin: 50% 50%;
