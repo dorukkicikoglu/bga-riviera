@@ -230,6 +230,7 @@ $status-card-icon-size: 40px;
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
     display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
     position: relative; //for the fading copies
+    isolation: isolate; //its own stacking context: the card 9 arrows' z-index and the dice's filters stay inside the dice area, under the Start token (z-index 10)
 
     .die-slot{ position: relative; }
     //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
@@ -257,11 +258,12 @@ $status-card-icon-size: 40px;
     //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview
     .a-die.previewed-die-power9{ filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700); }
 }
-//a die of the new roll flying in (DiceHandler.rollIn): fixed in <body>, above BGA's status bar, so nothing clips its entry
-//from the top right and it adds no scrollable overflow. Moved by translate, turned by rotate and sized by scale, around its
-//center; never transform. One z-index under the Start token's flying copy (also fixed in <body>, z-index 1000), which flies
-//while the dice roll: at an equal z-index the dice, appended later, would pass over it
-body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-index: 999; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate; }
+//a die of the new roll flying in (DiceHandler.rollIn): fixed in <body>, so no ancestor's overflow clips its entry from the
+//top right and it adds no scrollable overflow. Moved by translate, turned by rotate and sized by scale, around its center;
+//never transform. No BGA ancestor of the game area or the player boards makes a stacking context, so it shares the root one
+//with the Start token: z-index 5 is above the game area (the dice area, selected hand cards at 1) and under the token on
+//its board (10), its flying copy and BGA's fixed status bar (948), which it now comes out from under when the page is scrolled
+body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-index: 5; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate; }
 //the die in the card-9 confirm title: "Turn [die] 4 → 5?"
 .status-die-icon{ display: inline-block; vertical-align: middle; --die-size: 24px; margin: 0px 3px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
 //end dice
@@ -388,8 +390,12 @@ $start-token-masks: start-token-ring-masks();
     }
 }
 //the Start token's flying copy (StartTokenHandler.createFlyingCopy): pinned to the viewport's top-left corner and placed only
-//by the separate translate, rotate and scale properties (animated by StartTokenHandler), around its center. Never `transform`
-body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; margin: 0; z-index: 1000; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate, scale; }
+//by the separate translate, rotate and scale properties (animated by StartTokenHandler), around its center. Never `transform`.
+//z-index 948 is BGA's fixed status bar's: appended to <body> later, the copy passes over the bar, the dice and the boards,
+//and stays under BGA's popins (949, 950), dialogs (998, 999), chat bar and tooltips (2000)
+body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; margin: 0; z-index: 948; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate, scale; }
+//.start-token-anchor (BGA's .player-board) is positioned without a z-index, so the token's 10 counts in the root stacking
+//context: above the dice area and the rolling dice (5), under the end-game table (100) and everything of BGA's above it
 .start-token-anchor{ position: relative;
     > #start-token{ position: absolute; top: -2px; left: -15px; z-index: 10; }
 }
@@ -599,12 +605,12 @@ $power-reference-text: #051121;
 }
 .tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
 //a player name in a tooltip on the card tooltips' teal (divColoredPlayer with the tooltip-playername class), by the player's
-//color, not by who is looking: green and white get a dense white glow (the soft one was too faint on mobile), the other light colors the logs' dark outline
+//color, not by who is looking: red, green and white get a dense white glow (the soft one was too faint on mobile), the other light colors the logs' dark outline
 .tooltip-playername{
     @each $outlined-player-color in "ffa500", "72c3b1", "bdd002" {
         &[player-color="#{$outlined-player-color}"]{ @include text-shade(#27271cBF, 1px); }
     }
-    @each $glowing-player-color in "008000", "ffffff" {
+    @each $glowing-player-color in "ff0000", "008000", "ffffff" {
         &[player-color="#{$glowing-player-color}"]{ text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff; }
     }
 }

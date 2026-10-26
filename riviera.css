@@ -650,6 +650,7 @@ body .sliding-clone {
   padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
   min-height: var(--die-size);
   position: relative;
+  isolation: isolate;
 }
 #dice-container .die-slot {
   position: relative;
@@ -727,7 +728,7 @@ body .a-die.rolling-die {
   left: 0px;
   top: 0px;
   margin: 0px;
-  z-index: 999;
+  z-index: 5;
   pointer-events: none;
   transform: none;
   transform-origin: 50% 50%;
@@ -1005,7 +1006,7 @@ body .start-token.flying-start-token {
   left: 0px;
   top: 0px;
   margin: 0;
-  z-index: 1000;
+  z-index: 948;
   pointer-events: none;
   transform: none;
   transform-origin: 50% 50%;
@@ -1632,6 +1633,9 @@ body .start-token.flying-start-token {
 }
 .tooltip-playername[player-color=bdd002] {
   text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.tooltip-playername[player-color=ff0000] {
+  text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff;
 }
 .tooltip-playername[player-color="008000"] {
   text-shadow: 0 0 4px #ffffff, 0 0 8px #ffffff, 0 0 8px #ffffff;

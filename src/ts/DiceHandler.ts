@@ -271,7 +271,7 @@ export class DiceHandler{
     //one die of the new roll, already at its final face and place, hidden there while a copy flies in: the copy starts
     //ROLL_DISTANCE die sizes right of the slot and as many above it, turned ROLL_MIN_SPIN to ROLL_MAX_SPIN either way, and
     //slides and spins into the slot, where the real die shows again. The copy is position: fixed in <body> (.rolling-die),
-    //above BGA's status bar, so nothing clips its entry and it adds no scrollable overflow. It lives outside BGA's mobile
+    //so no ancestor's overflow clips its entry and it adds no scrollable overflow, under the Start token (see Game.scss). It lives outside BGA's mobile
     //scaling of the game area, so it is scaled (scale property, set once) to the die's on-screen size; only translate and
     //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. The face changes each time the
     //rotation passes a multiple of FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel
