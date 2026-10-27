@@ -778,14 +778,14 @@ class SwapCards {
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), { id: 'skip-power-button', color: 'secondary' });
     }
     swapClicked(target, cardIDs) {
-        this.bga.actions.performAction('actSwapCards_POWER10', { cardIDs: cardIDs.join(','), targetPlayerId: target.player_id });
+        this.bga.actions.performAction('actSwapCards_POWER10', { cardIDs: this.game.getCardIDsParam(cardIDs), targetPlayerId: target.player_id });
     }
     async redrawClicked(cardIDs) {
         if (cardIDs.length < 2) {
             if (!(await this.bga.dialogs.confirmation(_('Only 1 card is left to draw, so only 1 card will be discarded and replaced. Continue?'))))
                 return;
         }
-        this.bga.actions.performAction('actRedrawCards_POWER10', { cardIDs: cardIDs.join(',') });
+        this.bga.actions.performAction('actRedrawCards_POWER10', { cardIDs: this.game.getCardIDsParam(cardIDs) });
     }
 }
 
@@ -2802,6 +2802,9 @@ class Game {
             this.players[player_id].updateEndGameScoreHighlight();
     }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
+    //card ids for an action's comma-separated cardIDs param, sorted numerically so the request is the same whatever order
+    //they were clicked in (BGA tutorials compare the request's params)
+    getCardIDsParam(cardIDs) { return [...cardIDs].sort((a, b) => a - b).join(','); }
     //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that
     //player's color through --player-color. label is HTML (setTitle-style), e.g. the player's name in bold
     addPlayerChoiceButton(playerID, label, callback, params = {}) {

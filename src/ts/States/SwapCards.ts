@@ -88,7 +88,7 @@ export class SwapCards {
     }
 
     private swapClicked(target: SwapTargetPOWER10, cardIDs: number[]): void {
-        this.bga.actions.performAction('actSwapCards_POWER10', { cardIDs: cardIDs.join(','), targetPlayerId: target.player_id });
+        this.bga.actions.performAction('actSwapCards_POWER10', { cardIDs: this.game.getCardIDsParam(cardIDs), targetPlayerId: target.player_id });
     }
 
     private async redrawClicked(cardIDs: number[]): Promise<void> {
@@ -97,6 +97,6 @@ export class SwapCards {
                 return;
         }
 
-        this.bga.actions.performAction('actRedrawCards_POWER10', { cardIDs: cardIDs.join(',') });
+        this.bga.actions.performAction('actRedrawCards_POWER10', { cardIDs: this.game.getCardIDsParam(cardIDs) });
     }
 }

@@ -424,6 +424,10 @@ export class Game {
     }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
 
+    //card ids for an action's comma-separated cardIDs param, sorted numerically so the request is the same whatever order
+    //they were clicked in (BGA tutorials compare the request's params)
+    public getCardIDsParam(cardIDs: number[]): string { return [...cardIDs].sort((a, b) => a - b).join(','); }
+
     //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that
     //player's color through --player-color. label is HTML (setTitle-style), e.g. the player's name in bold
     public addPlayerChoiceButton(playerID: number, label: string, callback: () => void, params: { id?: string; disabled?: boolean; } = {}): HTMLButtonElement {
