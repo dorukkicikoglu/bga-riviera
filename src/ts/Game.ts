@@ -100,9 +100,9 @@ export class Game {
 
         // Setting up player boards and played columns
         for(let player_id in gamedatas.players) {
-            const {name, color, player_no, hand_count, round_status, last_chance_used} = this.gamedatas.players[player_id];
+            const {name, color, player_no, hand_count, round_status, last_chance_used, score} = this.gamedatas.players[player_id];
             const playedCardsData = gamedatas.cardsPlayed[parseInt(player_id)] || [];
-            this.players[player_id] = new PlayerHandler(this, parseInt(player_id), name, color, player_no, hand_count, round_status, last_chance_used, playedCardsData);
+            this.players[player_id] = new PlayerHandler(this, parseInt(player_id), name, color, player_no, hand_count, round_status, last_chance_used, playedCardsData, Number(score));
         }
 
         //played columns follow turn order, starting with myself (playerorder starts with the current player)
@@ -350,6 +350,10 @@ export class Game {
     }
     public onScreenWidthChange(): void { //BGA's resize hook (window resize, including orientation changes); also fires once at load
         this.handHandler?.recomputeCardSpacingAfterResize();
+        for(let player_id in this.players){
+            this.players[player_id].updateLastChanceInset();
+            this.players[player_id].updateStartTokenPlace();
+        }
     }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }
@@ -408,6 +412,7 @@ export class Game {
         return colorNames[color];
     }
     public getPlayerColor(playerID: number): string { return this.gamedatas.players[playerID]?.color; }
+    public getWinningScore(): number { return this.gamedatas.winningScore; }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
 
     //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that
@@ -576,7 +581,7 @@ export class Game {
     }
 
     public async notif_grandSlam(args: ScoreChangedArgs) {
-        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+        this.players[args.player_id]?.setScore(args.score);
         this.players[args.player_id]?.setGrandSlam();
     }
 
@@ -603,7 +608,7 @@ export class Game {
     }
 
     public async notif_starsBanked(args: ScoreChangedArgs) {
-        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+        this.players[args.player_id]?.setScore(args.score);
     }
 
     //last turn's card-2 reservation and golden die expire after the reveal

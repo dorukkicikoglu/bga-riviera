@@ -869,7 +869,7 @@ PlayedColumnHandler.CLEAR_ANIM_TIME = 400;
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
 
 class PlayerHandler {
-    constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData) {
+    constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData, score) {
         this.game = game;
         this.playerID = playerID;
         this.playerName = playerName;
@@ -879,14 +879,16 @@ class PlayerHandler {
         this.roundStatus = roundStatus;
         this.lastChanceUsed = lastChanceUsed;
         this.playedCardsData = playedCardsData;
+        this.clippedScoreAncestors = []; //overflow made visible while the score beats
         this.createPlayerBoardContainer();
         this.setHandCount(this.handCount);
         this.setLastChanceUsed(this.lastChanceUsed);
+        this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, score >= this.game.getWinningScore()); //no animation on load
         this.playedColumn = new PlayedColumnHandler(this.game, this, this.playedCardsData);
         this.setRoundStatus(this.roundStatus);
     }
-    //every player board, spectators included, shows the hand count, Last Chance and round status. The Start token is not in
-    //this content: it sits on the top-left corner of the whole BGA player board (startTokenAnchor) and takes no layout space
+    //every player board, spectators included, shows the hand count, Last Chance and a crash. The Start token is not in this
+    //content: it is a badge on BGA's avatar (startTokenAnchor) and takes no layout space
     createPlayerBoardContainer() {
         this.playerBoardContainer = document.createElement('div');
         this.playerBoardContainer.classList.add('riviera-player-board');
@@ -894,6 +896,7 @@ class PlayerHandler {
             <div class="player-board-cards-row">
                 <div class="hand-count-backs"></div>
                 <div class="last-chance-indicator"></div>
+                <div class="stopped-stamp">${_('Stopped')}</div>
             </div>
             <div class="player-board-status-row">
                 <div class="round-status-indicator"></div>
@@ -901,14 +904,23 @@ class PlayerHandler {
         `;
         const playerPanel = this.game.bga.playerPanels.getElement(this.playerID);
         playerPanel.appendChild(this.playerBoardContainer);
+        this.cardsRow = this.playerBoardContainer.querySelector('.player-board-cards-row');
         this.handCountBacks = this.playerBoardContainer.querySelector('.hand-count-backs');
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
         this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
-        this.startTokenAnchor = playerPanel.closest('.player-board') ?? playerPanel; //BGA's whole board around our panel
-        this.startTokenAnchor.classList.add('start-token-anchor');
-        this.startTokenAnchor.addEventListener('animationend', (event) => {
-            if (event.target === this.startTokenAnchor && event.animationName === PlayerHandler.BOUNCE_CLASS)
-                this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        this.boardElement = playerPanel.closest('.player-board') ?? playerPanel; //BGA's whole board around our panel
+        this.boardElement.classList.add('positioned-player-board');
+        this.boardElement.addEventListener('animationend', (event) => {
+            if (event.target === this.boardElement && event.animationName === PlayerHandler.BOUNCE_CLASS)
+                this.boardElement.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        });
+        this.startTokenAnchor = this.createStartTokenAnchor();
+        this.updateStartTokenPlace();
+        this.scoreElement = document.getElementById('player_score_' + this.playerID); //BGA's score counter
+        this.scoreElement?.classList.add('player-score-counter');
+        this.scoreElement?.addEventListener('animationend', (event) => {
+            if (event.target === this.scoreElement && event.animationName === 'end-game-score-beats')
+                this.endEndGameScoreAnimation();
         });
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
@@ -916,6 +928,53 @@ class PlayerHandler {
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');
         this.lastChanceIndicator.prepend(lastChanceCard);
+    }
+    //the Start token is a badge on the bottom-right corner of BGA's avatar. Its anchor is BGA's .player_board_inner (positioned
+    //here if BGA leaves it static), never the avatar's wrapper: BGA hides #avatarwrap_<id> while the player is active and shows
+    //#avatar_active_wrap_<id> (the hourglass) in the same spot. With no .player_board_inner, the whole board
+    createStartTokenAnchor() {
+        const anchor = this.boardElement.querySelector('.player_board_inner') ?? this.boardElement;
+        if (getComputedStyle(anchor).position === 'static')
+            anchor.style.position = 'relative';
+        anchor.classList.add('start-token-anchor');
+        return anchor;
+    }
+    //where the avatar's bottom-right corner is in the anchor (--start-token-avatar-right / -bottom, in the anchor's px from its
+    //padding box), measured on whichever avatar wrapper is showing, the avatar or the hourglass. Game.scss places the token
+    //over that corner and clamps it inside the anchor. Both hidden (or not found): the last measurement stays, else the
+    //CSS fallback (the anchor's top-left inside corner)
+    updateStartTokenPlace() {
+        const avatarWrapper = ['avatarwrap_', 'avatar_active_wrap_']
+            .map(prefix => document.getElementById(prefix + this.playerID))
+            .find(element => element && this.startTokenAnchor.contains(element) && element.getBoundingClientRect().width > 0);
+        if (!avatarWrapper)
+            return;
+        const anchorRect = this.startTokenAnchor.getBoundingClientRect();
+        const cssWidth = parseFloat(getComputedStyle(this.startTokenAnchor).width); //unrounded, unlike offsetWidth
+        if (!(cssWidth > 0) || anchorRect.width <= 0)
+            return;
+        const zoom = anchorRect.width / cssWidth; //BGA scales the page on mobile
+        const avatarRect = avatarWrapper.getBoundingClientRect();
+        const right = (avatarRect.right - anchorRect.left) / zoom - this.startTokenAnchor.clientLeft;
+        const bottom = (avatarRect.bottom - anchorRect.top) / zoom - this.startTokenAnchor.clientTop;
+        this.startTokenAnchor.style.setProperty('--start-token-avatar-right', `${right}px`);
+        this.startTokenAnchor.style.setProperty('--start-token-avatar-bottom', `${bottom}px`);
+    }
+    //the Last Chance card keeps the same gap to the board's right edge as the card backs have to its left edge, which comes
+    //from BGA's own padding. Measured on screen, then turned into this board's px (BGA scales the page on mobile)
+    updateLastChanceInset() {
+        const boardRect = this.boardElement.getBoundingClientRect();
+        const rowRect = this.cardsRow.getBoundingClientRect();
+        const cssWidth = parseFloat(getComputedStyle(this.cardsRow).width); //unrounded, unlike offsetWidth
+        if (!(cssWidth > 0) || rowRect.width <= 0)
+            return;
+        const zoom = rowRect.width / cssWidth;
+        const currentMargin = parseFloat(getComputedStyle(this.lastChanceIndicator).marginRight) || 0; //inside the row, so it doesn't move rowRect
+        const leftInset = rowRect.left - boardRect.left;
+        const rightInset = boardRect.right - rowRect.right;
+        const margin = Math.max(0, (leftInset - rightInset) / zoom);
+        if (Math.abs(margin - currentMargin) > 0.5)
+            this.playerBoardContainer.style.setProperty('--last-chance-margin-right', `${margin}px`);
     }
     setHandCount(handCount) {
         this.handCount = handCount;
@@ -940,35 +999,72 @@ class PlayerHandler {
         }
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
     }
-    //card 10: the whole BGA player board (startTokenAnchor) bounces once a swap or redraw has landed. Nothing waits for it:
+    //card 10: the whole BGA player board (boardElement) bounces once a swap or redraw has landed. Nothing waits for it:
     //the class comes off by itself on animationend. No bounce in fast replay or a hidden tab
     bounceBoard() {
         if (!this.game.bga.gameui.bgaAnimationsActive())
             return;
-        this.startTokenAnchor.classList.remove(PlayerHandler.BOUNCE_CLASS);
-        void this.startTokenAnchor.offsetWidth; //restarts a bounce still playing
-        this.startTokenAnchor.classList.add(PlayerHandler.BOUNCE_CLASS);
+        this.boardElement.classList.remove(PlayerHandler.BOUNCE_CLASS);
+        void this.boardElement.offsetWidth; //restarts a bounce still playing
+        this.boardElement.classList.add(PlayerHandler.BOUNCE_CLASS);
     }
     //px the board is lifted by its bounce right now (0 at rest), so a measurement can be brought back to the resting place
     getBounceOffset() {
-        if (!this.startTokenAnchor.classList.contains(PlayerHandler.BOUNCE_CLASS))
+        if (!this.boardElement.classList.contains(PlayerHandler.BOUNCE_CLASS))
             return 0;
-        return parseFloat(getComputedStyle(this.startTokenAnchor).top) || 0;
+        return parseFloat(getComputedStyle(this.boardElement).top) || 0;
+    }
+    //every live score change goes through here: BGA's score counter, then the end-game highlight. Crossing WINNING_SCORE
+    //plays the two beats once (not in fast replay, a hidden tab or with reduced motion: then the red state alone)
+    setScore(score) {
+        const scoreCounter = this.game.bga.playerPanels.getScoreCounter(this.playerID);
+        const previousScore = scoreCounter?.getValue() ?? 0;
+        scoreCounter?.toValue(score);
+        const winningScore = this.game.getWinningScore();
+        const crossed = previousScore < winningScore && score >= winningScore;
+        const animate = crossed && this.scoreElement && this.game.bga.gameui.bgaAnimationsActive() && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate) {
+            this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, score >= winningScore);
+            return;
+        }
+        this.unclipScoreAncestors();
+        this.scoreElement.classList.remove(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
+        void this.scoreElement.offsetWidth;
+        this.scoreElement.classList.add(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
+    }
+    //the animation holds its last (red) frame until here, so the persistent class takes over in the same frame
+    endEndGameScoreAnimation() {
+        this.boardElement.classList.add(PlayerHandler.END_GAME_SCORE_CLASS);
+        this.scoreElement.classList.remove(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
+        this.restoreScoreAncestorsOverflow();
+    }
+    //the score grows to 1.8x for a moment: any ancestor up to the board that clips its overflow lets it show meanwhile
+    unclipScoreAncestors() {
+        this.restoreScoreAncestorsOverflow();
+        for (let element = this.scoreElement.parentElement; element; element = element.parentElement) {
+            if (getComputedStyle(element).overflow !== 'visible') {
+                this.clippedScoreAncestors.push({ element, overflow: element.style.overflow });
+                element.style.overflow = 'visible';
+            }
+            if (element === this.boardElement)
+                break;
+        }
+    }
+    restoreScoreAncestorsOverflow() {
+        this.clippedScoreAncestors.forEach(({ element, overflow }) => element.style.overflow = overflow);
+        this.clippedScoreAncestors = [];
     }
     setGrandSlam() {
         this.playerBoardContainer.classList.add('grand-slam-player-board');
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
+    //in: nothing shown. Stopped: the hand area greys out under the STOPPED stamp (cleared by the next round's 'in').
+    //Crashed: the "Crashed" line
     setRoundStatus(roundStatus) {
         this.roundStatus = roundStatus;
-        const roundStatusTexts = {
-            in: { icon: 'fa-play', text: _('In') },
-            stopped: { icon: 'fa-flag-checkered', text: _('Stopped') },
-            crashed: { icon: 'fa-bomb', text: _('Crashed') },
-        };
-        const { icon, text } = roundStatusTexts[roundStatus];
-        this.roundStatusIndicator.setAttribute('data-round-status', roundStatus);
-        this.roundStatusIndicator.innerHTML = `<i class="fa6 ${icon}"></i>&nbsp;${text}`;
+        this.playerBoardContainer.setAttribute('data-round-status', roundStatus);
+        this.boardElement.classList.toggle(PlayerHandler.STOPPED_CLASS, roundStatus === 'stopped');
+        this.roundStatusIndicator.innerHTML = (roundStatus === 'crashed') ? `<i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed')}` : '';
         this.playedColumn.setRoundStatus(roundStatus);
     }
     getPlayerID() { return this.playerID; }
@@ -991,6 +1087,9 @@ class PlayerHandler {
 PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS = 7; //above this, the hand count shows a single card back followed by "x N"
 PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME = 400;
 PlayerHandler.BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
+PlayerHandler.STOPPED_CLASS = 'stopped-player-board'; //greys out the hand area under the STOPPED stamp
+PlayerHandler.END_GAME_SCORE_CLASS = 'end-game-score-player-board'; //the score stays red and bold at WINNING_SCORE or more
+PlayerHandler.END_GAME_SCORE_ANIM_CLASS = 'end-game-score-reached'; //on the score counter, the one-shot two beats (Game.scss)
 
 //every card value with a power; Game.createCardDiv gives those cards the power-card-POWER<n> class (used by the log row tooltips)
 const POWER_CARD_VALUES = [1, 2, 9, 10, 11];
@@ -1198,8 +1297,6 @@ class TooltipHandler {
     getRoundStatusTooltipHTML() {
         return `
             <div class="round-status-tooltip">
-                <div><i class="fa6 fa-play"></i>&nbsp;${_('In: still playing this round')}</div>
-                <div><i class="fa6 fa-flag-checkered"></i>&nbsp;${_('Stopped: banks their stars at the end of the round')}</div>
                 <div><i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed: scores nothing this round')}</div>
             </div>
         `;
@@ -1544,7 +1641,7 @@ class StartTokenHandler {
         if (startTokenAnchor)
             startTokenAnchor.appendChild(this.startToken);
     }
-    //the token flies from its current player board's corner to playerID's on a position:fixed copy, so it shows wherever
+    //the token flies from its current player board's avatar corner to playerID's on a position:fixed copy, so it shows wherever
     //the page is scrolled: one Web Animations API animation over the whole curved path, the lift and the landing each eased
     //in and out, with a hold at the peak between them. Resolves when the copy has landed and the real token shows on the new board.
     //Movement, rotation and size each have their own CSS property (translate, rotate, scale), on the token and on its copy
@@ -1667,8 +1764,8 @@ class StartTokenHandler {
         const margin = liftHeight / 2 + StartTokenHandler.VIEWPORT_MARGIN;
         const clamp = (value, max) => Math.min(Math.max(value, margin), Math.max(margin, max - margin));
         if (this.areBoardsBesideGameArea(sourceAnchor)) { //out of the boards column, toward the game area
-            const sourceRect = sourceAnchor.getBoundingClientRect();
-            const targetRect = targetAnchor.getBoundingClientRect();
+            const sourceRect = this.getBoard(sourceAnchor).getBoundingClientRect();
+            const targetRect = this.getBoard(targetAnchor).getBoundingClientRect();
             const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
             const x = (sourceRect.left >= gameAreaRect.left)
                 ? Math.min(sourceRect.left, targetRect.left) - StartTokenHandler.DESKTOP_LIFT_DISTANCE
@@ -1680,10 +1777,12 @@ class StartTokenHandler {
     //decided by where the boards are, not by the screen width: beside the game area (desktop) when they don't share any
     //horizontal range with it, above it (mobile) otherwise
     areBoardsBesideGameArea(anchor) {
-        const boardRect = anchor.getBoundingClientRect();
+        const boardRect = this.getBoard(anchor).getBoundingClientRect();
         const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
         return boardRect.left >= gameAreaRect.right - 1 || boardRect.right <= gameAreaRect.left + 1;
     }
+    //the whole BGA player board around a token anchor (the avatar's wrapper, or the board itself)
+    getBoard(anchor) { return anchor.closest('.player-board') ?? anchor; }
     //the token's on-screen box without its tilt (a rotated box measures bigger); its center is the same either way
     getUntiltedRect() {
         this.startToken.style.rotate = 'none';
@@ -1725,9 +1824,9 @@ StartTokenHandler.VIEWPORT_MARGIN = 10; //px the lifted token keeps from the vie
 StartTokenHandler.MIN_CURVE_SPAN = 120; //px, the least the path swings through the lift point, so boards right next to each other still get a curve
 StartTokenHandler.KEYFRAMES_PER_PHASE = 24; //points sampled along each phase for the animation's keyframes (a fixed count, computed once per pass)
 StartTokenHandler.FINISH_SAFETY_MARGIN = 300; //ms after the flight's duration at which the pass ends anyway, should the animation never report finished
-//the token's layers, bottom to top: the stroke in its owner's color, the pawn (see .start-token in Game.scss).
-//Shared with the mini token in log rows
-StartTokenHandler.LAYERS_HTML = '<div class="start-token-outline"></div><div class="start-token-pawn"></div>';
+//the token's layers, bottom to top: its drop shadow, the stroke in its owner's color, the pawn (see .start-token in
+//Game.scss). Shared with the mini token in log rows, which hides the shadow
+StartTokenHandler.LAYERS_HTML = '<div class="start-token-shadow"></div><div class="start-token-outline"></div><div class="start-token-pawn"></div>';
 
 class LogMutationObserver {
     constructor(game) {
@@ -2267,7 +2366,7 @@ class EndGameScoringHandler {
             const totalCell = this.tbody.querySelector(`.cell-total[player-id="${player_id}"]`);
             if (totalCell)
                 totalCell.textContent = score.toString();
-            this.game.bga.playerPanels.getScoreCounter(parseInt(player_id))?.toValue(score);
+            this.game.players[player_id]?.setScore(score);
         }
     }
     isInstantFadeIn() { return this.game.getGameStateName() === 'gameEnd'; }
@@ -2355,9 +2454,9 @@ class Game {
         this.endGameScoringHandler = new EndGameScoringHandler(this);
         // Setting up player boards and played columns
         for (let player_id in gamedatas.players) {
-            const { name, color, player_no, hand_count, round_status, last_chance_used } = this.gamedatas.players[player_id];
+            const { name, color, player_no, hand_count, round_status, last_chance_used, score } = this.gamedatas.players[player_id];
             const playedCardsData = gamedatas.cardsPlayed[parseInt(player_id)] || [];
-            this.players[player_id] = new PlayerHandler(this, parseInt(player_id), name, color, player_no, hand_count, round_status, last_chance_used, playedCardsData);
+            this.players[player_id] = new PlayerHandler(this, parseInt(player_id), name, color, player_no, hand_count, round_status, last_chance_used, playedCardsData, Number(score));
         }
         //played columns follow turn order, starting with myself (playerorder starts with the current player)
         for (let next_player_id of gamedatas.playerorder) {
@@ -2574,6 +2673,10 @@ class Game {
     }
     onScreenWidthChange() {
         this.handHandler?.recomputeCardSpacingAfterResize();
+        for (let player_id in this.players) {
+            this.players[player_id].updateLastChanceInset();
+            this.players[player_id].updateStartTokenPlace();
+        }
     }
     isDesktop() { return document.body.classList.contains('desktop_version'); }
     isMobile() { return document.body.classList.contains('mobile_version'); }
@@ -2626,6 +2729,7 @@ class Game {
         return colorNames[color];
     }
     getPlayerColor(playerID) { return this.gamedatas.players[playerID]?.color; }
+    getWinningScore() { return this.gamedatas.winningScore; }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
     //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that
     //player's color through --player-color. label is HTML (setTitle-style), e.g. the player's name in bold
@@ -2765,7 +2869,7 @@ class Game {
         player.setRoundStatus('crashed');
     }
     async notif_grandSlam(args) {
-        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+        this.players[args.player_id]?.setScore(args.score);
         this.players[args.player_id]?.setGrandSlam();
     }
     //the flight doesn't block: the card 2 and 11 notifications (no animation) and the roll play while it flies, and
@@ -2787,7 +2891,7 @@ class Game {
         }
     }
     async notif_starsBanked(args) {
-        this.bga.playerPanels.getScoreCounter(args.player_id).toValue(args.score);
+        this.players[args.player_id]?.setScore(args.score);
     }
     //last turn's card-2 reservation and golden die expire after the reveal
     async notif_diceUpdated(args) {

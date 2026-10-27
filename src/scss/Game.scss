@@ -21,6 +21,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --card-width: min(6vw, 110px);
     --die-size: #{$die-size};
     --log-card-icon-size: 32px; //the circular card icons in every log row (.log-card-icons)
+    --end-game-score-color: #c62828; //a player board score at WINNING_SCORE or more (PlayerHandler.setScore)
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
 	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
@@ -331,7 +332,10 @@ body.current_player_is_active:not(.lockedInterface){
 
 //player board
 .riviera-player-board{ margin-top: 6px;
-    .player-board-cards-row{ display: flex; align-items: center; justify-content: space-between; min-height: 34px;
+    //the hand area. --last-chance-margin-right (PlayerHandler.updateLastChanceInset) gives the Last Chance card the same
+    //gap to the board's right edge as the card backs have to its left edge
+    .player-board-cards-row{ position: relative; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 34px;
+        .hand-count-backs, .last-chance-indicator{ transition: opacity 0.3s ease, filter 0.3s ease; }
         .hand-count-backs{ display: flex; align-items: center;
             //top-aligned, so every 2nd back sits 4px lower (a centered flex item would only move half its margin)
             .a-card.mini-card-back{ --my-card-width: 20px; box-shadow: 1px 1px 2px #000000; align-self: flex-start; outline: 1px solid #a9a9a9; border-radius: 8%;
@@ -341,20 +345,37 @@ body.current_player_is_active:not(.lockedInterface){
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
         //a used Last Chance card disappears; live, it shrinks and fades out first (PlayerHandler.setLastChanceUsed)
-        .last-chance-indicator{ position: relative; display: flex; align-items: center;
-            .a-card.mini-card{ --my-card-width: 22px; box-shadow: 1px 1px 2px #000000; transition: transform 0.4s ease, opacity 0.4s ease; }
+        .last-chance-indicator{ position: relative; display: flex; align-items: center; flex-shrink: 0; margin-right: var(--last-chance-margin-right, 0px);
+            .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; transition: transform 0.4s ease, opacity 0.4s ease; }
             &.last-chance-fading .a-card.mini-card{ transform: scale(0); opacity: 0; }
             &[data-used="true"]{ display: none; }
         }
-    }
-    .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px;
-        .round-status-indicator{ font-size: 13px; white-space: nowrap;
-            &[data-round-status="in"] i{ color: #2e8b2e; }
-            &[data-round-status="stopped"] i{ color: #1c4f72; }
-            &[data-round-status="crashed"]{ color: #a00000; }
+        //shown over the hand area while the player is stopped (.stopped-player-board below)
+        .stopped-stamp{ position: absolute; left: 50%; top: 50%; translate: -50% -50%; rotate: -8deg; z-index: 1; pointer-events: none; max-width: 100%; box-sizing: border-box;
+            padding: 1px 7px; border: 2px solid #1c4f72; border-radius: 4px; background-color: rgba(255, 255, 255, 0.7); color: #1c4f72;
+            font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s;
         }
     }
+    //only a crash shows a line: in and stopped have none (a stop greys out the hand area instead)
+    &:not([data-round-status="crashed"]) .player-board-status-row{ display: none; }
+    .player-board-status-row{ display: flex; align-items: center; justify-content: space-between; margin-top: 6px;
+        .round-status-indicator{ font-size: 13px; white-space: nowrap; color: #a00000; }
+    }
 }
+
+//PlayerHandler.boardElement, BGA's whole .player-board: positioned for the card 10 bounce (which animates top)
+.positioned-player-board{ position: relative; }
+//a stopped player: the hand area greys out under the STOPPED stamp; the name, avatar, flag and score stay as they are
+.stopped-player-board .riviera-player-board .player-board-cards-row{
+    .hand-count-backs, .last-chance-indicator{ opacity: 0.45; filter: grayscale(1); }
+    .stopped-stamp{ opacity: 1; visibility: visible; }
+}
+//BGA's score counter (marked .player-score-counter by PlayerHandler), inline-block so it can scale. At WINNING_SCORE or
+//more it stays red and bold; crossing it live plays end-game-score-beats once (.end-game-score-reached, removed on animationend)
+.player-score-counter{ display: inline-block; transform-origin: 50% 50%; }
+.end-game-score-player-board .player-score-counter{ color: var(--end-game-score-color); font-weight: bold; }
+.player-score-counter.end-game-score-reached{ font-weight: bold; animation: end-game-score-beats 1.2s ease-in-out forwards; }
 
 .riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
 
@@ -381,15 +402,21 @@ $start-token-ring-shifts: (1: 16, 0.5: 8); //share of the ring's radius: number 
 }
 $start-token-masks: start-token-ring-masks();
 
-.start-token{ position: relative; box-sizing: border-box; width: 34px; height: 34px;
-    --start-token-outline-width: 3.5px; //the stroke in the owner's color
+$start-token-size: 24px; //the token on its board, a badge on the avatar's corner
+.start-token{ position: relative; box-sizing: border-box; width: $start-token-size; height: $start-token-size;
+    --start-token-outline-width: #{$start-token-size * math.div(3.5, 34)}; //the stroke in the owner's color, 3.5px : 34px
     //the log rows' token, as big as their circular card icons; the stroke keeps the board token's 3.5px : 34px ratio
     &.mini-start-token{ --mini-start-token-size: var(--log-card-icon-size); display: inline-block; vertical-align: middle; width: var(--mini-start-token-size); height: var(--mini-start-token-size);
         --start-token-outline-width: calc(var(--mini-start-token-size) * 3.5 / 34);
     }
 
     .start-token-pawn{ position: absolute; inset: 0; background: var(--image-source-start-token) center / contain no-repeat; }
-    .start-token-outline{ --ring-radius: var(--start-token-outline-width); position: absolute; inset: calc(-1 * var(--ring-radius)); pointer-events: none; background-color: var(--start-token-color, #000000);
+    //the drop shadow is the outlined silhouette again, dark and shifted down-right, under the stroke (no filter: see above).
+    //Not on the mini token in log rows
+    .start-token-shadow{ background-color: rgba(0, 0, 0, 0.4); translate: 0.5px 1.5px; }
+    &.mini-start-token .start-token-shadow{ display: none; }
+    .start-token-outline{ background-color: var(--start-token-color, #000000); }
+    .start-token-shadow, .start-token-outline{ --ring-radius: var(--start-token-outline-width); position: absolute; inset: calc(-1 * var(--ring-radius)); pointer-events: none;
         //each copy of the silhouette is the pawn's size: as tall as the token (the portrait pawn fills its height), aspect kept
         -webkit-mask-image: map.get($start-token-masks, images); mask-image: map.get($start-token-masks, images);
         -webkit-mask-position: map.get($start-token-masks, positions); mask-position: map.get($start-token-masks, positions);
@@ -402,13 +429,19 @@ $start-token-masks: start-token-ring-masks();
 //z-index 948 is BGA's fixed status bar's: appended to <body> later, the copy passes over the bar, the dice and the boards,
 //and stays under BGA's popins (949, 950), dialogs (998, 999), chat bar and tooltips (2000)
 body .start-token.flying-start-token{ position: fixed; left: 0px; top: 0px; margin: 0; z-index: 948; pointer-events: none; transform: none; transform-origin: 50% 50%; will-change: translate, rotate, scale; }
-//.start-token-anchor (BGA's .player-board) is positioned without a z-index, so the token's 10 counts in the root stacking
-//context: above the dice area and the rolling dice (5), under the end-game table (100) and everything of BGA's above it
-.start-token-anchor{ position: relative;
-    > #start-token{ position: absolute; top: -2px; left: -15px; z-index: 10; }
+//.start-token-anchor is BGA's .player_board_inner (positioned by PlayerHandler if BGA leaves it static), which holds both
+//avatar wrappers (the avatar, and the hourglass while the player is active) in the same spot and is never hidden. The token
+//overlaps the avatar's bottom-right corner (measured by PlayerHandler.updateStartTokenPlace), 3/4 of it over the avatar,
+//clamped inside the anchor so it never leaves the board; unmeasured, it sits in the anchor's top-left inside corner.
+//No z-index on the way up to the root stacking context, so the token's 10 counts there: above the avatar and the hourglass,
+//the dice area and the rolling dice (5), under the end-game table (100) and everything of BGA's above it
+$start-token-avatar-overlap: $start-token-size * 0.75;
+.start-token-anchor > #start-token{ position: absolute; z-index: 10;
+    left: clamp(0px, calc(var(--start-token-avatar-right, #{$start-token-avatar-overlap + 3px}) - #{$start-token-avatar-overlap}), calc(100% - #{$start-token-size}));
+    top: clamp(0px, calc(var(--start-token-avatar-bottom, #{$start-token-avatar-overlap + 3px}) - #{$start-token-avatar-overlap}), calc(100% - #{$start-token-size}));
 }
 //the one shared player board bounce (card 10 swap or redraw, PlayerHandler.bounceBoard, which removes the class on
-//animationend). Every bounce uses this class and this exact timing. position: relative comes from .start-token-anchor
+//animationend). Every bounce uses this class and this exact timing. position: relative comes from .positioned-player-board
 .bouncing-player-board{ animation: bouncing-player-board 0.175s ease-in-out 2; }
 //end player board
 
@@ -659,9 +692,6 @@ $power-icons: (
 //centered on the text like it. The card icon's 3px right margin plus 2px makes the gap
 .status-card-icon + .power-icon{ float: none; display: inline-block; vertical-align: middle; margin: 0px 3px 0px 2px; @include power-icon-size($status-card-icon-size); }
 
-.round-status-tooltip div + div{ margin-top: 3px; }
-.round-status-tooltip .fa-play{ color: #2e8b2e; }
-.round-status-tooltip .fa-flag-checkered{ color: #1c4f72; }
 .round-status-tooltip .fa-bomb{ color: #a00000; }
 //Safari on mobile gets the power reference at the bottom of the page instead of tooltips
 .safari-mobile-power-reference-container{ display: none; }
@@ -688,6 +718,15 @@ $power-icons: (
   0% { top: 0px; }
   50% { top: -5px; }
   100% { top: 0px; }
+}
+
+//two beats: up to 1.8x while turning red, a short hold, back to 1x, twice
+@keyframes end-game-score-beats {
+  0% { scale: 1; }
+  15%, 30% { scale: 1.8; color: var(--end-game-score-color); }
+  45%, 55% { scale: 1; color: var(--end-game-score-color); }
+  70%, 85% { scale: 1.8; color: var(--end-game-score-color); }
+  100% { scale: 1; color: var(--end-game-score-color); }
 }
 
 @keyframes card-fade-in {

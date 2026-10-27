@@ -148,6 +148,7 @@ class Game extends \Bga\GameFramework\Table
         $result['roundNumber'] = (int) $this->bga->globals->get('roundNumber');
         $result['cardColors'] = CARD_COLORS;
         $result['starsByValue'] = STARS_BY_VALUE;
+        $result['winningScore'] = WINNING_SCORE;
         $result['pref_names'] = $this->userPrefs;
         $result['grandSlamPlayerIds'] = $this->tableManager->getGrandSlamPlayerIDs();
 

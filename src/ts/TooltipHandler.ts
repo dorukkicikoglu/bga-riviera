@@ -250,8 +250,6 @@ export class TooltipHandler{
     private getRoundStatusTooltipHTML(): string {
         return `
             <div class="round-status-tooltip">
-                <div><i class="fa6 fa-play"></i>&nbsp;${_('In: still playing this round')}</div>
-                <div><i class="fa6 fa-flag-checkered"></i>&nbsp;${_('Stopped: banks their stars at the end of the round')}</div>
                 <div><i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed: scores nothing this round')}</div>
             </div>
         `;

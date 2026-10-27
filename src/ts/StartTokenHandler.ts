@@ -33,9 +33,9 @@ export class StartTokenHandler{
 
     private startToken: HTMLDivElement;
 
-    //the token's layers, bottom to top: the stroke in its owner's color, the pawn (see .start-token in Game.scss).
-    //Shared with the mini token in log rows
-    public static readonly LAYERS_HTML = '<div class="start-token-outline"></div><div class="start-token-pawn"></div>';
+    //the token's layers, bottom to top: its drop shadow, the stroke in its owner's color, the pawn (see .start-token in
+    //Game.scss). Shared with the mini token in log rows, which hides the shadow
+    public static readonly LAYERS_HTML = '<div class="start-token-shadow"></div><div class="start-token-outline"></div><div class="start-token-pawn"></div>';
 
     constructor(private game: Game, private startPlayerID: number) {
         this.startToken = document.createElement('div');
@@ -50,7 +50,7 @@ export class StartTokenHandler{
             startTokenAnchor.appendChild(this.startToken);
 	}
 
-    //the token flies from its current player board's corner to playerID's on a position:fixed copy, so it shows wherever
+    //the token flies from its current player board's avatar corner to playerID's on a position:fixed copy, so it shows wherever
     //the page is scrolled: one Web Animations API animation over the whole curved path, the lift and the landing each eased
     //in and out, with a hold at the peak between them. Resolves when the copy has landed and the real token shows on the new board.
     //Movement, rotation and size each have their own CSS property (translate, rotate, scale), on the token and on its copy
@@ -65,7 +65,7 @@ export class StartTokenHandler{
         const toColor = this.getPlayerColorCSS(playerID);
         this.startPlayerID = playerID;
 
-        const sourceAnchor = this.startToken.parentElement as HTMLDivElement | null;
+        const sourceAnchor = this.startToken.parentElement;
         if(sourceAnchor === targetAnchor)
             return;
 
@@ -188,13 +188,13 @@ export class StartTokenHandler{
     }
 
     //where the token lifts to, in viewport coordinates, so the lift shows even when the boards are scrolled out of view
-    private getLiftPoint(sourceAnchor: HTMLDivElement, targetAnchor: HTMLDivElement, from: ScreenPoint, to: ScreenPoint, liftHeight: number): ScreenPoint {
+    private getLiftPoint(sourceAnchor: HTMLElement, targetAnchor: HTMLElement, from: ScreenPoint, to: ScreenPoint, liftHeight: number): ScreenPoint {
         const margin = liftHeight / 2 + StartTokenHandler.VIEWPORT_MARGIN;
         const clamp = (value: number, max: number): number => Math.min(Math.max(value, margin), Math.max(margin, max - margin));
 
         if(this.areBoardsBesideGameArea(sourceAnchor)){ //out of the boards column, toward the game area
-            const sourceRect = sourceAnchor.getBoundingClientRect();
-            const targetRect = targetAnchor.getBoundingClientRect();
+            const sourceRect = this.getBoard(sourceAnchor).getBoundingClientRect();
+            const targetRect = this.getBoard(targetAnchor).getBoundingClientRect();
             const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
             const x = (sourceRect.left >= gameAreaRect.left)
                 ? Math.min(sourceRect.left, targetRect.left) - StartTokenHandler.DESKTOP_LIFT_DISTANCE
@@ -207,11 +207,14 @@ export class StartTokenHandler{
 
     //decided by where the boards are, not by the screen width: beside the game area (desktop) when they don't share any
     //horizontal range with it, above it (mobile) otherwise
-    private areBoardsBesideGameArea(anchor: HTMLDivElement): boolean {
-        const boardRect = anchor.getBoundingClientRect();
+    private areBoardsBesideGameArea(anchor: HTMLElement): boolean {
+        const boardRect = this.getBoard(anchor).getBoundingClientRect();
         const gameAreaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
         return boardRect.left >= gameAreaRect.right - 1 || boardRect.right <= gameAreaRect.left + 1;
     }
+
+    //the whole BGA player board around a token anchor (the avatar's wrapper, or the board itself)
+    private getBoard(anchor: HTMLElement): HTMLElement { return (anchor.closest('.player-board') as HTMLElement) ?? anchor; }
 
     //the token's on-screen box without its tilt (a rotated box measures bigger); its center is the same either way
     private getUntiltedRect(): DOMRect {

@@ -255,7 +255,7 @@ export class EndGameScoringHandler{
             if(totalCell)
                 totalCell.textContent = score.toString();
 
-            this.game.bga.playerPanels.getScoreCounter(parseInt(player_id))?.toValue(score);
+            this.game.players[player_id]?.setScore(score);
         }
     }
 

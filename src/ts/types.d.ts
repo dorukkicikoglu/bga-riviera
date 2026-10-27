@@ -27,6 +27,7 @@ interface RivieraGamedatas extends Gamedatas<RivieraPlayer> {
     roundNumber: number;
     cardColors: Record<number, CardColor>;
     starsByValue: Record<number, number>;
+    winningScore: number;
     pref_names: GamePrefs;
     grandSlamPlayerIds: number[];
     endGameScoring?: EndGameScoreData;
