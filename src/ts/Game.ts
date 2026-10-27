@@ -14,6 +14,7 @@ import { StopOrMore } from "./States/StopOrMore";
 import { ModifyDie } from "./States/ModifyDie";
 import { ResolvePowers } from "./States/ResolvePowers";
 import { SwapCards } from "./States/SwapCards";
+import { GameEnd } from "./States/GameEnd";
 import { PlayerHandler } from "./PlayerHandler";
 import { HandHandler } from "./HandHandler";
 import { DiceHandler } from "./DiceHandler";
@@ -65,6 +66,7 @@ export class Game {
         this.bga.states.register('ResolvePowers', this.resolvePowers);
         this.swapCards = new SwapCards(this, bga);
         this.bga.states.register('SwapCards', this.swapCards);
+        this.bga.states.register('gameEnd', new GameEnd(this, bga));
 
         // Uncomment the next line to show debug informations about state changes in the console. Remove before going to production!
         // this.bga.states.logger = console.log;
@@ -353,6 +355,7 @@ export class Game {
         for(let player_id in this.players){
             this.players[player_id].updateLastChanceInset();
             this.players[player_id].updateStartTokenPlace();
+            this.players[player_id].updateEndGameScoreHighlight(); //after BGA has finished laying out the player panels
         }
     }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
@@ -413,6 +416,12 @@ export class Game {
     }
     public getPlayerColor(playerID: number): string { return this.gamedatas.players[playerID]?.color; }
     public getWinningScore(): number { return this.gamedatas.winningScore; }
+    //BGA's final state, or the end-game table already shown (it arrives in EndScore, just before gameEnd)
+    public isGameOver(): boolean { return this.getGameStateName() === 'gameEnd' || !!this.endGameScoringHandler?.isDisplayed(); }
+    public updateEndGameScoreHighlights(): void {
+        for(let player_id in this.players)
+            this.players[player_id].updateEndGameScoreHighlight();
+    }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
 
     //a status bar button that picks a player: BGA's secondary button with the .player-choice-button look, ringed in that

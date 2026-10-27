@@ -40,6 +40,7 @@ export class EndGameScoringHandler{
         this.winner_ids = endGameScoring.winner_ids;
 
         this.scoreContainer = document.createElement('div');
+        this.game.updateEndGameScoreHighlights(); //the game is over (isDisplayed): every score back to BGA's default look
         this.scoreContainer.classList.add('end-game-score-container');
         this.scoreContainer.style.opacity = '0';
         this.scoreContainer.innerHTML = `
@@ -260,4 +261,5 @@ export class EndGameScoringHandler{
     }
 
     private isInstantFadeIn(): boolean { return this.game.getGameStateName() === 'gameEnd'; }
+    public isDisplayed(): boolean { return !!this.scoreContainer; }
 }

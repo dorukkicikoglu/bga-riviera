@@ -18,7 +18,8 @@ export class PlayerHandler{
     private static readonly BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
     private static readonly STOPPED_CLASS = 'stopped-player-board'; //greys out the hand area under the STOPPED stamp
     private static readonly END_GAME_SCORE_CLASS = 'end-game-score-player-board'; //the score stays red and bold at WINNING_SCORE or more
-    private static readonly END_GAME_SCORE_ANIM_CLASS = 'end-game-score-reached'; //on the score counter, the one-shot two beats (Game.scss)
+    private static readonly END_GAME_SCORE_INTRO_CLASS = 'end-game-score-intro'; //on the score counter: the two big beats when the score crosses WINNING_SCORE, once (Game.scss)
+    private static readonly END_GAME_SCORE_LOOP_CLASS = 'end-game-score-loop'; //on the score counter: the gentle pulse after the intro, until the game ends
 
     private playerBoardContainer: HTMLDivElement;
     private cardsRow: HTMLDivElement;
@@ -26,16 +27,16 @@ export class PlayerHandler{
     private lastChanceIndicator: HTMLDivElement;
     private boardElement: HTMLDivElement;
     private startTokenAnchor: HTMLElement;
-    private scoreElement: HTMLElement | null;
-    private clippedScoreAncestors: { element: HTMLElement; overflow: string; }[] = []; //overflow made visible while the score beats
+    private scoreElement: HTMLElement | null = null; //BGA's score counter span, through getScoreElement()
+    private clippedScoreAncestors: { element: HTMLElement; overflow: string; }[] = []; //overflow made visible while the score scales
     private playedColumn: PlayedColumnHandler;
 
-	constructor(private game: Game, private playerID: number, private playerName: string, private playerColor: string, private playerNo: number, private handCount: number, private roundStatus: RoundStatus, private lastChanceUsed: boolean, private playedCardsData: PlayedCard[], score: number) {
+	constructor(private game: Game, private playerID: number, private playerName: string, private playerColor: string, private playerNo: number, private handCount: number, private roundStatus: RoundStatus, private lastChanceUsed: boolean, private playedCardsData: PlayedCard[], private score: number) {
         this.createPlayerBoardContainer();
 
         this.setHandCount(this.handCount);
         this.setLastChanceUsed(this.lastChanceUsed);
-        this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, score >= this.game.getWinningScore()); //no animation on load
+        this.updateEndGameScoreHighlight(); //on load: no intro, straight to the loop (nothing once the game is over)
 
         this.playedColumn = new PlayedColumnHandler(this.game, this, this.playedCardsData);
         this.setRoundStatus(this.roundStatus);
@@ -70,13 +71,6 @@ export class PlayerHandler{
         });
         this.startTokenAnchor = this.createStartTokenAnchor();
         this.updateStartTokenPlace();
-
-        this.scoreElement = document.getElementById('player_score_' + this.playerID); //BGA's score counter
-        this.scoreElement?.classList.add('player-score-counter');
-        this.scoreElement?.addEventListener('animationend', (event: AnimationEvent) => {
-            if(event.target === this.scoreElement && event.animationName === 'end-game-score-beats')
-                this.endEndGameScoreAnimation();
-        });
 
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
@@ -187,37 +181,84 @@ export class PlayerHandler{
     }
 
     //every live score change goes through here: BGA's score counter, then the end-game highlight. Crossing WINNING_SCORE
-    //plays the two beats once (not in fast replay, a hidden tab or with reduced motion: then the red state alone)
+    //during play plays the intro (two big beats) before the loop; in fast replay or a hidden tab, straight to the loop.
+    //Once the game is over (the final scores, a Grand Slam's score), no intro: updateEndGameScoreHighlight clears everything
     public setScore(score: number): void {
-        const scoreCounter = this.game.bga.playerPanels.getScoreCounter(this.playerID);
-        const previousScore = scoreCounter?.getValue() ?? 0;
-        scoreCounter?.toValue(score);
+        const previousScore = this.score;
+        this.score = score;
+        this.game.bga.playerPanels.getScoreCounter(this.playerID)?.toValue(score);
 
         const winningScore = this.game.getWinningScore();
         const crossed = previousScore < winningScore && score >= winningScore;
-        const animate = crossed && this.scoreElement && this.game.bga.gameui.bgaAnimationsActive() && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if(!animate){
-            this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, score >= winningScore);
+        if(crossed && this.getEndGameScoreHighlight() === 'loop' && this.game.bga.gameui.bgaAnimationsActive())
+            this.applyScoreHighlight('intro');
+        else this.updateEndGameScoreHighlight();
+    }
+
+    //the one place that decides the score's end-game look, from the score and the game's progress. Safe to call any time
+    //(setup, score changes, BGA's layout hooks, the game end): a running intro or loop is never restarted, and an intro
+    //still playing during the game is left to finish (its animationend brings the loop)
+    public updateEndGameScoreHighlight(): void {
+        const highlight = this.getEndGameScoreHighlight();
+        if(highlight === 'loop' && this.getScoreElement()?.classList.contains(PlayerHandler.END_GAME_SCORE_INTRO_CLASS))
             return;
+        this.applyScoreHighlight(highlight);
+    }
+
+    //game over: BGA's default look, whatever the score. Below WINNING_SCORE: nothing. At it or more: the gentle loop, or
+    //just red and bold with reduced motion
+    private getEndGameScoreHighlight(): 'none' | 'static' | 'loop' {
+        if(this.game.isGameOver() || this.score < this.game.getWinningScore())
+            return 'none';
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'static' : 'loop';
+    }
+
+    //one state at a time, so the intro and the loop never run together. 'static' is red and bold (the board's
+    //END_GAME_SCORE_CLASS); the loop adds the gentle pulse to it; the intro turns the score red itself and the board class
+    //only comes with the loop. Ancestors that clip stay unclipped while the score scales
+    private applyScoreHighlight(highlight: 'none' | 'static' | 'intro' | 'loop'): void {
+        this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, highlight === 'static' || highlight === 'loop');
+        const scoreElement = this.getScoreElement();
+        if(!scoreElement)
+            return;
+
+        const animationClass = (highlight === 'intro') ? PlayerHandler.END_GAME_SCORE_INTRO_CLASS : (highlight === 'loop') ? PlayerHandler.END_GAME_SCORE_LOOP_CLASS : null;
+        if(animationClass && scoreElement.classList.contains(animationClass))
+            return; //already running: never restarted
+
+        scoreElement.classList.remove(PlayerHandler.END_GAME_SCORE_INTRO_CLASS, PlayerHandler.END_GAME_SCORE_LOOP_CLASS);
+        if(animationClass){
+            void scoreElement.offsetWidth; //a fresh start for the new animation
+            scoreElement.classList.add(animationClass);
+            this.unclipScoreAncestors(scoreElement);
         }
-
-        this.unclipScoreAncestors();
-        this.scoreElement.classList.remove(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
-        void this.scoreElement.offsetWidth;
-        this.scoreElement.classList.add(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
+        else this.restoreScoreAncestorsOverflow();
     }
 
-    //the animation holds its last (red) frame until here, so the persistent class takes over in the same frame
-    private endEndGameScoreAnimation(): void {
-        this.boardElement.classList.add(PlayerHandler.END_GAME_SCORE_CLASS);
-        this.scoreElement.classList.remove(PlayerHandler.END_GAME_SCORE_ANIM_CLASS);
-        this.restoreScoreAncestorsOverflow();
+    //BGA's score counter span, marked .player-score-counter for Game.scss. Looked up again whenever the one we hold has
+    //left the page, so the highlight always lands on the span BGA shows
+    private getScoreElement(): HTMLElement | null {
+        if(this.scoreElement?.isConnected)
+            return this.scoreElement;
+
+        this.scoreElement = document.getElementById('player_score_' + this.playerID);
+        this.scoreElement?.classList.add('player-score-counter');
+        this.scoreElement?.addEventListener('animationend', (event: AnimationEvent) => {
+            if(event.target !== event.currentTarget || event.animationName !== 'end-game-score-beats')
+                return;
+            (event.currentTarget as HTMLElement).classList.remove(PlayerHandler.END_GAME_SCORE_INTRO_CLASS); //the intro held its red last frame until here
+            this.updateEndGameScoreHighlight();
+        });
+        return this.scoreElement;
     }
 
-    //the score grows to 1.8x for a moment: any ancestor up to the board that clips its overflow lets it show meanwhile
-    private unclipScoreAncestors(): void {
+    //the score grows to 1.8x in the intro and the loop alike: any ancestor up to the board that clips its overflow lets it show meanwhile
+    private unclipScoreAncestors(scoreElement: HTMLElement): void {
         this.restoreScoreAncestorsOverflow();
-        for(let element = this.scoreElement.parentElement; element; element = element.parentElement){
+        if(!this.boardElement.contains(scoreElement)) //never walk past the board
+            return;
+
+        for(let element = scoreElement.parentElement; element; element = element.parentElement){
             if(getComputedStyle(element).overflow !== 'visible'){
                 this.clippedScoreAncestors.push({ element, overflow: element.style.overflow });
                 element.style.overflow = 'visible';

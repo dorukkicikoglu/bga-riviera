@@ -384,10 +384,15 @@ body.current_player_is_active:not(.lockedInterface){
     .hand-count-backs, .last-chance-indicator{ opacity: 0.45; filter: grayscale(1); }
 }
 //BGA's score counter (marked .player-score-counter by PlayerHandler), inline-block so it can scale. At WINNING_SCORE or
-//more it stays red and bold; crossing it live plays end-game-score-beats once (.end-game-score-reached, removed on animationend)
+//more it stays red and bold. Crossing it live plays the intro, end-game-score-beats once (.end-game-score-intro), then, on its
+//animationend, the gentle loop (.end-game-score-loop) while the game goes on; on load, the loop alone; once the game is over,
+//none of these classes. PlayerHandler.applyScoreHighlight swaps one class for the other, so they never run together. scale
+//never moves the layout: the grown score paints over its neighbours (the star) without pushing them
+$end-game-score-peak-scale: 1.8; //the score's size at the top of every intro beat and every loop pulse
 .player-score-counter{ display: inline-block; transform-origin: 50% 50%; }
 .end-game-score-player-board .player-score-counter{ color: var(--end-game-score-color); font-weight: bold; }
-.player-score-counter.end-game-score-reached{ font-weight: bold; animation: end-game-score-beats 1.2s ease-in-out forwards; }
+.player-score-counter.end-game-score-intro{ font-weight: bold; animation: end-game-score-beats 1.2s ease-in-out forwards; }
+.player-score-counter.end-game-score-loop{ animation: end-game-score-pulse 2s ease-in-out infinite; }
 
 .riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
 
@@ -731,13 +736,19 @@ $power-icons: (
   100% { top: 0px; }
 }
 
-//two beats: up to 1.8x while turning red, a short hold, back to 1x, twice
+//two beats: up to the peak scale while turning red, a short hold, back to 1x, twice
 @keyframes end-game-score-beats {
   0% { scale: 1; }
-  15%, 30% { scale: 1.8; color: var(--end-game-score-color); }
+  15%, 30% { scale: $end-game-score-peak-scale; color: var(--end-game-score-color); }
   45%, 55% { scale: 1; color: var(--end-game-score-color); }
-  70%, 85% { scale: 1.8; color: var(--end-game-score-color); }
+  70%, 85% { scale: $end-game-score-peak-scale; color: var(--end-game-score-color); }
   100% { scale: 1; color: var(--end-game-score-color); }
+}
+
+//after the intro: an endless, slower pulse to the same peak (the color comes from .end-game-score-player-board)
+@keyframes end-game-score-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: $end-game-score-peak-scale; }
 }
 
 @keyframes card-fade-in {

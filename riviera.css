@@ -1053,9 +1053,13 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   font-weight: bold;
 }
 
-.player-score-counter.end-game-score-reached {
+.player-score-counter.end-game-score-intro {
   font-weight: bold;
   animation: end-game-score-beats 1.2s ease-in-out forwards;
+}
+
+.player-score-counter.end-game-score-loop {
+  animation: end-game-score-pulse 2s ease-in-out infinite;
 }
 
 .riviera-player-board.grand-slam-player-board {
@@ -1908,6 +1912,14 @@ body .start-token.flying-start-token {
   100% {
     scale: 1;
     color: var(--end-game-score-color);
+  }
+}
+@keyframes end-game-score-pulse {
+  0%, 100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.8;
   }
 }
 @keyframes card-fade-in {
