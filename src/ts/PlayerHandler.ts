@@ -24,7 +24,6 @@ export class PlayerHandler{
     private cardsRow: HTMLDivElement;
     private handCountBacks: HTMLDivElement;
     private lastChanceIndicator: HTMLDivElement;
-    private roundStatusIndicator: HTMLDivElement;
     private boardElement: HTMLDivElement;
     private startTokenAnchor: HTMLElement;
     private scoreElement: HTMLElement | null;
@@ -42,8 +41,9 @@ export class PlayerHandler{
         this.setRoundStatus(this.roundStatus);
 	}
 
-    //every player board, spectators included, shows the hand count, Last Chance and a crash. The Start token is not in this
-    //content: it is a badge on BGA's avatar (startTokenAnchor) and takes no layout space
+    //every player board, spectators included, shows the hand count, Last Chance and, out of the round, a STOPPED or CRASHED
+    //stamp (shown by data-round-status, see setRoundStatus). The Start token is not in this content: it is a badge on BGA's
+    //avatar (startTokenAnchor) and takes no layout space
     private createPlayerBoardContainer(){
         this.playerBoardContainer = document.createElement('div');
         this.playerBoardContainer.classList.add('riviera-player-board');
@@ -51,10 +51,8 @@ export class PlayerHandler{
             <div class="player-board-cards-row">
                 <div class="hand-count-backs"></div>
                 <div class="last-chance-indicator"></div>
-                <div class="stopped-stamp">${_('Stopped')}</div>
-            </div>
-            <div class="player-board-status-row">
-                <div class="round-status-indicator"></div>
+                <div class="round-status-stamp stopped-stamp">${_('Stopped')}</div>
+                <div class="round-status-stamp crashed-stamp"><i class="fa6 fa-bomb"></i>${_('Crashed')}</div>
             </div>
         `;
 
@@ -64,7 +62,6 @@ export class PlayerHandler{
         this.cardsRow = this.playerBoardContainer.querySelector('.player-board-cards-row');
         this.handCountBacks = this.playerBoardContainer.querySelector('.hand-count-backs');
         this.lastChanceIndicator = this.playerBoardContainer.querySelector('.last-chance-indicator');
-        this.roundStatusIndicator = this.playerBoardContainer.querySelector('.round-status-indicator');
         this.boardElement = (playerPanel.closest('.player-board') as HTMLDivElement) ?? playerPanel; //BGA's whole board around our panel
         this.boardElement.classList.add('positioned-player-board');
         this.boardElement.addEventListener('animationend', (event: AnimationEvent) => { //the board's own bounce, not a child's animation
@@ -83,7 +80,6 @@ export class PlayerHandler{
 
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
-        this.roundStatusIndicator.id = 'round-status-' + this.playerID;
 
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');
@@ -240,14 +236,13 @@ export class PlayerHandler{
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
 
-    //in: nothing shown. Stopped: the hand area greys out under the STOPPED stamp (cleared by the next round's 'in').
-    //Crashed: the "Crashed" line
+    //data-round-status shows one stamp at most. In: nothing. Stopped: the hand area greys out under the STOPPED stamp.
+    //Crashed: the CRASHED stamp (the hand count is already 0). The next round's 'in' clears both
     public setRoundStatus(roundStatus: RoundStatus): void {
         this.roundStatus = roundStatus;
 
         this.playerBoardContainer.setAttribute('data-round-status', roundStatus);
         this.boardElement.classList.toggle(PlayerHandler.STOPPED_CLASS, roundStatus === 'stopped');
-        this.roundStatusIndicator.innerHTML = (roundStatus === 'crashed') ? `<i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed')}` : '';
         this.playedColumn.setRoundStatus(roundStatus);
     }
 

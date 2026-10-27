@@ -965,7 +965,7 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .riviera-player-board .player-board-cards-row .last-chance-indicator[data-used=true] {
   display: none;
 }
-.riviera-player-board .player-board-cards-row .stopped-stamp {
+.riviera-player-board .player-board-cards-row .round-status-stamp {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -975,11 +975,14 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   pointer-events: none;
   max-width: 100%;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 1px 7px;
-  border: 2px solid #1c4f72;
+  border: 2px solid var(--stamp-color);
   border-radius: 4px;
   background-color: rgba(255, 255, 255, 0.7);
-  color: #1c4f72;
+  color: var(--stamp-color);
   font-size: 14px;
   font-weight: bold;
   text-transform: uppercase;
@@ -989,19 +992,20 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s;
 }
-.riviera-player-board:not([data-round-status=crashed]) .player-board-status-row {
-  display: none;
+.riviera-player-board .player-board-cards-row .stopped-stamp {
+  --stamp-color: #1c4f72;
 }
-.riviera-player-board .player-board-status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 6px;
+.riviera-player-board .player-board-cards-row .crashed-stamp {
+  --stamp-color: #c62828;
 }
-.riviera-player-board .player-board-status-row .round-status-indicator {
-  font-size: 13px;
-  white-space: nowrap;
-  color: #a00000;
+.riviera-player-board .player-board-cards-row .crashed-stamp .fa-bomb {
+  font-size: 1.6em;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.riviera-player-board[data-round-status=stopped] .stopped-stamp, .riviera-player-board[data-round-status=crashed] .crashed-stamp {
+  opacity: 1;
+  visibility: visible;
 }
 
 .positioned-player-board {
@@ -1011,10 +1015,6 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .stopped-player-board .riviera-player-board .player-board-cards-row .hand-count-backs, .stopped-player-board .riviera-player-board .player-board-cards-row .last-chance-indicator {
   opacity: 0.45;
   filter: grayscale(1);
-}
-.stopped-player-board .riviera-player-board .player-board-cards-row .stopped-stamp {
-  opacity: 1;
-  visibility: visible;
 }
 
 .player-score-counter {
@@ -1814,10 +1814,6 @@ body .start-token.flying-start-token {
   width: 40px;
   background-size: 241.2698412698px 40px;
   background-position: -196.8253968254px 0px;
-}
-
-.round-status-tooltip .fa-bomb {
-  color: #a00000;
 }
 
 .safari-mobile-power-reference-container {

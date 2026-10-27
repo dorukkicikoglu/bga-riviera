@@ -72,7 +72,6 @@ export class TooltipHandler{
 
         for(let player_id in this.game.players){
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
-            this.game.bga.gameui.addTooltipHtml('round-status-' + player_id, this.getRoundStatusTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltip('column-stars-' + player_id, _('Stars of the cards played this round. A player who stops banks them; a crash loses them.'), '', TooltipHandler.TOOLTIP_DELAY);
         }
     }
@@ -245,14 +244,6 @@ export class TooltipHandler{
 
     private getLastChanceTooltipText(): string {
         return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');
-    }
-
-    private getRoundStatusTooltipHTML(): string {
-        return `
-            <div class="round-status-tooltip">
-                <div><i class="fa6 fa-bomb"></i>&nbsp;${_('Crashed: scores nothing this round')}</div>
-            </div>
-        `;
     }
 
     private isSafariMobile(): boolean { return document.body.classList.contains('safari-browser') && this.game.isMobile(); }

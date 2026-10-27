@@ -190,7 +190,7 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 
 - Hand count: 7 cards or fewer, one small card back per card, every 2nd one a little lower (a staircase); more than 7, one card back followed by "x N". Visible to everyone, spectators included.
 - Last Chance card to the right of the card backs, as far from the board's right edge as the backs are from its left; it disappears once used.
-- Round status: nothing while in; stopped greys out the hand area (card backs and Last Chance) under a "STOPPED" stamp, name, avatar and score unchanged, until the next round; crashed shows "Crashed".
+- Round status: nothing while in; stopped greys out the hand area (card backs and Last Chance) under a blue "STOPPED" stamp, name, avatar and score unchanged; crashed shows a red "CRASHED" stamp with a bomb (the hand count is empty, Last Chance unchanged). Both clear at the next round.
 - A score at 40 or more turns red and bold; reaching it during play first pulses it twice.
 - The Start token: a single small badge (24px) on the bottom-right corner of its owner's avatar, inside the board at every screen width, over the board content and taking no layout space. When it passes it lifts out of the boards area (to the side of the boards column on desktop, down to 40% of the screen on mobile), growing to 200%, holds still for a moment at the peak, then curves into the new owner's corner, shrinking back. No flight on F5.
 
