@@ -978,6 +978,8 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   align-items: center;
   flex-shrink: 0;
   margin-right: var(--last-chance-margin-right, 0px);
+  right: 4px;
+  margin-bottom: 2px;
 }
 .riviera-player-board .player-board-cards-row .last-chance-indicator .a-card.mini-card {
   --my-card-width: 29px;
@@ -1953,3 +1955,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

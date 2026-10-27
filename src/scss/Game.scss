@@ -356,7 +356,7 @@ body.current_player_is_active:not(.lockedInterface){
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
         //a used Last Chance card disappears; live, it shrinks and fades out first (PlayerHandler.setLastChanceUsed)
-        .last-chance-indicator{ position: relative; display: flex; align-items: center; flex-shrink: 0; margin-right: var(--last-chance-margin-right, 0px);
+        .last-chance-indicator{ position: relative; display: flex; align-items: center; flex-shrink: 0; margin-right: var(--last-chance-margin-right, 0px); right: 4px; margin-bottom: 2px;
             .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; transition: transform 0.4s ease, opacity 0.4s ease; }
             &.last-chance-fading .a-card.mini-card{ transform: scale(0); opacity: 0; }
             &[data-used="true"]{ display: none; }
