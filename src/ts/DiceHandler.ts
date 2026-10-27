@@ -168,17 +168,30 @@ export class DiceHandler{
     }
 
     //card 2: pending (dashed ring) from the reveal until the roll it is for, reserved (solid ring) from then. null: no ring
-    //(a die rolling in gets its ring once it has landed)
+    //(a die rolling in gets its ring once it has landed). The dice area also fades another player's reservation (data-reservation)
     private applyReservationRingPOWER2(aDie: HTMLDivElement, dieData: RivieraDie | null): void {
         const reserverID = dieData?.reserved_by_POWER2 ?? null;
         const pendingReserverID = dieData?.pending_reserved_by_POWER2 ?? null;
         aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
+        aDie.setAttribute('data-reservation', this.getReservationForMe(reserverID, pendingReserverID));
         aDie.classList.toggle(DiceHandler.RESERVATION_PENDING_CLASS_POWER2, pendingReserverID !== null);
         const ringOwnerID = pendingReserverID ?? reserverID;
         if(ringOwnerID !== null)
             aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(ringOwnerID));
         else
             aDie.style.removeProperty('--reserver-color');
+    }
+
+    //a reservation seen by the current player: another player's ('reserved-other', faded most), another player's revealed
+    //card 2 not applied yet ('maybe-other') or none ('none', mine included). Reserved wins over pending. A spectator is
+    //nobody, so every reservation is another player's
+    private getReservationForMe(reserverID: number | null, pendingReserverID: number | null): 'reserved-other' | 'maybe-other' | 'none' {
+        const myPlayerID = this.game.getMyPlayerID();
+        if(reserverID !== null && reserverID !== myPlayerID)
+            return 'reserved-other';
+        if(pendingReserverID !== null && pendingReserverID !== myPlayerID)
+            return 'maybe-other';
+        return 'none';
     }
 
     public updateDice(diceData: RivieraDie[]): void {

@@ -187,11 +187,11 @@ $status-card-icon-size: 40px;
 //dice
 //.a-die lives outside #dice-container so logs can show small dice too
 //padding is a share of --die-size: a % padding would be a share of the parent's width and blow the die up
-.a-die{ position: relative; box-sizing: border-box; width: var(--die-size); height: var(--die-size); border-radius: 18%; background: var(--die-color); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; --pip-color: #ffffff; --pip-size: calc(var(--die-size) * 0.2); transition: opacity 0.3s ease;
+.a-die{ position: relative; box-sizing: border-box; width: var(--die-size); height: var(--die-size); border-radius: 18%; --die-face: var(--die-color); background: var(--die-face); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; --pip-color: #ffffff; --pip-size: calc(var(--die-size) * 0.2); transition: opacity 0.3s ease;
     @each $color in $card-colors {
         &[data-color="#{$color}"]{ --die-color: var(--die-color-#{$color}); }
     }
-    &[data-color="gold"]{ background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00; }
+    &[data-color="gold"]{ --die-face: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%); --pip-color: #3b2a00; }
 
     //every pip has the same fixed size (a share of --die-size) and is centered on a fixed point of a 3x3 layout.
     //No grid tracks or percentages: nothing in a cell can make one pip bigger or oval
@@ -234,6 +234,16 @@ $status-card-icon-size: 40px;
     isolation: isolate; //its own stacking context: the card 9 arrows' z-index and the dice's filters stay inside the dice area, under the Start token (z-index 10)
 
     .die-slot{ position: relative; }
+
+    //another player's card 2, from my side (data-reservation, DiceHandler.getReservationForMe): reserved 0.4, pending 0.7.
+    //Only the face fades (its color, edge and drop shadow on ::before, and the pips), never the die itself, so its card 2
+    //ring (an outline), the card 9 preview glow and the ± badge stay fully visible
+    .a-die{ --die-face-opacity: 1; background: none; box-shadow: none;
+        &::before{ content: ""; position: absolute; inset: 0px; border-radius: inherit; background: var(--die-face); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
+        .die-pip{ opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
+        &[data-reservation="maybe-other"]{ --die-face-opacity: 0.7; }
+        &[data-reservation="reserved-other"]{ --die-face-opacity: 0.4; }
+    }
     //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
     .fading-out-die{ position: absolute; margin: 0px; pointer-events: none; }
 
@@ -256,8 +266,9 @@ $status-card-icon-size: 40px;
         //chosen, waiting for Confirm
         &.selected-die-arrow-power9 .die-arrow-triangle{ background: #ffd700; transform: scale(1.35); filter: drop-shadow(0 0 1.5px #07151a) drop-shadow(0 0 4px #ffd700); }
     }
-    //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview
-    .a-die.previewed-die-power9{ filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700); }
+    //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview.
+    //A box-shadow on the die, not a filter: a filter's glow would follow the face's opacity and fade with a reserved die
+    .a-die.previewed-die-power9{ box-shadow: 0 0 3px 1px #ffe8a3, 0 0 8px 2px #ffd700; }
 }
 //a die of the new roll flying in (DiceHandler.rollIn): fixed in <body>, so no ancestor's overflow clips its entry from the
 //top right and it adds no scrollable overflow. Moved by translate, turned by rotate and sized by scale, around its center;

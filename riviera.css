@@ -452,7 +452,8 @@ body .sliding-clone {
   width: var(--die-size);
   height: var(--die-size);
   border-radius: 18%;
-  background: var(--die-color);
+  --die-face: var(--die-color);
+  background: var(--die-face);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000;
   --pip-color: #ffffff;
   --pip-size: calc(var(--die-size) * 0.2);
@@ -474,7 +475,7 @@ body .sliding-clone {
   --die-color: var(--die-color-orange);
 }
 .a-die[data-color=gold] {
-  background: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%);
+  --die-face: linear-gradient(135deg, #fff3b0 0%, #e0b228 50%, #8a6a00 100%);
   --pip-color: #3b2a00;
 }
 .a-die .die-pip {
@@ -656,6 +657,31 @@ body .sliding-clone {
 #dice-container .die-slot {
   position: relative;
 }
+#dice-container .a-die {
+  --die-face-opacity: 1;
+  background: none;
+  box-shadow: none;
+}
+#dice-container .a-die::before {
+  content: "";
+  position: absolute;
+  inset: 0px;
+  border-radius: inherit;
+  background: var(--die-face);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000;
+  opacity: var(--die-face-opacity);
+  transition: opacity 0.3s ease;
+}
+#dice-container .a-die .die-pip {
+  opacity: var(--die-face-opacity);
+  transition: opacity 0.3s ease;
+}
+#dice-container .a-die[data-reservation=maybe-other] {
+  --die-face-opacity: 0.7;
+}
+#dice-container .a-die[data-reservation=reserved-other] {
+  --die-face-opacity: 0.4;
+}
 #dice-container .fading-out-die {
   position: absolute;
   margin: 0px;
@@ -721,7 +747,7 @@ body .sliding-clone {
   filter: drop-shadow(0 0 1.5px #07151a) drop-shadow(0 0 4px #ffd700);
 }
 #dice-container .a-die.previewed-die-power9 {
-  filter: drop-shadow(0 0 3px #ffe8a3) drop-shadow(0 0 6px #ffd700);
+  box-shadow: 0 0 3px 1px #ffe8a3, 0 0 8px 2px #ffd700;
 }
 
 body .a-die.rolling-die {
