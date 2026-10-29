@@ -276,7 +276,7 @@ class Game extends \Bga\GameFramework\Table
                 'preserve' => ['player_id', 'score'],
                 'player_id' => $playerID,
                 'score' => $grandSlamScore,
-                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById($playerID).' plays all 10 cards: Grand Slam!',
+                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById($playerID).' does a Grand Slam!',
             ]);
         }
     }

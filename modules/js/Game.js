@@ -2035,8 +2035,8 @@ class LogMutationObserver {
     createLogGrandSlam(player_id) {
         const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
         const grandSlamText = player_id === this.game.getMyPlayerID()
-            ? _('${you} play all 10 cards: Grand Slam!').replace('${you}', playerNameHTML)
-            : _('${playerName} plays all 10 cards: Grand Slam!').replace('${playerName}', playerNameHTML);
+            ? _('${you} do a Grand Slam!').replace('${you}', playerNameHTML)
+            : _('${player_name} does a Grand Slam!').replace('${player_name}', playerNameHTML);
         let logHTML = `
             <div class="grand-slam-row">
                 ${grandSlamText}
