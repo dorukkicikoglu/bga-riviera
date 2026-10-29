@@ -275,6 +275,18 @@ class RIVTableManager{
     }
 
     /**
+     * The player's only card in hand, when it is playable: playing it empties the hand, a Grand Slam. Null otherwise.
+     * Card 1 chains that could empty a bigger hand are not looked for.
+     */
+    function getPlayableLastCardID(int $playerID): ?int{
+        $playableCardIDs = $this->getPlayableCardIDs($playerID);
+        if(count($playableCardIDs) !== 1 || count($this->getHandCards($playerID)) !== 1)
+            return null;
+
+        return $playableCardIDs[0];
+    }
+
+    /**
      * Players still in the round with no playable card on the current dice.
      */
     function getPlayerIDsWithNoPlayableCard(): array{

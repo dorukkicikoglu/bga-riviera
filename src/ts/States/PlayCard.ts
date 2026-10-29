@@ -33,6 +33,7 @@ export class PlayCard {
     private playableCardIDs: number[] = [];
     private hasNoPlayableCard: boolean = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
     private canUseLastChance: boolean = false;
+    private autoGrandSlam: boolean = false; //[BGA] the server played my last card for me: nothing to undo
     private canUndoDieChange: boolean = false;
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
@@ -46,6 +47,7 @@ export class PlayCard {
         this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
         this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
+        this.autoGrandSlam = privateArgs?.autoGrandSlam ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
         this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
@@ -125,7 +127,8 @@ export class PlayCard {
                 };
                 this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
             }
-            this.game.undoHandler.addUndoButton('actUndoPlayCard');
+            if(!this.autoGrandSlam)
+                this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
     }
 
@@ -182,9 +185,14 @@ export class PlayCard {
     }
 
     //the private notifications land while the state is unchanged, so they redraw the status bar themselves
-    private refresh(): void {
+    public refresh(): void {
         if(this.game.getGameStateName() === 'PlayCard')
             this.updateStatusBar(this.bga.players.isCurrentPlayerActive());
+    }
+
+    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card
+    public onAutoGrandSlam(): void {
+        this.autoGrandSlam = true;
     }
 
     public onChoiceConfirmed(args: PlayChoiceConfirmedArgs): void {

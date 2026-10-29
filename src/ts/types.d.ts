@@ -95,6 +95,7 @@ interface PlayCardArgs {
         playableCardIDs: number[];
         hasNoPlayableCard: boolean;
         canUseLastChance: boolean;
+        autoGrandSlam: boolean;
         pendingPlayChoice: PendingPlayChoice | null;
         chainCardIDs_POWER1: number[];
         chainOpen_POWER1: boolean;
@@ -230,6 +231,11 @@ interface PlayerCrashedArgs {
 
 interface AutoCrashAnnouncedArgs {
     player_id: number;
+}
+
+interface AutoGrandSlamAnnouncedArgs {
+    player_id: number;
+    others_choosing: boolean;
 }
 
 interface LastChanceUsedArgs {

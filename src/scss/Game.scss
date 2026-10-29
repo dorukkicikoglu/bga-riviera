@@ -163,9 +163,9 @@ $status-card-icon-size: 40px;
     &:hover{ background: #437f24; border-color: #437f24; }
     .button-star{ line-height: 0; }
 }
-//the auto crash's looping "..." (Game.notif_autoCrashAnnounced). Hidden dots keep their width, so the
+//the looping "..." after an automatic crash or Grand Slam (Game.announceAutoChoice). Hidden dots keep their width, so the
 //text never moves
-.auto-crash-dots > span{ visibility: hidden;
+.auto-choice-dots > span{ visibility: hidden;
     &.shown-dot{ visibility: inherit; }
 }
 //mobile: a line break right before the action buttons, like a <br>, so they and BGA's arrow button start a second line

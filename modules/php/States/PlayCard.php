@@ -48,6 +48,7 @@ class PlayCard extends GameState
     function onEnteringState() {
         $this->game->undoManager->resetChoices(self::CHOICE_COLUMNS);
         $this->game->tableManager->clearChainPOWER1();
+        $this->game->bga->globals->set('autoGrandSlamPlayerIds', []);
 
         $inRoundIDs = $this->game->getPlayerIDsInRound();
         if(empty($inRoundIDs))
@@ -65,7 +66,54 @@ class PlayCard extends GameState
             return RevealCards::class;
         }
 
+        //[BGA] a player whose last card is playable can only play it, a Grand Slam (unless a card 9 change can still be taken back)
+        $autoGrandSlamPlayerIDs = [];
+        foreach($inRoundIDs as $inRoundID){
+            $cardID = $this->game->tableManager->getPlayableLastCardID($inRoundID);
+            if($cardID === null || $this->getUndoableDieChangePOWER9($inRoundID) !== null)
+                continue;
+
+            $this->game->undoManager->savePendingChoice($inRoundID, ['play_choice' => 'card', 'play_choice_card_id' => $cardID], 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, [], false));
+            $autoGrandSlamPlayerIDs[] = $inRoundID;
+        }
+
+        //no log row (RevealCards logs the reveal). While others choose, only that player may know: a notify->all with
+        //_private would still show the others that a notification came
+        $othersChoosing = count($autoGrandSlamPlayerIDs) < count($inRoundIDs);
+        foreach($autoGrandSlamPlayerIDs as $autoGrandSlamPlayerID){
+            $notifArgs = ['player_id' => $autoGrandSlamPlayerID, 'others_choosing' => $othersChoosing];
+            if($othersChoosing)
+                $this->bga->notify->player($autoGrandSlamPlayerID, 'autoGrandSlamAnnounced', '', $notifArgs);
+            else $this->bga->notify->all('autoGrandSlamAnnounced', '', $notifArgs);
+        }
+
+        if(!$othersChoosing)
+            return RevealCards::class;
+
+        //they stay active, so the others see them choosing like anyone else; endChoice() lets them go once only they are left
+        $this->game->bga->globals->set('autoGrandSlamPlayerIds', $autoGrandSlamPlayerIDs);
         $this->game->gamestate->setPlayersMultiactive($inRoundIDs, RevealCards::class, true);
+    }
+
+    //players whose last card onEnteringState played for them, still shown as choosing to the others
+    private function getAutoGrandSlamPlayerIDs(): array
+    {
+        return array_map('intval', $this->game->bga->globals->get('autoGrandSlamPlayerIds', []));
+    }
+
+    //the player is done choosing. Once only auto Grand Slam players are left active, they are let go too, which ends the state
+    private function endChoice(int $playerID): void
+    {
+        $autoGrandSlamPlayerIDs = $this->getAutoGrandSlamPlayerIDs();
+        if($this->game->gamestate->setPlayerNonMultiactive($playerID, RevealCards::class) || empty($autoGrandSlamPlayerIDs))
+            return;
+
+        $activePlayerIDs = array_map('intval', $this->game->gamestate->getActivePlayerList());
+        if(!empty(array_diff($activePlayerIDs, $autoGrandSlamPlayerIDs)))
+            return; //someone is still choosing
+
+        foreach($activePlayerIDs as $activePlayerID)
+            $this->game->gamestate->setPlayerNonMultiactive($activePlayerID, RevealCards::class);
     }
 
     /**
@@ -92,6 +140,7 @@ class PlayCard extends GameState
                 'playableCardIDs' => $this->getRemainingPlayableCardIDs($playerID),
                 'hasNoPlayableCard' => $this->game->tableManager->hasNoPlayableCard($playerID),
                 'canUseLastChance' => $this->game->tableManager->canUseLastChance($playerID),
+                'autoGrandSlam' => in_array($playerID, $this->getAutoGrandSlamPlayerIDs(), true),
                 'pendingPlayChoice' => $pendingPlayChoice,
                 'chainCardIDs_POWER1' => $this->game->tableManager->getChainCardIDsPOWER1($playerID),
                 'chainOpen_POWER1' => $this->isMidChainPOWER1($playerID),
@@ -130,7 +179,7 @@ class PlayCard extends GameState
         ]);
 
         if(!$chainOpen)
-            $this->game->gamestate->setPlayerNonMultiactive($currentPlayerId, RevealCards::class);
+            $this->endChoice($currentPlayerId);
     }
 
     #[PossibleAction]
@@ -139,7 +188,7 @@ class PlayCard extends GameState
         if(!$this->isMidChainPOWER1($currentPlayerId))
             throw new UserException(clienttranslate('You are not adding cards to a 1'));
 
-        $this->game->gamestate->setPlayerNonMultiactive($currentPlayerId, RevealCards::class);
+        $this->endChoice($currentPlayerId);
     }
 
     #[PossibleAction]
@@ -153,7 +202,8 @@ class PlayCard extends GameState
         if(!$this->game->tableManager->canUseLastChance($currentPlayerId))
             throw new UserException(clienttranslate('You already used your Last Chance'));
 
-        $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'last_chance', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('last_chance', null, [], false), RevealCards::class);
+        $this->game->undoManager->savePendingChoice($currentPlayerId, ['play_choice' => 'last_chance', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('last_chance', null, [], false));
+        $this->endChoice($currentPlayerId);
     }
 
     #[PossibleAction]
@@ -164,7 +214,8 @@ class PlayCard extends GameState
         if(!$this->game->tableManager->hasNoPlayableCard($currentPlayerId))
             throw new UserException(clienttranslate('You can only crash when no card is playable'));
 
-        $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'crash', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('crash', null, [], false), RevealCards::class);
+        $this->game->undoManager->savePendingChoice($currentPlayerId, ['play_choice' => 'crash', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('crash', null, [], false));
+        $this->endChoice($currentPlayerId);
     }
 
     //also takes a whole card-1 chain back, so the player chooses a first card again
@@ -172,6 +223,9 @@ class PlayCard extends GameState
     #[CheckAction(false)]
     public function actUndoPlayCard(int $currentPlayerId)
     {
+        if(in_array($currentPlayerId, $this->getAutoGrandSlamPlayerIDs(), true))
+            throw new UserException(clienttranslate('Your last card is your only play'));
+
         $notifArgs = ['playableCardIDs' => $this->game->tableManager->getPlayableCardIDs($currentPlayerId)];
         $this->game->undoManager->undo('actUndoPlayCard', $currentPlayerId, self::CHOICE_COLUMNS, 'playChoiceReverted', $notifArgs);
         $this->game->tableManager->clearChainPOWER1($currentPlayerId);
@@ -230,7 +284,8 @@ class PlayCard extends GameState
         $choiceValues = ['play_choice' => 'card', 'play_choice_card_id' => $cardID];
 
         if($this->getCardValue($cardID) !== CHAIN_CARD_VALUE_POWER1){
-            $this->game->undoManager->recordChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, [], false), RevealCards::class);
+            $this->game->undoManager->savePendingChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, [], false));
+            $this->endChoice($playerID);
             return false;
         }
 
@@ -239,7 +294,7 @@ class PlayCard extends GameState
 
         $this->game->undoManager->savePendingChoice($playerID, $choiceValues, 'playChoiceConfirmed', $this->getChoiceNotifArgs('card', $cardID, $nextPlayableCardIDs, $chainOpen));
         if(!$chainOpen) //nothing else to add: the chain finishes on its own
-            $this->game->gamestate->setPlayerNonMultiactive($playerID, RevealCards::class);
+            $this->endChoice($playerID);
 
         return $chainOpen;
     }
@@ -255,11 +310,12 @@ class PlayCard extends GameState
         ];
     }
 
-    //the player is still active with a card chosen: they confirmed a 1 and are adding cards to it
+    //the player is still active with a card chosen: they confirmed a 1 and are adding cards to it (an auto Grand Slam player
+    //is active with a card chosen too, but has nothing to add)
     private function isMidChainPOWER1(int $playerID): bool
     {
         $playChoice = $this->game->getUniqueValueFromDB("SELECT `play_choice` FROM `player` WHERE `player_id` = $playerID");
-        return $playChoice === 'card' && $this->game->gamestate->isPlayerActive($playerID);
+        return $playChoice === 'card' && $this->game->gamestate->isPlayerActive($playerID) && !in_array($playerID, $this->getAutoGrandSlamPlayerIDs(), true);
     }
 
     //a player still choosing in a chain is active too, so the active-player check doesn't stop them from choosing twice
@@ -294,6 +350,11 @@ class PlayCard extends GameState
      * Never use getCurrentPlayerId() here: there is no current player in a zombie call.
      */
     function zombie(int $playerId) {
+        if(in_array($playerId, $this->getAutoGrandSlamPlayerIDs(), true)){ //their last card is already chosen
+            $this->endChoice($playerId);
+            return;
+        }
+
         if($this->isMidChainPOWER1($playerId)){
             $this->zombieChainPOWER1($playerId);
             return;

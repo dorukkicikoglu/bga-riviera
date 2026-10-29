@@ -28,9 +28,9 @@ import { PrefHandler } from "./PrefHandler";
 export class Game {
     private static readonly CARD_BACK_SLIDE_ANIM_TIME = 600;
     private static readonly CHAIN_CARD_STAGGER_TIME = 150;
-    private static readonly AUTO_CRASH_HOLD_TIME = 1500; //the status bar announces the crash this long before the reveal
-    private static readonly AUTO_CRASH_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
-    private static readonly AUTO_CRASH_DOT_COUNT = 3;
+    private static readonly AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
+    private static readonly AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
+    private static readonly AUTO_CHOICE_DOT_COUNT = 3;
 
     public bga: Bga<RivieraPlayer, RivieraGamedatas>;
     private gamedatas: RivieraGamedatas;
@@ -583,35 +583,52 @@ export class Game {
     public async notif_lastChanceUsed(args: LastChanceUsedArgs) {
     }
 
-    //[BGA] the last player in had only Crash, so the server chose it: no buttons or selectable cards, the status bar says
-    //who crashes, then the queue holds before the reveal (which comes after this, so after the roll has landed too)
+    //[BGA] the last player in had only Crash, so the server chose it. The reveal comes after this, so after the roll has landed too
     public async notif_autoCrashAnnounced(args: AutoCrashAnnouncedArgs) {
+        await this.announceAutoChoice(args.player_id, _('${you} crash'), _('${player_name} crashes'));
+    }
+
+    //[BGA] the player's last card was playable, so the server played it. While others choose, only that player gets this (the
+    //others still see them choosing), and their status bar goes back to the waiting title after the hold
+    public async notif_autoGrandSlamAnnounced(args: AutoGrandSlamAnnouncedArgs) {
+        if(args.player_id === this.myPlayerID)
+            this.playCard.onAutoGrandSlam();
+
+        await this.announceAutoChoice(args.player_id, _('${you} go for a Grand Slam'), _('${player_name} goes for a Grand Slam'));
+
+        if(args.others_choosing)
+            this.playCard.refresh();
+    }
+
+    //a choice the server made for a player: no buttons or selectable cards, the status bar says it with looping dots, then the
+    //queue holds (not in a replay or with no animations)
+    private async announceAutoChoice(playerID: number, myTitle: string, othersTitle: string): Promise<void> {
         this.bga.statusBar.removeActionButtons();
         this.handHandler?.clearSelectableCards();
 
         //the dots stay out of the translated text. All of them are there from the start, hidden, so the text never moves
-        const dotsHTML = '<span class="auto-crash-dots">' + '<span>.</span>'.repeat(Game.AUTO_CRASH_DOT_COUNT) + '</span>';
-        if(args.player_id === this.myPlayerID)
-            this.bga.statusBar.setTitle(_('${you} crash') + dotsHTML);
-        else this.bga.statusBar.setTitle(_('${player_name} crashes') + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(args.player_id) });
+        const dotsHTML = '<span class="auto-choice-dots">' + '<span>.</span>'.repeat(Game.AUTO_CHOICE_DOT_COUNT) + '</span>';
+        if(playerID === this.myPlayerID)
+            this.bga.statusBar.setTitle(myTitle + dotsHTML);
+        else this.bga.statusBar.setTitle(othersTitle + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(playerID) });
 
-        const dots = Array.from(document.querySelectorAll<HTMLElement>('#pagemaintitletext .auto-crash-dots > span'));
+        const dots = Array.from(document.querySelectorAll<HTMLElement>('#pagemaintitletext .auto-choice-dots > span'));
         //no hold in a replay, or with no animations (fast forward, instantaneous mode, hidden tab): the whole "..." at once
         if(this.isReplay() || !this.bga.gameui.bgaAnimationsActive()){
             dots.forEach(dot => dot.classList.add('shown-dot'));
             return;
         }
 
-        //"." at once, then a step every AUTO_CRASH_DOT_STEP_TIME, back to "." after "...", for the whole hold
+        //"." at once, then a step every AUTO_CHOICE_DOT_STEP_TIME, back to "." after "...", for the whole hold
         let shownDotCount = 0;
         const showNextDots = () => {
             shownDotCount = shownDotCount % dots.length + 1;
             dots.forEach((dot, index) => dot.classList.toggle('shown-dot', index < shownDotCount));
         };
         showNextDots();
-        const dotsTimer = setInterval(showNextDots, Game.AUTO_CRASH_DOT_STEP_TIME);
+        const dotsTimer = setInterval(showNextDots, Game.AUTO_CHOICE_DOT_STEP_TIME);
         try {
-            await this.bga.gameui.wait(Game.AUTO_CRASH_HOLD_TIME);
+            await this.bga.gameui.wait(Game.AUTO_CHOICE_HOLD_TIME);
         } finally {
             clearInterval(dotsTimer);
         }

@@ -419,10 +419,10 @@ body .sliding-clone {
   line-height: 0;
 }
 
-.auto-crash-dots > span {
+.auto-choice-dots > span {
   visibility: hidden;
 }
-.auto-crash-dots > span.shown-dot {
+.auto-choice-dots > span.shown-dot {
   visibility: inherit;
 }
 
