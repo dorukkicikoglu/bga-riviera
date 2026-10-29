@@ -53,6 +53,18 @@ class PlayCard extends GameState
         if(empty($inRoundIDs))
             return RevealCards::class;
 
+        //[BGA] Crash is the last player in's only button, so they don't have to click it
+        $playerID = $inRoundIDs[0];
+        if(count($inRoundIDs) === 1 && $this->game->tableManager->hasNoPlayableCard($playerID) && !$this->game->tableManager->canUseLastChance($playerID) && $this->getUndoableDieChangePOWER9($playerID) === null){
+            $this->game->DbQuery("UPDATE `player` SET `play_choice` = 'crash' WHERE `player_id` = $playerID");
+
+            //no log row (RevealCards logs the crash): the client shows it in the status bar for a moment first
+            $this->bga->notify->all('autoCrashAnnounced', '', [
+                'player_id' => $playerID,
+            ]);
+            return RevealCards::class;
+        }
+
         $this->game->gamestate->setPlayersMultiactive($inRoundIDs, RevealCards::class, true);
     }
 
@@ -62,7 +74,7 @@ class PlayCard extends GameState
      */
     public function getArgs(): array
     {
-        $playersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `last_chance_used`, `play_choice`, `play_choice_card_id` FROM `player` WHERE `round_status` = 'in'");
+        $playersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `play_choice`, `play_choice_card_id` FROM `player` WHERE `round_status` = 'in'");
 
         $privateArgs = [];
         foreach($playersDB as $playerID => $playerDB){
@@ -78,7 +90,8 @@ class PlayCard extends GameState
 
             $privateArgs[$playerID] = [
                 'playableCardIDs' => $this->getRemainingPlayableCardIDs($playerID),
-                'canUseLastChance' => $playerDB['last_chance_used'] === 'no',
+                'hasNoPlayableCard' => $this->game->tableManager->hasNoPlayableCard($playerID),
+                'canUseLastChance' => $this->game->tableManager->canUseLastChance($playerID),
                 'pendingPlayChoice' => $pendingPlayChoice,
                 'chainCardIDs_POWER1' => $this->game->tableManager->getChainCardIDsPOWER1($playerID),
                 'chainOpen_POWER1' => $this->isMidChainPOWER1($playerID),
@@ -134,11 +147,10 @@ class PlayCard extends GameState
     {
         $this->checkNoPendingChoice($currentPlayerId);
 
-        if(count($this->game->tableManager->getPlayableCardIDs($currentPlayerId)) > 0)
+        if(!$this->game->tableManager->hasNoPlayableCard($currentPlayerId))
             throw new UserException(clienttranslate('You can only use your Last Chance when no card is playable'));
 
-        $lastChanceUsed = $this->game->getUniqueValueFromDB("SELECT `last_chance_used` FROM `player` WHERE `player_id` = $currentPlayerId");
-        if($lastChanceUsed === 'yes')
+        if(!$this->game->tableManager->canUseLastChance($currentPlayerId))
             throw new UserException(clienttranslate('You already used your Last Chance'));
 
         $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'last_chance', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('last_chance', null, [], false), RevealCards::class);
@@ -149,7 +161,7 @@ class PlayCard extends GameState
     {
         $this->checkNoPendingChoice($currentPlayerId);
 
-        if(count($this->game->tableManager->getPlayableCardIDs($currentPlayerId)) > 0)
+        if(!$this->game->tableManager->hasNoPlayableCard($currentPlayerId))
             throw new UserException(clienttranslate('You can only crash when no card is playable'));
 
         $this->game->undoManager->recordChoice($currentPlayerId, ['play_choice' => 'crash', 'play_choice_card_id' => null], 'playChoiceConfirmed', $this->getChoiceNotifArgs('crash', null, [], false), RevealCards::class);
@@ -287,15 +299,15 @@ class PlayCard extends GameState
             return;
         }
 
-        $playableCardIDs = $this->game->tableManager->getPlayableCardIDs($playerId);
-        if(count($playableCardIDs) > 0){
+        if(!$this->game->tableManager->hasNoPlayableCard($playerId)){
+            $playableCardIDs = $this->game->tableManager->getPlayableCardIDs($playerId);
             if($this->playCard((int) $this->getRandomZombieChoice($playableCardIDs), $playerId))
                 $this->zombieChainPOWER1($playerId);
             return;
         }
 
         $choices = ['crash'];
-        if($this->game->getUniqueValueFromDB("SELECT `last_chance_used` FROM `player` WHERE `player_id` = $playerId") === 'no')
+        if($this->game->tableManager->canUseLastChance($playerId))
             $choices[] = 'last_chance';
 
         if($this->getRandomZombieChoice($choices) === 'last_chance')

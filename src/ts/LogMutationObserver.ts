@@ -47,7 +47,7 @@ export class LogMutationObserver{
         observer.observe($('logs'), config);
         observer.observe($('chatbar'), config); //mobile notifs
 
-        if(g_archive_mode){ //to observe replayLogs that appears at the bottom of the page on replays
+        if(this.game.isReplay()){ //to observe replayLogs that appears at the bottom of the page on replays
             let replayLogsObserverStarted = false;
             const replayLogsObserver = new MutationObserver((mutations, obs) => {
               for (const mutation of mutations) {

@@ -104,6 +104,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
    - a card whose value equals the sum of 2 available dice and whose color matches one of those 2 dice (golden die counts in sums but never provides the color).
    Dice reserved by another player are unavailable to you.
    - **[BGA]** The server computes valid cards and only offers those. If none is valid, the only buttons are "Use Last Chance" (when available) and "Crash".
+   - **[BGA]** Automatic crash: when the only player still in the round has no playable card and has already used their Last Chance (and has no card 9 change to undo), Crash is their only option, so it is chosen for them with no click: once the roll has landed, the status bar reads "You crash" ("<name> crashes" for everyone else, spectators included) with no buttons for 1 second, then the reveal crashes them (same crash animation and log row). Everyone else, and that player whenever they have another option, chooses as usual.
    - **[BGA]** Choosing is two clicks: select a playable card, then "Confirm" (one click with the "One-click card play" preference, see Preferences). "Crash" has no confirm dialog; Undo is the safety net.
    - **[BGA]** Card 1 chain: confirming a 1 asks at once for another valid card (same roll) or "Skip", again after each extra 1. If nothing more is playable, the chain finishes on its own. Undo rolls back the whole chain.
    - Use Last Chance: play nothing this turn, stay in the round. Last Chance is then used for the rest of the game.

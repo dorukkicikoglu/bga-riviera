@@ -28,6 +28,9 @@ import { PrefHandler } from "./PrefHandler";
 export class Game {
     private static readonly CARD_BACK_SLIDE_ANIM_TIME = 600;
     private static readonly CHAIN_CARD_STAGGER_TIME = 150;
+    private static readonly AUTO_CRASH_HOLD_TIME = 1500; //the status bar announces the crash this long before the reveal
+    private static readonly AUTO_CRASH_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
+    private static readonly AUTO_CRASH_DOT_COUNT = 3;
 
     public bga: Bga<RivieraPlayer, RivieraGamedatas>;
     private gamedatas: RivieraGamedatas;
@@ -360,6 +363,7 @@ export class Game {
     }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }
+    public isReplay(): boolean { return typeof g_replayFrom != 'undefined' || g_archive_mode; } //"replay from this move" in an ongoing game, or an archived game
     public isInterfaceLocked(): boolean { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     public updateStatusText(statusText): void{ $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
 
@@ -577,6 +581,40 @@ export class Game {
 
     //the log row only: cardsRevealed already took the Last Chance card off the player board
     public async notif_lastChanceUsed(args: LastChanceUsedArgs) {
+    }
+
+    //[BGA] the last player in had only Crash, so the server chose it: no buttons or selectable cards, the status bar says
+    //who crashes, then the queue holds before the reveal (which comes after this, so after the roll has landed too)
+    public async notif_autoCrashAnnounced(args: AutoCrashAnnouncedArgs) {
+        this.bga.statusBar.removeActionButtons();
+        this.handHandler?.clearSelectableCards();
+
+        //the dots stay out of the translated text. All of them are there from the start, hidden, so the text never moves
+        const dotsHTML = '<span class="auto-crash-dots">' + '<span>.</span>'.repeat(Game.AUTO_CRASH_DOT_COUNT) + '</span>';
+        if(args.player_id === this.myPlayerID)
+            this.bga.statusBar.setTitle(_('${you} crash') + dotsHTML);
+        else this.bga.statusBar.setTitle(_('${player_name} crashes') + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(args.player_id) });
+
+        const dots = Array.from(document.querySelectorAll<HTMLElement>('#pagemaintitletext .auto-crash-dots > span'));
+        //no hold in a replay, or with no animations (fast forward, instantaneous mode, hidden tab): the whole "..." at once
+        if(this.isReplay() || !this.bga.gameui.bgaAnimationsActive()){
+            dots.forEach(dot => dot.classList.add('shown-dot'));
+            return;
+        }
+
+        //"." at once, then a step every AUTO_CRASH_DOT_STEP_TIME, back to "." after "...", for the whole hold
+        let shownDotCount = 0;
+        const showNextDots = () => {
+            shownDotCount = shownDotCount % dots.length + 1;
+            dots.forEach((dot, index) => dot.classList.toggle('shown-dot', index < shownDotCount));
+        };
+        showNextDots();
+        const dotsTimer = setInterval(showNextDots, Game.AUTO_CRASH_DOT_STEP_TIME);
+        try {
+            await this.bga.gameui.wait(Game.AUTO_CRASH_HOLD_TIME);
+        } finally {
+            clearInterval(dotsTimer);
+        }
     }
 
     public async notif_playerCrashed(args: PlayerCrashedArgs) {

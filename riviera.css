@@ -419,6 +419,13 @@ body .sliding-clone {
   line-height: 0;
 }
 
+.auto-crash-dots > span {
+  visibility: hidden;
+}
+.auto-crash-dots > span.shown-dot {
+  visibility: inherit;
+}
+
 .mobile_version #generalactions::before {
   content: "";
   display: block;
@@ -1955,5 +1962,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

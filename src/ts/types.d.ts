@@ -93,6 +93,7 @@ interface PendingPlayChoice {
 interface PlayCardArgs {
     _private?: {
         playableCardIDs: number[];
+        hasNoPlayableCard: boolean;
         canUseLastChance: boolean;
         pendingPlayChoice: PendingPlayChoice | null;
         chainCardIDs_POWER1: number[];
@@ -224,6 +225,10 @@ interface CardsRevealedArgs {
 }
 
 interface PlayerCrashedArgs {
+    player_id: number;
+}
+
+interface AutoCrashAnnouncedArgs {
     player_id: number;
 }
 

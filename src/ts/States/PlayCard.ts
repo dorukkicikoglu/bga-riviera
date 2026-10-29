@@ -31,6 +31,7 @@ export class PlayCard {
     private chainCardIDs: number[] = [];
     private chainOpen: boolean = false;
     private playableCardIDs: number[] = [];
+    private hasNoPlayableCard: boolean = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
     private canUseLastChance: boolean = false;
     private canUndoDieChange: boolean = false;
 
@@ -43,6 +44,7 @@ export class PlayCard {
     onEnteringState(args: PlayCardArgs, isCurrentPlayerActive: boolean) {
         const privateArgs = args?._private;
         this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
+        this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
@@ -93,7 +95,7 @@ export class PlayCard {
             this.game.undoHandler.addUndoButton('actUndoPlayCard');
             this.selectionChanged();
         } else if(isCurrentPlayerActive && !this.pendingChoice){
-            if(this.playableCardIDs.length > 0){
+            if(!this.hasNoPlayableCard){
                 handHandler.setSelectableCards(this.playableCardIDs, 1, true);
 
                 //hidden until a card is selected, like Fugu's swap button

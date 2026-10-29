@@ -21,6 +21,7 @@ class PlayCard {
         this.chainCardIDs = [];
         this.chainOpen = false;
         this.playableCardIDs = [];
+        this.hasNoPlayableCard = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
         this.canUseLastChance = false;
         this.canUndoDieChange = false;
     }
@@ -30,6 +31,7 @@ class PlayCard {
     onEnteringState(args, isCurrentPlayerActive) {
         const privateArgs = args?._private;
         this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
+        this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
@@ -73,7 +75,7 @@ class PlayCard {
             this.selectionChanged();
         }
         else if (isCurrentPlayerActive && !this.pendingChoice) {
-            if (this.playableCardIDs.length > 0) {
+            if (!this.hasNoPlayableCard) {
                 handHandler.setSelectableCards(this.playableCardIDs, 1, true);
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
@@ -1915,7 +1917,7 @@ class LogMutationObserver {
         // Start observing the container
         observer.observe($('logs'), config);
         observer.observe($('chatbar'), config); //mobile notifs
-        if (g_archive_mode) { //to observe replayLogs that appears at the bottom of the page on replays
+        if (this.game.isReplay()) { //to observe replayLogs that appears at the bottom of the page on replays
             let replayLogsObserverStarted = false;
             const replayLogsObserver = new MutationObserver((mutations, obs) => {
                 for (const mutation of mutations) {
@@ -2745,6 +2747,7 @@ class Game {
     }
     isDesktop() { return document.body.classList.contains('desktop_version'); }
     isMobile() { return document.body.classList.contains('mobile_version'); }
+    isReplay() { return typeof g_replayFrom != 'undefined' || g_archive_mode; } //"replay from this move" in an ongoing game, or an archived game
     isInterfaceLocked() { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     updateStatusText(statusText) { $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }
     //power prompts (cards 1, 9, 10, 11): "may use" + the circular card icon of the card that gave the power, followed by
@@ -2931,6 +2934,38 @@ class Game {
     //the log row only: cardsRevealed already took the Last Chance card off the player board
     async notif_lastChanceUsed(args) {
     }
+    //[BGA] the last player in had only Crash, so the server chose it: no buttons or selectable cards, the status bar says
+    //who crashes, then the queue holds before the reveal (which comes after this, so after the roll has landed too)
+    async notif_autoCrashAnnounced(args) {
+        this.bga.statusBar.removeActionButtons();
+        this.handHandler?.clearSelectableCards();
+        //the dots stay out of the translated text. All of them are there from the start, hidden, so the text never moves
+        const dotsHTML = '<span class="auto-crash-dots">' + '<span>.</span>'.repeat(Game.AUTO_CRASH_DOT_COUNT) + '</span>';
+        if (args.player_id === this.myPlayerID)
+            this.bga.statusBar.setTitle(_('${you} crash') + dotsHTML);
+        else
+            this.bga.statusBar.setTitle(_('${player_name} crashes') + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(args.player_id) });
+        const dots = Array.from(document.querySelectorAll('#pagemaintitletext .auto-crash-dots > span'));
+        //no hold in a replay, or with no animations (fast forward, instantaneous mode, hidden tab): the whole "..." at once
+        if (this.isReplay() || !this.bga.gameui.bgaAnimationsActive()) {
+            dots.forEach(dot => dot.classList.add('shown-dot'));
+            return;
+        }
+        //"." at once, then a step every AUTO_CRASH_DOT_STEP_TIME, back to "." after "...", for the whole hold
+        let shownDotCount = 0;
+        const showNextDots = () => {
+            shownDotCount = shownDotCount % dots.length + 1;
+            dots.forEach((dot, index) => dot.classList.toggle('shown-dot', index < shownDotCount));
+        };
+        showNextDots();
+        const dotsTimer = setInterval(showNextDots, Game.AUTO_CRASH_DOT_STEP_TIME);
+        try {
+            await this.bga.gameui.wait(Game.AUTO_CRASH_HOLD_TIME);
+        }
+        finally {
+            clearInterval(dotsTimer);
+        }
+    }
     async notif_playerCrashed(args) {
         const player = this.players[args.player_id];
         if (!player)
@@ -3034,5 +3069,8 @@ class Game {
 }
 Game.CARD_BACK_SLIDE_ANIM_TIME = 600;
 Game.CHAIN_CARD_STAGGER_TIME = 150;
+Game.AUTO_CRASH_HOLD_TIME = 1500; //the status bar announces the crash this long before the reveal
+Game.AUTO_CRASH_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
+Game.AUTO_CRASH_DOT_COUNT = 3;
 
 export { Game };

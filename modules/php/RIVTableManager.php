@@ -267,10 +267,22 @@ class RIVTableManager{
     }
 
     /**
+     * No playable card on the current dice: the player can only use their Last Chance or crash.
+     * The one place that decides it.
+     */
+    function hasNoPlayableCard(int $playerID): bool{
+        return empty($this->getPlayableCardIDs($playerID));
+    }
+
+    /**
      * Players still in the round with no playable card on the current dice.
      */
     function getPlayerIDsWithNoPlayableCard(): array{
-        return array_values(array_filter($this->game->getPlayerIDsInRound(), fn(int $playerID) => empty($this->getPlayableCardIDs($playerID))));
+        return array_values(array_filter($this->game->getPlayerIDsInRound(), fn(int $playerID) => $this->hasNoPlayableCard($playerID)));
+    }
+
+    function canUseLastChance(int $playerID): bool{
+        return $this->game->getUniqueValueFromDB("SELECT `last_chance_used` FROM `player` WHERE `player_id` = $playerID") === 'no';
     }
 
     function getHandCards(int $playerID): array{
