@@ -824,6 +824,7 @@ class PlayedColumnHandler {
         this.game = game;
         this.owner = owner;
         this.playedCardsData = playedCardsData;
+        this.roundStatus = 'in';
         const parent = document.querySelector('#played-columns-container');
         if (parent) {
             this.columnContainer = document.createElement('div');
@@ -889,9 +890,12 @@ class PlayedColumnHandler {
     getStarsTotal() {
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
+    //a stopped column's stars are already in the score (banked at the Stop reveal) and can't change: the badge shows the
+    //piggy bank with no number, so it doesn't read as stars still to come. Its tooltip gives the amount
     updateStarsTotal() {
-        this.starsText.innerHTML = `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
+        this.starsText.innerHTML = this.isBanked() ? PlayedColumnHandler.PIGGY_BANK_SVG : `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
     }
+    isBanked() { return this.roundStatus === 'stopped'; }
     //hexColor without the #, as BGA gives player colors
     static isLightColor(hexColor) {
         const channels = [0, 2, 4].map(offset => parseInt(hexColor.substring(offset, offset + 2), 16) / 255);
@@ -903,12 +907,28 @@ class PlayedColumnHandler {
         if (isMyColumn)
             this.columnContainer.querySelector('.played-column-name').textContent = _('You');
     }
-    setRoundStatus(roundStatus) { this.columnContainer.setAttribute('data-round-status', roundStatus); }
+    //also on setup (before the TooltipHandler exists: its constructor adds the badge tooltip itself) and on the new round's 'in'
+    setRoundStatus(roundStatus) {
+        this.roundStatus = roundStatus;
+        this.columnContainer.setAttribute('data-round-status', roundStatus);
+        this.updateStarsTotal();
+        this.game.tooltipHandler?.updateColumnStarsTooltip(this.owner.getPlayerID());
+    }
     getColumnContainer() { return this.columnContainer; }
 }
 PlayedColumnHandler.SLIDE_ANIM_TIME = 600;
 PlayedColumnHandler.CLEAR_ANIM_TIME = 400;
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
+//the banked badge's icon, inline (BGA's Font Awesome has no piggy bank). Body, coin slot and eye are one evenodd path, so
+//the slot and the eye are holes showing the pill behind them
+PlayedColumnHandler.PIGGY_BANK_SVG = `<svg class="played-column-piggy-bank" viewBox="0 0 23 20" aria-hidden="true" focusable="false">
+            <path fill-rule="evenodd" d="M2.5 10.5a8.5 6.5 0 1 0 17 0a8.5 6.5 0 1 0 -17 0Z M10.2 5.1h4.4v1.2h-4.4Z M14.6 8.3a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0Z"/>
+            <path d="M5.5 6L6.8 1.8L9.8 4.4Z"/>
+            <rect x="18.5" y="8.2" width="3.5" height="4.6" rx="1.2"/>
+            <rect x="5.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <rect x="12.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <path d="M2.8 9C1 9 0.8 7 2.2 6.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>`;
 
 class PlayerHandler {
     constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData, score) {
@@ -1217,8 +1237,18 @@ class TooltipHandler {
         this.game.bga.gameui.addTooltipHtml('start-token', this.getStartTokenTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
         for (let player_id in this.game.players) {
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
-            this.game.bga.gameui.addTooltip('column-stars-' + player_id, _('Stars of the cards played this round. A player who stops banks them; a crash loses them.'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.updateColumnStarsTooltip(parseInt(player_id));
         }
+    }
+    //the column badge: the stars at stake while in, the banked amount once stopped (PlayedColumnHandler.setRoundStatus)
+    updateColumnStarsTooltip(player_id) {
+        const playedColumn = this.game.players[player_id]?.getPlayedColumn();
+        if (!playedColumn)
+            return;
+        const tooltipText = playedColumn.isBanked()
+            ? _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`)
+            : _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
+        this.game.bga.gameui.addTooltip('column-stars-' + player_id, tooltipText, '', TooltipHandler.TOOLTIP_DELAY);
     }
     //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11, on the card tooltips' background
     //(the power reference's single-entry look, like the Start token's). withRing false: the die is rolling in with no card 2

@@ -72,8 +72,20 @@ export class TooltipHandler{
 
         for(let player_id in this.game.players){
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
-            this.game.bga.gameui.addTooltip('column-stars-' + player_id, _('Stars of the cards played this round. A player who stops banks them; a crash loses them.'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.updateColumnStarsTooltip(parseInt(player_id));
         }
+    }
+
+    //the column badge: the stars at stake while in, the banked amount once stopped (PlayedColumnHandler.setRoundStatus)
+    public updateColumnStarsTooltip(player_id: number){
+        const playedColumn = this.game.players[player_id]?.getPlayedColumn();
+        if(!playedColumn)
+            return;
+
+        const tooltipText = playedColumn.isBanked()
+            ? _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`)
+            : _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
+        this.game.bga.gameui.addTooltip('column-stars-' + player_id, tooltipText, '', TooltipHandler.TOOLTIP_DELAY);
     }
 
     //a die's tooltip follows its card 2 reservation, card 9 change and, for gold, card 11, on the card tooltips' background

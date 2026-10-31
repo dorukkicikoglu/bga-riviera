@@ -333,6 +333,15 @@ body.current_player_is_active:not(.lockedInterface){
         //white, yellow, orange, teal, lime (PlayedColumnHandler.isLightColor): dark star and number on the pill
         &[data-light-owner-color="true"] .played-column-stars{ color: #1d1d1d; }
 
+        //stopped: the stars are banked (in the score), so the badge is a muted grey piggy bank and the cards dim a little.
+        //Same 0.4s fade as a crashed column, both ways (the next round's 'in' fades them back)
+        .played-column-stars, .cards-column{ transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease; }
+        .played-column-piggy-bank{ display: block; height: 0.82em; width: auto; fill: currentColor; } //about the number's height
+        &[data-round-status="stopped"]{
+            .played-column-stars{ opacity: 0.6; color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
+            .cards-column{ opacity: 0.75; }
+        }
+
         //only the star strip at the top of each covered card stays visible, as in the rules
         .cards-column{ display: flex; flex-direction: column; align-items: center;
             .a-card + .a-card{ margin-top: calc(var(--my-card-width) * #{$card-aspect} * -0.75); }

@@ -917,6 +917,24 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 #played-columns-container .a-played-column[data-light-owner-color=true] .played-column-stars {
   color: #1d1d1d;
 }
+#played-columns-container .a-played-column .played-column-stars, #played-columns-container .a-played-column .cards-column {
+  transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease;
+}
+#played-columns-container .a-played-column .played-column-piggy-bank {
+  display: block;
+  height: 0.82em;
+  width: auto;
+  fill: currentColor;
+}
+#played-columns-container .a-played-column[data-round-status=stopped] .played-column-stars {
+  opacity: 0.6;
+  color: #ffffff;
+  background-color: #7a7f85;
+  border-color: #5c6066;
+}
+#played-columns-container .a-played-column[data-round-status=stopped] .cards-column {
+  opacity: 0.75;
+}
 #played-columns-container .a-played-column .cards-column {
   display: flex;
   flex-direction: column;
