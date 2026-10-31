@@ -938,6 +938,7 @@ class PlayerHandler {
         this.createPlayerBoardContainer();
         this.setHandCount(this.handCount);
         this.setLastChanceUsed(this.lastChanceUsed);
+        this.updateScoreTarget();
         this.updateEndGameScoreHighlight(); //on load: no intro, straight to the loop (nothing once the game is over)
         this.playedColumn = new PlayedColumnHandler(this.game, this, this.playedCardsData);
         this.setRoundStatus(this.roundStatus);
@@ -969,8 +970,12 @@ class PlayerHandler {
         });
         this.startTokenAnchor = this.createStartTokenAnchor();
         this.updateStartTokenPlace();
+        this.scoreTargetElement = document.createElement('span');
+        this.scoreTargetElement.classList.add('score-target');
+        this.scoreTargetElement.textContent = '/' + this.game.getWinningScore();
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
+        this.scoreTargetElement.id = 'score-target-' + this.playerID;
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');
         this.lastChanceIndicator.prepend(lastChanceCard);
@@ -1067,12 +1072,23 @@ class PlayerHandler {
         const previousScore = this.score;
         this.score = score;
         this.game.bga.playerPanels.getScoreCounter(this.playerID)?.toValue(score);
+        this.updateScoreTarget();
         const winningScore = this.game.getWinningScore();
         const crossed = previousScore < winningScore && score >= winningScore;
         if (crossed && this.getEndGameScoreHighlight() === 'loop' && this.game.bga.gameui.bgaAnimationsActive())
             this.applyScoreHighlight('intro');
         else
             this.updateEndGameScoreHighlight();
+    }
+    //the "/40" after the score: kept right after BGA's score counter (put back if BGA has replaced the counter) and hidden once
+    //the score is past WINNING_SCORE. Setup and setScore (every score notification, replays, the end-game table) call it
+    updateScoreTarget() {
+        const scoreElement = this.getScoreElement();
+        if (!scoreElement)
+            return;
+        if (scoreElement.nextElementSibling !== this.scoreTargetElement)
+            scoreElement.after(this.scoreTargetElement);
+        this.scoreTargetElement.hidden = this.score > this.game.getWinningScore();
     }
     //the one place that decides the score's end-game look, from the score and the game's progress. Safe to call any time
     //(setup, score changes, BGA's layout hooks, the game end): a running intro or loop is never restarted, and an intro
@@ -1231,6 +1247,7 @@ class TooltipHandler {
         this.game.bga.gameui.addTooltipHtml('start-token', this.getStartTokenTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
         for (let player_id in this.game.players) {
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltip('score-target-' + player_id, _('First to ${points} ★ wins').replace('${points}', `${this.game.getWinningScore()}`), '', TooltipHandler.TOOLTIP_DELAY);
             this.updateColumnStarsTooltip(parseInt(player_id));
         }
     }

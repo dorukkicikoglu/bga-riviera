@@ -422,7 +422,7 @@ body .sliding-clone {
   display: inline-block;
   height: 1.3em;
   width: auto;
-  margin: -0.15em 0.3em -0.15em 0;
+  margin: -0.15em 0.3em -0.05em -6px;
   vertical-align: -0.15em;
   fill: currentColor;
 }
@@ -1097,6 +1097,13 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   animation: end-game-score-pulse 2s ease-in-out infinite;
 }
 
+.score-target {
+  font-size: 0.75em;
+  font-weight: normal;
+  opacity: 0.6;
+  vertical-align: baseline;
+}
+
 .player-board.burning-player-board {
   --burn-animation-time: 3s;
   --background-angle: 3deg;
@@ -1107,7 +1114,7 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .player-board.burning-player-board.bouncing-player-board {
   animation: flamy-background-animation var(--burn-animation-time) ease-in-out infinite, bouncing-player-board 0.175s ease-in-out 2;
 }
-.player-board.burning-player-board .player-name, .player-board.burning-player-board .player-score-counter {
+.player-board.burning-player-board .player-name, .player-board.burning-player-board .player-score-counter, .player-board.burning-player-board .score-target {
   text-shadow: 1px 0 #ffffff, -1px 0 #ffffff, 0 1px #ffffff, 0 -1px #ffffff, 0.5px 0.5px #ffffff, -0.5px -0.5px #ffffff, 0.5px -0.5px #ffffff, -0.5px 0.5px #ffffff;
 }
 

@@ -72,6 +72,7 @@ export class TooltipHandler{
 
         for(let player_id in this.game.players){
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltip('score-target-' + player_id, _('First to ${points} ★ wins').replace('${points}', `${this.game.getWinningScore()}`), '', TooltipHandler.TOOLTIP_DELAY);
             this.updateColumnStarsTooltip(parseInt(player_id));
         }
     }
