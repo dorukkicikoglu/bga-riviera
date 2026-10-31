@@ -1089,6 +1089,20 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   animation: end-game-score-pulse 2s ease-in-out infinite;
 }
 
+.player-board.burning-player-board {
+  --burn-animation-time: 3s;
+  --background-angle: 3deg;
+  background: linear-gradient(var(--background-angle), #ffdc00 0%, #ffdc00 10%, #ff4444 50%, #ffdc00 90%, #ffdc00 100%);
+  background-size: 100% 1000%;
+  animation: flamy-background-animation var(--burn-animation-time) ease-in-out infinite;
+}
+.player-board.burning-player-board.bouncing-player-board {
+  animation: flamy-background-animation var(--burn-animation-time) ease-in-out infinite, bouncing-player-board 0.175s ease-in-out 2;
+}
+.player-board.burning-player-board .player-name, .player-board.burning-player-board .player-score-counter {
+  text-shadow: 1px 0 #ffffff, -1px 0 #ffffff, 0 1px #ffffff, 0 -1px #ffffff, 0.5px 0.5px #ffffff, -0.5px -0.5px #ffffff, 0.5px -0.5px #ffffff, -0.5px 0.5px #ffffff;
+}
+
 .riviera-player-board.grand-slam-player-board {
   border-radius: 6px;
   box-shadow: 0 0 10px 3px #e9c45a;
@@ -1918,6 +1932,14 @@ body .start-token.flying-start-token {
   }
   100% {
     top: 0px;
+  }
+}
+@keyframes flamy-background-animation {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 100%;
   }
 }
 @keyframes end-game-score-beats {

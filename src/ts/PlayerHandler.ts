@@ -20,6 +20,7 @@ export class PlayerHandler{
     private static readonly END_GAME_SCORE_CLASS = 'end-game-score-player-board'; //the score stays red and bold at WINNING_SCORE or more
     private static readonly END_GAME_SCORE_INTRO_CLASS = 'end-game-score-intro'; //on the score counter: the two big beats when the score crosses WINNING_SCORE, once (Game.scss)
     private static readonly END_GAME_SCORE_LOOP_CLASS = 'end-game-score-loop'; //on the score counter: the gentle pulse after the intro, until the game ends
+    private static readonly BURNING_CLASS = 'burning-player-board'; //on the board: the flamy background, exactly while the score's intro or loop runs
 
     private playerBoardContainer: HTMLDivElement;
     private cardsRow: HTMLDivElement;
@@ -215,10 +216,12 @@ export class PlayerHandler{
 
     //one state at a time, so the intro and the loop never run together. 'static' is red and bold (the board's
     //END_GAME_SCORE_CLASS); the loop adds the gentle pulse to it; the intro turns the score red itself and the board class
-    //only comes with the loop. Ancestors that clip stay unclipped while the score scales
+    //only comes with the loop. The board burns (BURNING_CLASS) while the score animates, intro or loop, never on its own.
+    //Ancestors that clip stay unclipped while the score scales
     private applyScoreHighlight(highlight: 'none' | 'static' | 'intro' | 'loop'): void {
         this.boardElement.classList.toggle(PlayerHandler.END_GAME_SCORE_CLASS, highlight === 'static' || highlight === 'loop');
         const scoreElement = this.getScoreElement();
+        this.boardElement.classList.toggle(PlayerHandler.BURNING_CLASS, !!scoreElement && (highlight === 'intro' || highlight === 'loop'));
         if(!scoreElement)
             return;
 

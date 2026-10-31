@@ -407,6 +407,18 @@ $end-game-score-peak-scale: 1.8; //the score's size at the top of every intro be
 .end-game-score-player-board .player-score-counter{ color: var(--end-game-score-color); font-weight: bold; }
 .player-score-counter.end-game-score-intro{ font-weight: bold; animation: end-game-score-beats 1.2s ease-in-out forwards; }
 .player-score-counter.end-game-score-loop{ animation: end-game-score-pulse 2s ease-in-out infinite; }
+//the whole BGA board burns while its score animates (PlayerHandler.applyScoreHighlight adds .burning-player-board with the
+//intro or the loop, never with the static reduced-motion look). BGA only sets the board's background-color, under this
+//gradient. A white shade keeps the name and the red score readable on it. The bounce adds its own animation to the flames
+.player-board.burning-player-board{
+    --burn-animation-time: 3s;
+    --background-angle: 3deg;
+    background: linear-gradient(var(--background-angle), #ffdc00 0%, #ffdc00 10%, #ff4444 50%, #ffdc00 90%, #ffdc00 100%);
+    background-size: 100% 1000%;
+    animation: flamy-background-animation var(--burn-animation-time) ease-in-out infinite;
+    &.bouncing-player-board{ animation: flamy-background-animation var(--burn-animation-time) ease-in-out infinite, bouncing-player-board 0.175s ease-in-out 2; }
+    .player-name, .player-score-counter{ @include text-shade(#ffffff, 1px); }
+}
 
 .riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
 
@@ -748,6 +760,11 @@ $power-icons: (
   0% { top: 0px; }
   50% { top: -5px; }
   100% { top: 0px; }
+}
+
+@keyframes flamy-background-animation {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 100%; }
 }
 
 //two beats: up to the peak scale while turning red, a short hold, back to 1x, twice
