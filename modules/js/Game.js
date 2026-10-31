@@ -218,7 +218,8 @@ class StopOrMore {
             this.bga.statusBar.setTitle(_('${you} must choose an action'));
             const starsTotal = this.game.myself.getPlayedColumn().getStarsTotal();
             //the ★ gets its own span so its fallback font can't make this button taller than the others (see #stop-button in Game.scss)
-            const stopLabel = _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
+            //the piggy bank goes in front of the translated label, so translators never see the SVG
+            const stopLabel = this.game.getPiggyBankSVG('button-piggy-bank') + _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
             this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
             this.bga.statusBar.addActionButton(_('Keep Going'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
         }
@@ -893,7 +894,7 @@ class PlayedColumnHandler {
     //a stopped column's stars are already in the score (banked at the Stop reveal) and can't change: the badge shows the
     //piggy bank with no number, so it doesn't read as stars still to come. Its tooltip gives the amount
     updateStarsTotal() {
-        this.starsText.innerHTML = this.isBanked() ? PlayedColumnHandler.PIGGY_BANK_SVG : `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
+        this.starsText.innerHTML = this.isBanked() ? this.game.getPiggyBankSVG('played-column-piggy-bank') : `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
     }
     isBanked() { return this.roundStatus === 'stopped'; }
     //hexColor without the #, as BGA gives player colors
@@ -919,16 +920,6 @@ class PlayedColumnHandler {
 PlayedColumnHandler.SLIDE_ANIM_TIME = 600;
 PlayedColumnHandler.CLEAR_ANIM_TIME = 400;
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
-//the banked badge's icon, inline (BGA's Font Awesome has no piggy bank). Body, coin slot and eye are one evenodd path, so
-//the slot and the eye are holes showing the pill behind them
-PlayedColumnHandler.PIGGY_BANK_SVG = `<svg class="played-column-piggy-bank" viewBox="0 0 23 20" aria-hidden="true" focusable="false">
-            <path fill-rule="evenodd" d="M2.5 10.5a8.5 6.5 0 1 0 17 0a8.5 6.5 0 1 0 -17 0Z M10.2 5.1h4.4v1.2h-4.4Z M14.6 8.3a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0Z"/>
-            <path d="M5.5 6L6.8 1.8L9.8 4.4Z"/>
-            <rect x="18.5" y="8.2" width="3.5" height="4.6" rx="1.2"/>
-            <rect x="5.5" y="14.5" width="3" height="4.5" rx="1"/>
-            <rect x="12.5" y="14.5" width="3" height="4.5" rx="1"/>
-            <path d="M2.8 9C1 9 0.8 7 2.2 6.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>`;
 
 class PlayerHandler {
     constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData, score) {
@@ -2808,6 +2799,19 @@ class Game {
         const iconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
+    }
+    //the piggy bank icon, inline (BGA's Font Awesome has none), for the banked column badge and the "Stop and bank" button.
+    //Body, coin slot and eye are one evenodd path, so the slot and the eye are holes showing what is behind. Filled by CSS
+    //(fill: currentColor on its class), the tail stroked in currentColor
+    getPiggyBankSVG(className) {
+        return `<svg class="${className}" viewBox="0 0 23 20" aria-hidden="true" focusable="false">
+            <path fill-rule="evenodd" d="M2.5 10.5a8.5 6.5 0 1 0 17 0a8.5 6.5 0 1 0 -17 0Z M10.2 5.1h4.4v1.2h-4.4Z M14.6 8.3a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0Z"/>
+            <path d="M5.5 6L6.8 1.8L9.8 4.4Z"/>
+            <rect x="18.5" y="8.2" width="3.5" height="4.6" rx="1.2"/>
+            <rect x="5.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <rect x="12.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <path d="M2.8 9C1 9 0.8 7 2.2 6.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>`;
     }
     //the circular card icon (getStatusCardIconHTML) at text size, to sit inline in a sentence (tooltips), sized by .inline-card-icon
     getInlineCardIconHTML(color, value) {

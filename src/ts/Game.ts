@@ -388,6 +388,20 @@ export class Game {
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
 
+    //the piggy bank icon, inline (BGA's Font Awesome has none), for the banked column badge and the "Stop and bank" button.
+    //Body, coin slot and eye are one evenodd path, so the slot and the eye are holes showing what is behind. Filled by CSS
+    //(fill: currentColor on its class), the tail stroked in currentColor
+    public getPiggyBankSVG(className: string): string {
+        return `<svg class="${className}" viewBox="0 0 23 20" aria-hidden="true" focusable="false">
+            <path fill-rule="evenodd" d="M2.5 10.5a8.5 6.5 0 1 0 17 0a8.5 6.5 0 1 0 -17 0Z M10.2 5.1h4.4v1.2h-4.4Z M14.6 8.3a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0Z"/>
+            <path d="M5.5 6L6.8 1.8L9.8 4.4Z"/>
+            <rect x="18.5" y="8.2" width="3.5" height="4.6" rx="1.2"/>
+            <rect x="5.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <rect x="12.5" y="14.5" width="3" height="4.5" rx="1"/>
+            <path d="M2.8 9C1 9 0.8 7 2.2 6.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>`;
+    }
+
     //the circular card icon (getStatusCardIconHTML) at text size, to sit inline in a sentence (tooltips), sized by .inline-card-icon
     public getInlineCardIconHTML(color: CardColor, value: number): string {
         return `<span class="inline-card-icon">${this.getStatusCardIconHTML({ card_id: null, color: color, value: value })}</span>`;

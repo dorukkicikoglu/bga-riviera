@@ -158,10 +158,13 @@ $status-card-icon-size: 40px;
 }
 
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
-//metrics, which grew the button: its span gets line-height 0 so it can't
+//metrics, which grew the button: its span gets line-height 0 so it can't. The piggy bank (Game.getPiggyBankSVG) is white like the text
 #stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
     &:hover{ background: #437f24; border-color: #437f24; }
     .button-star{ line-height: 0; }
+    //a little taller than the text, centered on the letters. The negative top and bottom margins keep its margin box 1em
+    //tall, inside the line box, so the button keeps its height
+    .button-piggy-bank{ display: inline-block; height: 1.3em; width: auto; margin: -0.15em 0.3em -0.05em -6px;; vertical-align: -0.15em; fill: currentColor; }
 }
 //the looping "..." after an automatic crash or Grand Slam (Game.announceAutoChoice). Hidden dots keep their width, so the
 //text never moves

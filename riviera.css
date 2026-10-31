@@ -418,6 +418,14 @@ body .sliding-clone {
 #stop-button .button-star {
   line-height: 0;
 }
+#stop-button .button-piggy-bank {
+  display: inline-block;
+  height: 1.3em;
+  width: auto;
+  margin: -0.15em 0.3em -0.15em 0;
+  vertical-align: -0.15em;
+  fill: currentColor;
+}
 
 .auto-choice-dots > span {
   visibility: hidden;
