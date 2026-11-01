@@ -106,12 +106,18 @@ export class PlayedColumnHandler{
     }
 
     //a stopped column's stars are already in the score (banked at the Stop reveal) and can't change: the badge shows the
-    //piggy bank with no number, so it doesn't read as stars still to come. Its tooltip gives the amount
+    //piggy bank with no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's
+    //badge shows a bomb (the crash log row's icon), also with no number
     private updateStarsTotal(): void{
-        this.starsText.innerHTML = this.isBanked() ? this.game.getPiggyBankSVG('played-column-piggy-bank') : `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
+        if(this.isBanked())
+            this.starsText.innerHTML = this.game.getPiggyBankSVG('played-column-piggy-bank');
+        else if(this.isCrashed())
+            this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
+        else this.starsText.innerHTML = `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
     }
 
     public isBanked(): boolean{ return this.roundStatus === 'stopped'; }
+    public isCrashed(): boolean{ return this.roundStatus === 'crashed'; }
 
     //hexColor without the #, as BGA gives player colors
     private static isLightColor(hexColor: string): boolean{

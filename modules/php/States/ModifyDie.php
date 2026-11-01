@@ -74,8 +74,9 @@ class ModifyDie extends GameState
 
         $dieModifiedLogStr = $this->game->getPlayerNameById($activePlayerId).' turns the '.$dieColor.' die from '.$oldValue.' to '.$newValue;
         $this->bga->notify->all('dieModified_POWER9', '${DIE_MODIFIED_POWER9_LOG_STR}', [
-            'preserve' => ['player_id', 'die_color', 'old_value', 'new_value', 'move_id'],
+            'preserve' => ['player_id', 'card', 'die_color', 'old_value', 'new_value', 'move_id'],
             'player_id' => $activePlayerId,
+            'card' => $this->game->tableManager->getLastPlayedCard($activePlayerId), //the 9 that gave the power, drawn in the log row
             'die_color' => $dieColor,
             'old_value' => $oldValue,
             'new_value' => $newValue,

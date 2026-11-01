@@ -179,6 +179,7 @@ interface GoldenDieAddedPOWER11Args {
 
 interface DieModifiedPOWER9Args {
     player_id: number;
+    card: RivieraCard | null;
     die_color: DieColor;
     old_value: number;
     new_value: number;
@@ -244,6 +245,7 @@ interface LastChanceUsedArgs {
 
 interface DiceRolledArgs {
     dice: RivieraDie[];
+    first_roll_of_round: boolean;
 }
 
 interface StopOrMoreChoiceArgs {
@@ -251,7 +253,16 @@ interface StopOrMoreChoiceArgs {
 }
 
 interface StopOrMoreRevealedArgs {
-    choices: Record<number, StopOrMoreChoice>;
+    rows: StopOrMoreRow[];
+}
+
+//one player in the Stop/More log row (stopOrMoreRevealed), clockwise from the Start token holder: a stopper with the stars
+//they banked and their score after banking them, a player who chose More, or one who crashed this round (log row only)
+interface StopOrMoreRow {
+    player_id: number;
+    choice: StopOrMoreChoice | 'crash';
+    stars?: number;
+    score?: number;
 }
 
 interface NewRoundArgs {

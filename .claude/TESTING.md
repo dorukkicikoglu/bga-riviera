@@ -455,3 +455,46 @@ Undo never offered:
 - [ ] The next turn (after the reveal and More): no card 9 Undo.
 - [ ] A zombie card 9 owner (quit a player who is the only one in with a pending 9): it plays on with no undo and no error.
 
+## After M4: log groups, textless banked and card 9 rows
+
+Gaps (same size everywhere):
+- [ ] Desktop log: from Round 2 on, a gap separates each "Round N" row from the last row of the round before (below it, since the newest row is on top). Round 1 has none.
+- [ ] Each roll row after a round's first has a gap from the row before it (below it on desktop); a round's first roll sits right next to its "Round N" row.
+- [ ] F5: the same gaps, in the same places.
+- [ ] Replay (from the end-game page): the same gaps, now above the "Round N" and roll rows (oldest on top). If they show on the wrong side, tell me.
+- [ ] Mobile table log (chat bar): the same gaps, above the rows. If they show on the wrong side, tell me (I assumed this log shows the oldest row on top).
+- [ ] A game started before this change, after F5: roll rows from before it also get a gap after "Round N" (they lack the new flag); new rounds are right.
+
+Rows:
+- [ ] A stopper's row reads "name [piggy bank] N ★", no "banks", name in their color, the piggy bank dark like the text and centered on it. Mine reads "You [piggy bank] N ★".
+- [ ] Card 9: the row reads "name [9]: [old die] → [new die]", the 9 the circular card icon in its color (hover: card 9's power tooltip), the dice in their color, no "turn" or "to".
+- [ ] Card 9 undo still removes that row (live and after F5).
+- [ ] Skip a card 9, 10 or 11: the row reads "name [ban] [card]", no "does not use": a grey ban sign 70% as tall as the card icon and centred on it, then the circular card icon with nothing on it, evenly spaced and centred on one line. Hovering the card still shows its power tooltip. Same after F5 and in a replay.
+- [ ] Card 10 skipped on its own (`debug_setDrawPile(0, 0)`, or fewer than 2 cards in hand): the reason "(no card left to draw)" / "(fewer than 2 cards in hand)" still follows the card.
+
+
+Stop/More row with banking (no separate banking row any more):
+- [ ] Stop/More reveal with stoppers and continuers: one row only. Stoppers first, each "name [piggy bank] N ★" (N = their column stars), then "name [play]" for each player who chose More, clockwise from the Start token holder within each group. No flag, no separate "[piggy bank] N ★" row after it.
+- [ ] The piggy banks, numbers and stars line up with the play icons (same column), centred on the names.
+- [ ] At that moment each stopper's score on the player board rises by N (and a score reaching 40 starts its pulse), their board gets the STOPPED stamp and their column the piggy bank badge, all as before.
+- [ ] F5 and a replay: the same row, with the same stars.
+- [ ] Hovering a play icon still shows "Continues".
+- [ ] Banked stars, again: with the browser console open, stop with a non-empty column. The console shows `[TEMP stopOrMore] notif args` and `[TEMP stopOrMore] log args`, each with `rows: [{player_id, choice: "stop", stars, score}, ...]`, and the row reads "name [piggy bank] N ★". If `stars` is in the args but the row still shows no number, or `rows` is missing, send me both console lines.
+- [ ] A player who crashed earlier this round (or on this turn's reveal) gets a "name [bomb]" line after the More lines, the bomb in the crash row's dark red, in the same column as the pig and play icons, with no number. Hover: "Crashed". The separate crash row is still there.
+- [ ] F5 and a replay: the same lines, stars and bombs. A Stop/More row logged before this change still shows (with no bombs).
+
+Column badge on a crash:
+- [ ] A player crashes: their column's badge turns at once (while the cards fade out) into a white bomb on the grey pill, no number, about the piggy bank's size, centred. Hover: "Crashed: no stars this round". The CRASHED stamp and the crash log row are unchanged.
+- [ ] Next round: the badge is back to the player's color with ★0.
+- [ ] F5 while crashed, and a replay through a crash: the same bomb badge.
+
+Card 10 rows:
+- [ ] Swap between "You" and a player with a long name: "You" shows whole, only the long name is cut with "…" (full name on hover); the card icons and ⇄ keep their size, all on one line.
+- [ ] Swap between two long names: both are cut about equally. Two short names: both whole, the row centred.
+- [ ] The right-hand name starts with the player's real first character (no stray "-"). If a "-" still shows, tell me the player's exact name.
+- [ ] Redraw (no opponent left, `debug_POWER10(true)`): one line, "name [discarded] ⇄ [drawn]", the cards as small circular icons like the swap row (card backs for everyone but the owner), no "discard" or "and draw". Same after F5 and in a replay.
+
+Card 2 row:
+- [ ] A card 2 is applied (`debug_POWER2()`): the row reads "name [die]", no "reserves" or "for the next roll". The die is blank (no pips) in the reserved die's color, as big as the roll row's dice, with the solid ring in the owner's color, like a reserved die in the dice area. Same after F5 and in a replay.
+- [ ] No card 2 icon: a white lock with a thin dark outline sits centred on the blank die, about 70% of the face's size, readable on every die color (yellow too). The row is still as tall as the Start token row. The die's face sits a little smaller inside its ring than a reserved die's in the roll row, with a clear gap; the ring itself is the same size. Dice in the dice area are unchanged.
+

@@ -156,14 +156,14 @@ export class Game {
                 args.processed = true;
 
                 // list of special keys we want to replace with images
-                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'LAST_CHANCE_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR', 'STARS_BANKED_LOG_STR',
+                const keys = ['NEW_ROUND_LOG_STR', 'DICE_ROLLED_LOG_STR', 'REVEAL_LOG_STR', 'LAST_CHANCE_LOG_STR', 'CRASH_LOG_STR', 'GRAND_SLAM_LOG_STR', 'START_TOKEN_LOG_STR', 'STOP_OR_MORE_LOG_STR',
                     'DIE_RESERVED_POWER2_LOG_STR', 'GOLDEN_DIE_POWER11_LOG_STR', 'DIE_MODIFIED_POWER9_LOG_STR', 'CARDS_SWAPPED_POWER10_LOG_STR', 'CARDS_REDRAWN_POWER10_LOG_STR', 'POWER_SKIPPED_LOG_STR', 'GAME_END_LOG_STR'];
                 for(let key of keys) {
                     if(key in args) {
                         if(key == 'NEW_ROUND_LOG_STR')
                             log = this.logMutationObserver.createLogNewRound(args['round_number']).log_html;
                         else if(key == 'DICE_ROLLED_LOG_STR')
-                            log = this.logMutationObserver.createLogDiceRolled(args['dice']).log_html;
+                            log = this.logMutationObserver.createLogDiceRolled(args['dice'], args['first_roll_of_round'] ?? false).log_html;
                         else if(key == 'REVEAL_LOG_STR')
                             log = this.logMutationObserver.createLogCardsRevealed(args['reveals']).log_html;
                         else if(key == 'LAST_CHANCE_LOG_STR')
@@ -174,16 +174,18 @@ export class Game {
                             log = this.logMutationObserver.createLogGrandSlam(args['player_id']).log_html;
                         else if(key == 'START_TOKEN_LOG_STR')
                             log = this.logMutationObserver.createLogStartTokenPassed(args['player_id']).log_html;
-                        else if(key == 'STOP_OR_MORE_LOG_STR')
-                            log = this.logMutationObserver.createLogStopOrMoreRevealed(args['choices']).log_html;
-                        else if(key == 'STARS_BANKED_LOG_STR')
-                            log = this.logMutationObserver.createLogStarsBanked(args['player_id'], args['stars']).log_html;
+                        else if(key == 'STOP_OR_MORE_LOG_STR'){
+                            console.log('[TEMP stopOrMore] log args', JSON.parse(JSON.stringify(args))); //TEMP: remove once the banked stars show
+                            //rows logged before rows existed carry choices (and banked, for a while) instead
+                            const rows: StopOrMoreRow[] = args['rows'] ?? Object.keys(args['choices'] ?? {}).map(player_id => ({ player_id: Number(player_id), choice: args['choices'][player_id], stars: args['banked']?.[player_id]?.stars }));
+                            log = this.logMutationObserver.createLogStopOrMoreRevealed(rows).log_html;
+                        }
                         else if(key == 'DIE_RESERVED_POWER2_LOG_STR')
                             log = this.logMutationObserver.createLogDieReservedPOWER2(args['player_id'], args['die']).log_html;
                         else if(key == 'GOLDEN_DIE_POWER11_LOG_STR')
                             log = this.logMutationObserver.createLogGoldenDiePOWER11(args['player_id']).log_html;
                         else if(key == 'DIE_MODIFIED_POWER9_LOG_STR')
-                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['die_color'], args['old_value'], args['new_value'], args['move_id']).log_html;
+                            log = this.logMutationObserver.createLogDieModifiedPOWER9(args['player_id'], args['card'] ?? null, args['die_color'], args['old_value'], args['new_value'], args['move_id']).log_html;
                         else if(key == 'CARDS_SWAPPED_POWER10_LOG_STR')
                             log = this.logMutationObserver.createLogCardsSwappedPOWER10(args['owner_id'], args['target_id'], args['_private']?.['owner_gives'] ?? null, args['_private']?.['target_gives'] ?? null, args['count']).log_html;
                         else if(key == 'CARDS_REDRAWN_POWER10_LOG_STR')
@@ -414,9 +416,15 @@ export class Game {
         if(!card || !POWER_CARD_VALUES.includes(card.value))
             return this.getStatusCardIconHTML(card);
 
+        return this.getStatusCardIconHTML(card) + this.getPowerIconHTML(card.value);
+    }
+
+    //a power's icon (the power reference's .power-icon) with its own id and the power-card-POWER<n> class, so
+    //addTooltipsToCardsIn gives it that power's tooltip. Sized by where it sits (status bar title)
+    public getPowerIconHTML(value: number): string {
         const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
-        return this.getStatusCardIconHTML(card) + `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(card.value)}" data-power-value="${card.value}" aria-hidden="true"></span>`;
+        return `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(value)}" data-power-value="${value}" aria-hidden="true"></span>`;
     }
     public getGameStateName(): string { return this.gamedatas.gamestate.name; }
 
@@ -653,6 +661,7 @@ export class Game {
         if(!player)
             return;
 
+        player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
         const discards: Promise<void>[] = [player.getPlayedColumn().clear()];
         if(args.player_id === this.myPlayerID && this.handHandler)
             discards.push(this.handHandler.discardAll());
@@ -682,15 +691,15 @@ export class Game {
         this.stopOrMore.setPendingChoice(null);
     }
 
+    //each stopper is out, and the stars they banked are already in their score (banked)
     public async notif_stopOrMoreRevealed(args: StopOrMoreRevealedArgs) {
-        for(let player_id in args.choices){
-            if(args.choices[player_id] === 'stop')
-                this.players[player_id]?.setRoundStatus('stopped');
+        console.log('[TEMP stopOrMore] notif args', JSON.parse(JSON.stringify(args))); //TEMP: remove once the banked stars show
+        for(const row of args.rows){
+            if(row.choice !== 'stop')
+                continue;
+            this.players[row.player_id]?.setRoundStatus('stopped');
+            this.players[row.player_id]?.setScore(row.score);
         }
-    }
-
-    public async notif_starsBanked(args: ScoreChangedArgs) {
-        this.players[args.player_id]?.setScore(args.score);
     }
 
     //last turn's card-2 reservation and golden die expire after the reveal

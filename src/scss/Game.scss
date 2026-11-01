@@ -54,7 +54,6 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
     --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
     --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
-    --bg-log-stars-banked: linear-gradient(135deg, #fff0e0, #f6d2a8);
     --bg-log-die-reserved-power2: linear-gradient(135deg, #e9ebf8, #c9cfee);
     --bg-log-golden-die-power11: linear-gradient(135deg, #fbf6e6, #eedfb0);
     --bg-log-die-modified-power9: linear-gradient(135deg, #e2f4f3, #b9e0dd);
@@ -157,14 +156,27 @@ $status-card-icon-size: 40px;
     .status-card-icon{ margin: 0px 2px; @include card-icon-size(1.6em); }
 }
 
+//the piggy bank's look (Game.getPiggyBankSVG) in the Stop/More log rows only (the Stop button and the banked column badge
+//keep fill: currentColor): muted rose, outlined in a darker rose, which also draws the coin slot, the eye and the tail, so it
+//holds up on light backgrounds. Its width comes from the viewBox (23 x 20): an svg with no width attribute and width: auto
+//can stretch inside a flex box
+$piggy-bank-color: #d9788f;
+$piggy-bank-detail-color: #a34a62;
+@mixin piggy-bank($height){ display: block; height: $height; width: calc(#{$height} * #{math.div(23, 20)}); fill: $piggy-bank-color;
+    path, rect{ stroke: $piggy-bank-detail-color; stroke-width: 0.8; stroke-linejoin: round; }
+    path[fill="none"]{ stroke-width: 1.2; } //the tail
+}
+
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
-//metrics, which grew the button: its span gets line-height 0 so it can't. The piggy bank (Game.getPiggyBankSVG) is white like the text
+//metrics, which grew the button: its span gets line-height 0 so it can't. The piggy bank (Game.getPiggyBankSVG) is white like
+//the text
 #stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
     &:hover{ background: #437f24; border-color: #437f24; }
     .button-star{ line-height: 0; }
     //a little taller than the text, centered on the letters. The negative top and bottom margins keep its margin box 1em
     //tall, inside the line box, so the button keeps its height
-    .button-piggy-bank{ display: inline-block; height: 1.3em; width: auto; margin: -0.15em 0.3em -0.05em -6px;; vertical-align: -0.15em; fill: currentColor; }
+    //not the rose piggy-bank mixin: on the green button it stays white like the text, with no outline
+    .button-piggy-bank{ display: inline-block; height: 1.3em; width: auto; margin: -0.15em 0.3em -0.05em -6px; vertical-align: -0.15em; fill: currentColor; }
 }
 //the looping "..." after an automatic crash or Grand Slam (Game.announceAutoChoice). Hidden dots keep their width, so the
 //text never moves
@@ -339,11 +351,16 @@ body.current_player_is_active:not(.lockedInterface){
         //stopped: the stars are banked (in the score), so the badge is a muted grey piggy bank and the cards dim a little.
         //Same 0.4s fade as a crashed column, both ways (the next round's 'in' fades them back)
         .played-column-stars, .cards-column{ transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease; }
+        //white like the badge's text, greyed by the stopped pill's opacity; not the rose piggy-bank mixin, which is for the log
         .played-column-piggy-bank{ display: block; height: 0.82em; width: auto; fill: currentColor; } //about the number's height
         &[data-round-status="stopped"]{
             .played-column-stars{ opacity: 0.6; color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
             .cards-column{ opacity: 0.75; }
         }
+        //crashed: a white bomb as tall as the piggy bank on the same grey pill, with no opacity of its own (the whole column
+        //already fades to 0.45, so the pill ends up about as light as a stopped one's)
+        .played-column-bomb{ display: block; font-size: 0.82em; line-height: 1; }
+        &[data-round-status="crashed"] .played-column-stars{ color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
 
         //only the star strip at the top of each covered card stays visible, as in the rules
         .cards-column{ display: flex; flex-direction: column; align-items: center;
@@ -359,16 +376,20 @@ body.current_player_is_active:not(.lockedInterface){
 }
 
 //player board
+$hand-back-width: 20px; //the hand count's card backs; their overlap and staircase step scale with it
+$hand-back-overlap-ratio: 0.2; //each back covers this share of the previous one's width
+$hand-back-step-ratio: 0.2; //every 2nd back sits this share of the width lower
+
 .riviera-player-board{ margin-top: 6px;
     //the hand area. --last-chance-margin-right (PlayerHandler.updateLastChanceInset) gives the Last Chance card the same
     //gap to the board's right edge as the card backs have to its left edge
     .player-board-cards-row{ position: relative; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 34px;
         .hand-count-backs, .last-chance-indicator{ transition: opacity 0.3s ease, filter 0.3s ease; }
         .hand-count-backs{ display: flex; align-items: center;
-            //top-aligned, so every 2nd back sits 4px lower (a centered flex item would only move half its margin)
-            .a-card.mini-card-back{ --my-card-width: 20px; box-shadow: 1px 1px 2px #000000; align-self: flex-start; outline: 1px solid #a9a9a9; border-radius: 8%;
-                & + .a-card.mini-card-back{ margin-left: -4px; }
-                &:nth-child(even){ margin-top: 4px; }
+            //top-aligned, so every 2nd back sits a full step lower (a centered flex item would only move half its margin)
+            .a-card.mini-card-back{ --my-card-width: #{$hand-back-width}; box-shadow: 1px 1px 2px #000000; align-self: flex-start; outline: 1px solid #a9a9a9; border-radius: 8%;
+                & + .a-card.mini-card-back{ margin-left: -$hand-back-width * $hand-back-overlap-ratio; }
+                &:nth-child(even){ margin-top: $hand-back-width * $hand-back-step-ratio; }
             }
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
@@ -503,9 +524,23 @@ $start-token-avatar-overlap: $start-token-size * 0.75;
 //display: block on each row, hence !important
 #logs .log:not(.a-game-log), [id^="chatwindowlogs_zone_tablelog_"] .log:not(.a-game-log), [id^="replaylogs"] .gamelogreview:not(.a-game-log){ display: none !important; }
 
+//every "Round N" row but the first and every roll but a round's first start a group: a gap on the side of the previous row
+//(LogMutationObserver, log-gap-before). The desktop log shows the newest row on top, so the previous row is below; the mobile
+//table log and the replay log show the oldest on top, so it is above
+//"Round N" rows get a bigger gap than roll rows
+$log-roll-group-gap: 40px;
+$log-round-group-gap: 80px;
+#logs .log.log-gap-before{ margin-bottom: $log-round-group-gap;
+    &.dice-rolled-log{ margin-bottom: $log-roll-group-gap; }
+}
+[id^="chatwindowlogs_zone_tablelog_"] .log.log-gap-before, [id^="replaylogs"] .gamelogreview.log-gap-before{ margin-top: $log-round-group-gap;
+    &.dice-rolled-log{ margin-top: $log-roll-group-gap; }
+}
+
+$log-reserved-die-size: 22px; //the card 2 row's die, ring included, is laid out as a die this big: its ring then reaches about 28.8px, the Start token row's height
+$log-reserved-die-face-shrink: 0.08; //its face is this much smaller inside the ring
 $reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
-$swap-name-max-width: 80px; //card 10 swap rows: same, and a name shrinks further when the line is still too long
-$log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash", "grand-slam", "start-token", "stop-or-more", "stars-banked",
+$log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash", "grand-slam", "start-token", "stop-or-more",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
     &.a-game-log{ position: relative;
@@ -529,7 +564,7 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .start-token-arrow{ flex-shrink: 0; margin: 0 5px; color: #000000; }
         .mini-start-token{ flex-shrink: 0; --mini-start-token-size: calc(var(--log-card-icon-size) * 0.9); }
     }
-    .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row, .stars-banked-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
+    .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
     .new-round-row{ font-weight: bold; font-size: 16px; }
     .game-end-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
         .fa-trophy{ color: #b8860b; }
@@ -553,12 +588,11 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .status-card-icon{ margin: 0px 1px; @include card-icon-size(var(--log-card-icon-size)); }
     }
     //one entry per row, lined up as a table: names, arrows, cards. Each .reveal-entry hands its 3 children to the row's grid
-    //(display: contents); auto columns keep the block as narrow as its content, at the left of the log row
-    .cards-revealed-row{ display: grid; grid-template-columns: auto auto auto; justify-content: start; justify-items: start; align-items: center; gap: 4px 5px; margin-top: 5px; margin-bottom: -7px;
+    //(display: contents); max-content name and arrow columns, like the Stop/More row's, keep the block as narrow as its
+    //content, at the left of the log row
+    .cards-revealed-row{ display: grid; grid-template-columns: max-content max-content auto; justify-content: start; justify-items: start; align-items: center; gap: 4px 5px; margin-top: 5px; margin-bottom: -7px;
         .reveal-entry{ display: contents; }
         .playername{ display: block; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        //"Name → [card]": one arrow before the first card, as big as the name; the 5px column gap spaces it on both sides
-        .reveal-arrow{ color: #000000; font-size: 1em; }
         .reveal-cards{ display: inline-flex; align-items: center; gap: 5px; }
         .reveal-chain-plus{ font-weight: bold; color: #27271c; }
     }
@@ -567,24 +601,70 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .a-die{ display: inline-block; --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
         .minimised-card-icon + .minimised-card-icon{ margin-left: 2px; }
     }
+    //"name [die]", no taller than a single-row log like the Start token's: the blank reserved die's card 2 ring
+    //(an outline, outside the layout) as big as on a $log-reserved-die-size die, but the face inside it 8% smaller, so the gap
+    //between the face and the ring shows better. The ring keeps that die's width, and its gap grows by what the face lost on
+    //each side. Side margins only, as wide as the ring reaches past the face, keep it clear of the icon; above and below, the
+    //ring stays inside the row's height, so it needs no room
+    $log-reserved-ring-reach: $log-reserved-die-size * (0.08 + $log-reserved-die-face-shrink * 0.5 + 0.075);
+    //as tall as the Start token row (its mini token): the ring fills that height
+    .die-reserved-row{ min-height: calc(var(--log-card-icon-size) * 0.9); }
+    .die-reserved-row .a-die{ --die-size: #{$log-reserved-die-size * (1 - $log-reserved-die-face-shrink)};
+        --reserved-ring-width: #{$log-reserved-die-size * 0.075}; --reserved-ring-gap: #{$log-reserved-die-size * (0.08 + $log-reserved-die-face-shrink * 0.5)};
+        margin: 0px #{$log-reserved-ring-reach};
+        //the lock on the blank face, centred, 70% of the face's size, white with a thin dark outline so it reads on every die
+        //color, light dice too. Absolutely placed, so it never makes the row taller
+        .reserved-die-lock{ position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-size: calc(var(--die-size) * 0.68); line-height: 1; color: #ffffff; @include text-shade(rgba(0, 0, 0, 0.5), 1px); }
+    }
     //a reserved log die: the drop shadow falls all around it, not down-right, where it filled the gap inside the card 2 ring
     //and made the die look off-center in it
     .dice-rolled-row, .die-reserved-row, .die-modified-row{
         .a-die:not([data-reserved-by-power2=""]){ box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0px 0px 2px #000000; }
     }
-    .stop-or-more-row{ color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
-        .fa-flag-checkered{ color: #1c4f72; }
+    //one "name [icon]" line per player ("name [piggy bank] N ★" for a stopper, "name [bomb]" for a crash this round), lined up
+    //as a table like the reveal row: each .stop-or-more-line hands its 2 children to the row's grid (display: contents). The
+    //name column is as wide as the longest name in this row (never cut), so every icon starts at the same x, 6px after it; the
+    //block stays at the left of the log row
+    .stop-or-more-row{ display: grid; grid-template-columns: max-content auto; justify-content: start; justify-items: start; align-items: center; gap: 4px 6px; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
+        .stop-or-more-line{ display: contents; }
+        //"[icon] N ★" or "[icon]", centred on the name by the grid. Each icon is centred in a slot of the same width, so the
+        //piggy bank, the play icon and the bomb share one vertical axis whatever their shapes. The slot is wide enough for the
+        //piggy bank, which with a stopper's stars (4px after it) is 20% bigger than the other icons
+        .stop-or-more-choice{ display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .stop-or-more-icon-slot{ display: inline-flex; align-items: center; justify-content: center; width: 1.8em; flex-shrink: 0; }
+        .stop-or-more-icon{ font-size: 1.36em; } //20% bigger than the names
+        .log-piggy-bank{ @include piggy-bank(1.5em); }
+        .stop-or-more-stars{ font-size: 1.2em;
+            .stop-or-more-amount{ color: #424242; }
+            .stop-or-more-star{ color: #f9a11a; }
+        }
         .fa-play{ color: #2e8b2e; }
+        .fa-bomb{ color: #800000; } //the crash row's bomb color
     }
     .log-arrow{ color: #240e52; @include text-shade(#c7d7d0, 1px); }
-    //card 10 swap: one line ("owner [cards] ⇄ [cards] target"), with smaller card icons than the other logs and the card
-    //backs other players see as tall as those icons. Only the names shrink (ellipsis, full name in their title)
-    &.cards-swapped-power10-log{ --log-card-icon-size: 24px;
-        .cards-swapped-row{ flex-wrap: nowrap; white-space: nowrap;
-            .playername{ display: block; min-width: 0; max-width: $swap-name-max-width; overflow: hidden; text-overflow: ellipsis; }
-            .log-card-icons, .log-arrow{ flex-shrink: 0; }
+    //"name [9]: [old die] → [new die]": the 9 as a smaller circular card icon, sized like the card 10 swap row's, the colon
+    //right after it, bold and bigger so its dots are as thick as the arrow, in the arrow's color. Its gap (3px, plus the
+    //icon's 1px margin) matches the row's 4px gap on its other side
+    &.die-modified-power9-log{ --log-card-icon-size: 24px;
+        .die-modified-card{ display: inline-flex; align-items: center; gap: 3px; }
+        .die-modified-colon{ font-size: 1.4em; font-weight: 900; line-height: 1; color: #000000; }
+        .die-modified-arrow{ color: #000000; font-size: 1em; }
+    }
+    //"name [ban] [card]": a grey ban sign (fa-ban) 70% as tall as the card icon, before it, centred on it by the row's flex.
+    //Its 1px side margins match the card icon's, so the gaps from the name to the ban and from the ban to the card are equal
+    .power-skipped-ban{ font-size: calc(var(--log-card-icon-size) * 0.6); line-height: 1; margin: 0 1px; color: #757575; }
+    //card 10, a pair of one-line rows: swap ("owner [cards] ⇄ [cards] target") and redraw ("owner [discarded] ⇄ [drawn]"),
+    //with smaller card icons than the other logs and the card backs other players see as tall as those icons. A grid: the
+    //icons and ⇄ keep their size, each name column is minmax(0, max-content), so names show whole when they fit, and when the
+    //line is too long the grid shares the room left equally between the names, a name taking no more than its own width:
+    //a short name is never cut, only a long one gets its ellipsis (full name in its title)
+    &.cards-swapped-power10-log, &.cards-redrawn-power10-log{ --log-card-icon-size: 24px;
+        .cards-swapped-row, .cards-redrawn-row{ display: grid; justify-content: center; white-space: nowrap;
+            .playername{ display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
             .minimised-card-icon .a-card{ --my-card-width: calc(var(--log-card-icon-size) / #{$card-aspect}); }
         }
+        .cards-swapped-row{ grid-template-columns: minmax(0, max-content) auto auto auto minmax(0, max-content); }
+        .cards-redrawn-row{ grid-template-columns: minmax(0, max-content) auto auto auto; }
     }
 }
 //the log backgrounds are pale, so light player colors get a dark outline to stay readable

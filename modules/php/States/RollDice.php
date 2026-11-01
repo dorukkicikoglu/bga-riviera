@@ -38,7 +38,8 @@ class RollDice extends \Bga\GameFramework\States\GameState
     function onEnteringState() {
         $this->game->tableManager->rollDice();
 
-        if($this->game->bga->globals->get('isFirstRollOfRound', false)){
+        $isFirstRollOfRound = (bool) $this->game->bga->globals->get('isFirstRollOfRound', false);
+        if($isFirstRollOfRound){
             $this->game->bga->globals->set('isFirstRollOfRound', false);
 
             //null on a table created before the option existed: the default (on)
@@ -65,9 +66,11 @@ class RollDice extends \Bga\GameFramework\States\GameState
                 $diceLogParts[] = $die['color'].' '.$die['value'];
         }
 
+        //first_roll_of_round: the client's log row starts no new group, since it follows the round's own row
         $this->bga->notify->all('diceRolled', '${DICE_ROLLED_LOG_STR}', [
-            'preserve' => ['dice'],
+            'preserve' => ['dice', 'first_roll_of_round'],
             'dice' => $dice,
+            'first_roll_of_round' => $isFirstRollOfRound,
             'DICE_ROLLED_LOG_STR' => 'Dice: '.implode(', ', $diceLogParts),
         ]);
 

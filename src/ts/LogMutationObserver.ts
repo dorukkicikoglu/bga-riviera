@@ -106,7 +106,12 @@ export class LogMutationObserver{
         }
     }
 
-    private addLogClassTag(logHTML: string, logClass: string): LogRowData { return { log_html: logHTML + `<div log-class-tag="${logClass}"></div>`, log_class: logClass }; }
+    //gapBefore: the row starts a new group in the log (log-gap-before, a gap on the side of the previous row). Decided from the
+    //notification's args, never from the rows around it, so live rows, F5 and replays all get the same gaps
+    private addLogClassTag(logHTML: string, logClass: string, gapBefore: boolean = false): LogRowData {
+        const gapTagHTML = gapBefore ? '<div log-class-tag="log-gap-before"></div>' : '';
+        return { log_html: logHTML + `<div log-class-tag="${logClass}"></div>` + gapTagHTML, log_class: logClass };
+    }
 
     //create specific log types
     public createLogNewRound(roundNumber: number): LogRowData {
@@ -115,10 +120,10 @@ export class LogMutationObserver{
                 ${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}
             </div>` + ' &nbsp;';
 
-        return this.addLogClassTag(logHTML, 'new-round-log');
+        return this.addLogClassTag(logHTML, 'new-round-log', roundNumber > 1); //Round 1 is the game's first row
     }
 
-    public createLogDiceRolled(dice: RivieraDie[]): LogRowData {
+    public createLogDiceRolled(dice: RivieraDie[], firstRollOfRound: boolean): LogRowData {
         const diceHTML = dice.filter(dieData => dieData.value !== null).map(dieData => this.game.diceHandler.createDieDiv(dieData).outerHTML).join('');
 
         let logHTML = `
@@ -126,7 +131,7 @@ export class LogMutationObserver{
                 ${diceHTML}
             </div>` + ' &nbsp;';
 
-        return this.addLogClassTag(logHTML, 'dice-rolled-log');
+        return this.addLogClassTag(logHTML, 'dice-rolled-log', !firstRollOfRound); //a round's first roll stays with its "Round N" row
     }
 
     public createLogCardsRevealed(reveals: CardReveal[]): LogRowData {
@@ -139,7 +144,7 @@ export class LogMutationObserver{
             return `
                 <div class="reveal-entry">
                     ${this.getCutPlayerNameHTML(reveal.player_id)}
-                    <i class="fa6 fa-arrow-right reveal-arrow" aria-hidden="true"></i>
+                    <i class="log-arrow place-under-icon fa6 fa-share" aria-hidden="true"></i>
                     <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
                 </div>`;
         }).join('');
@@ -203,16 +208,27 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'start-token-log');
     }
 
-    public createLogStopOrMoreRevealed(choices: Record<number, StopOrMoreChoice>): LogRowData {
-        const namesByChoice: Record<StopOrMoreChoice, string[]> = { stop: [], more: [] };
-        for(const player_id in choices)
-            namesByChoice[choices[player_id]].push(this.game.divColoredPlayer(player_id, {class: 'playername'}));
+    //one line per player, stoppers, then More, then players who crashed this round, each group clockwise from the Start token
+    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [play]", "name [bomb]" (the crash row's
+    //icon). Each icon sits in a fixed-width slot, so they all share one vertical axis; the play and bomb icons' titles name them
+    public createLogStopOrMoreRevealed(rows: StopOrMoreRow[]): LogRowData {
+        const iconsHTML: Record<StopOrMoreRow['choice'], string> = {
+            stop: this.game.getPiggyBankSVG('log-piggy-bank'),
+            more: `<i class="fa6 fa-play stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
+            crash: `<i class="fa6 fa-bomb stop-or-more-icon" title="${_('Crashed').replace(/"/g, '&quot;')}"></i>`,
+        };
+        const linesByChoice: Record<StopOrMoreRow['choice'], string[]> = { stop: [], more: [], crash: [] };
+        for(const row of rows){
+            //a stopper's stars (rows logged before they were sent have none)
+            const starsHTML = (row.choice === 'stop' && row.stars !== undefined && row.stars !== null) ? `<span class="stop-or-more-stars"><b class="stop-or-more-amount">${row.stars}</b>&nbsp;<span class="stop-or-more-star">★</span></span>` : '';
+            linesByChoice[row.choice].push(`
+                <div class="stop-or-more-line">
+                    ${this.game.divColoredPlayer(row.player_id, {class: 'playername'})}
+                    <span class="stop-or-more-choice"><span class="stop-or-more-icon-slot">${iconsHTML[row.choice]}</span>${starsHTML}</span>
+                </div>`);
+        }
 
-        let choiceLinesHTML = '';
-        if(namesByChoice.stop.length > 0)
-            choiceLinesHTML += `<div class="stop-or-more-line"><i class="fa6 fa-flag-checkered"></i>&nbsp;${_('Stop:')} ${namesByChoice.stop.join(', ')}</div>`;
-        if(namesByChoice.more.length > 0)
-            choiceLinesHTML += `<div class="stop-or-more-line"><i class="fa6 fa-play"></i>&nbsp;${_('More:')} ${namesByChoice.more.join(', ')}</div>`;
+        const choiceLinesHTML = linesByChoice.stop.join('') + linesByChoice.more.join('') + linesByChoice.crash.join('');
 
         let logHTML = `
             <div class="stop-or-more-row">
@@ -222,29 +238,14 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'stop-or-more-log');
     }
 
-    public createLogStarsBanked(player_id: number, stars: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const starsBankedText = player_id === this.game.getMyPlayerID()
-            ? _('${you} bank ${stars} ★').replace('${you}', playerNameHTML)
-            : _('${playerName} banks ${stars} ★').replace('${playerName}', playerNameHTML);
-
-        let logHTML = `
-            <div class="stars-banked-row">
-                ${starsBankedText.replace('${stars}', `<b>${stars}</b>`)}
-            </div>` + ' &nbsp;';
-
-        return this.addLogClassTag(logHTML, 'stars-banked-log');
-    }
-
+    //icons only: "name [die]", the reserved die blank (it is rolled again, so no value) with a lock on it, in its color with the
+    //solid card 2 ring in the owner's color, as in the dice area (the server's DIE_RESERVED_POWER2_LOG_STR is the plain-text
+    //fallback)
     public createLogDieReservedPOWER2(player_id: number, die: RivieraDie): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const reservedText = player_id === this.game.getMyPlayerID()
-            ? _('${you} reserve ${die} for the next roll').replace('${you}', playerNameHTML)
-            : _('${playerName} reserves ${die} for the next roll').replace('${playerName}', playerNameHTML);
-
         let logHTML = `
             <div class="die-reserved-row">
-                ${reservedText.replace('${die}', this.getMiniDieHTML({ ...die, pending_reserved_by_POWER2: null }))}
+                ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
+                ${this.getLockedMiniDieHTML({ ...die, pending_reserved_by_POWER2: null })}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
@@ -265,18 +266,21 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');
     }
 
-    //moveID tags the row, so a card 9 undo can remove it (removeDieModifiedLogPOWER9)
-    public createLogDieModifiedPOWER9(player_id: number, dieColor: DieColor, oldValue: number, newValue: number, moveID: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const modifiedText = player_id === this.game.getMyPlayerID()
-            ? _('${you} turn ${oldDie} to ${newDie}').replace('${you}', playerNameHTML)
-            : _('${playerName} turns ${oldDie} to ${newDie}').replace('${playerName}', playerNameHTML);
-
+    //icons only: "name [9]: [old die] → [new die]", the 9 that gave the power as the circular card icon (the server's
+    //DIE_MODIFIED_POWER9_LOG_STR is the plain-text fallback). moveID tags the row, so a card 9 undo can remove it
+    //(removeDieModifiedLogPOWER9)
+    public createLogDieModifiedPOWER9(player_id: number, card: RivieraCard | null, dieColor: DieColor, oldValue: number, newValue: number, moveID: number): LogRowData {
         const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         const newDie: RivieraDie = { ...oldDie, value: newValue };
+        //rows logged before the card was sent have no card: the colon goes with it
+        const cardHTML = card ? `<span class="die-modified-card">${this.getCardIconsHTML([card])}<span class="die-modified-colon">:</span></span>` : '';
         let logHTML = `
             <div class="die-modified-row" data-move-id="${moveID}">
-                ${modifiedText.replace('${oldDie}', this.getMiniDieHTML(oldDie)).replace('${newDie}', this.getMiniDieHTML(newDie))}
+                ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
+                ${cardHTML}
+                ${this.getMiniDieHTML(oldDie)}
+                <i class="fa6 fa-arrow-right die-modified-arrow" aria-hidden="true"></i>
+                ${this.getMiniDieHTML(newDie)}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'die-modified-power9-log');
@@ -307,39 +311,40 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'cards-swapped-power10-log');
     }
 
-    //card 10 with no opponent left: one row for everyone. The owner sees the cards (from _private), everyone else card backs
+    //card 10 with no opponent left: one row for everyone, icons only like the swap row's: "name [discarded] ⇄ [drawn]" (the
+    //server's CARDS_REDRAWN_POWER10_LOG_STR is the plain-text fallback). The owner sees the cards (from _private), everyone
+    //else card backs, in the icons' container like the swap row's
     public createLogCardsRedrawnPOWER10(player_id: number, discarded: RivieraCard[] | null, drawn: RivieraCard[] | null, count: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const redrawnText = player_id === this.game.getMyPlayerID()
-            ? _('${you} discard ${discarded} and draw ${drawn}').replace('${you}', playerNameHTML)
-            : _('${playerName} discards ${discarded} and draws ${drawn}').replace('${playerName}', playerNameHTML);
-
-        const discardedHTML = discarded ? this.getMiniCardsHTML(discarded) : this.getMiniCardBacksHTML(count);
-        const drawnHTML = drawn ? this.getMiniCardsHTML(drawn) : this.getMiniCardBacksHTML(count);
+        const discardedHTML = discarded ? this.getCardIconsHTML(discarded) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
+        const drawnHTML = drawn ? this.getCardIconsHTML(drawn) : `<span class="log-card-icons">${this.getMiniCardBacksHTML(count)}</span>`;
 
         let logHTML = `
             <div class="cards-redrawn-row">
-                ${redrawnText.replace('${discarded}', discardedHTML).replace('${drawn}', drawnHTML)}
+                ${this.getCutPlayerNameHTML(player_id)}${discardedHTML}
+                <span class="log-arrow">⇄</span>
+                ${drawnHTML}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
     }
 
+    //icons only: "name [ban] [card]", the card as the circular card icon (the server's POWER_SKIPPED_LOG_STR is the plain-text
+    //fallback). A card 10 skipped on its own keeps its reason after it
     public createLogPowerSkipped(player_id: number, value: number, card: RivieraCard | null, reason: string): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const cardHTML = card ? this.getMiniCardsHTML([card]) : `<b>${value}</b>`;
+        const cardHTML = card ? this.getCardIconsHTML([card]) : `<b>${value}</b>`;
 
-        let skippedText = player_id === this.game.getMyPlayerID()
-            ? _('${you} do not use ${card}').replace('${you}', playerNameHTML)
-            : _('${playerName} does not use ${card}').replace('${playerName}', playerNameHTML);
+        let reasonHTML = '';
         if(reason === 'nothing_to_draw')
-            skippedText += ' ' + _('(no card left to draw)');
+            reasonHTML = _('(no card left to draw)');
         else if(reason === 'not_enough_cards')
-            skippedText += ' ' + _('(fewer than 2 cards in hand)');
+            reasonHTML = _('(fewer than 2 cards in hand)');
 
         let logHTML = `
             <div class="power-skipped-row">
-                ${skippedText.replace('${card}', cardHTML)}
+                ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
+                <i class="fa6 fa-ban power-skipped-ban" aria-hidden="true"></i>
+                ${cardHTML}
+                ${reasonHTML}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'power-skipped-log');
@@ -361,10 +366,6 @@ export class LogMutationObserver{
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'game-end-log');
-    }
-
-    private getMiniCardsHTML(cards: RivieraCard[]): string {
-        return cards.map(card => `<div class="minimised-card-icon">${this.game.createCardDiv(card).outerHTML}</div>`).join('');
     }
 
     //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons
@@ -408,5 +409,14 @@ export class LogMutationObserver{
 
     private getMiniDieHTML(die: RivieraDie): string {
         return this.game.diceHandler.createDieDiv(die).outerHTML;
+    }
+
+    //a reserved die with no face and a lock centred on it: data-value "blank" matches no pip rule, so no pips show, and unlike
+    //"" (no value) it is not hidden
+    private getLockedMiniDieHTML(die: RivieraDie): string {
+        const aDie = this.game.diceHandler.createDieDiv(die);
+        aDie.setAttribute('data-value', 'blank');
+        aDie.insertAdjacentHTML('beforeend', '<i class="fa6 fa-lock reserved-die-lock" aria-hidden="true"></i>');
+        return aDie.outerHTML;
     }
 }

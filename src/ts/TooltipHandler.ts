@@ -77,15 +77,18 @@ export class TooltipHandler{
         }
     }
 
-    //the column badge: the stars at stake while in, the banked amount once stopped (PlayedColumnHandler.setRoundStatus)
+    //the column badge: the stars at stake while in, the banked amount once stopped, nothing to bank once crashed
+    //(PlayedColumnHandler.setRoundStatus)
     public updateColumnStarsTooltip(player_id: number){
         const playedColumn = this.game.players[player_id]?.getPlayedColumn();
         if(!playedColumn)
             return;
 
-        const tooltipText = playedColumn.isBanked()
-            ? _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`)
-            : _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
+        let tooltipText = _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
+        if(playedColumn.isBanked())
+            tooltipText = _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`);
+        else if(playedColumn.isCrashed())
+            tooltipText = _('Crashed: no stars this round');
         this.game.bga.gameui.addTooltip('column-stars-' + player_id, tooltipText, '', TooltipHandler.TOOLTIP_DELAY);
     }
 
