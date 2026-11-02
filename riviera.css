@@ -1039,7 +1039,7 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
   position: absolute;
   left: 50%;
   top: 50%;
-  translate: -50% -50%;
+  translate: -50% -62%;
   rotate: -8deg;
   z-index: 1;
   pointer-events: none;
