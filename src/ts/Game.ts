@@ -30,7 +30,8 @@ export type SlideOptions = {
     easing?: string; //CSS timing function, Game.CARD_SLIDE_EASING by default
     keepSize?: boolean; //the copy keeps the element's size, centered on the other end, instead of changing size on the way
     delayMs?: number; //the copy waits this long at its start before it moves (a sweep's stagger)
-    fadeOutMs?: number; //animateSlideAway: the copy fades out for this long once it has arrived
+    holdMs?: number; //animateSlideAway: the copy stays fully shown this long once it has arrived, before it fades or goes
+    fadeOutMs?: number; //animateSlideAway: the copy fades out for this long once it has arrived (and held)
 };
 
 export class Game {
@@ -39,9 +40,12 @@ export class Game {
     public static readonly CARD_SLIDE_EASING = 'ease-in-out';
     public static readonly CHAIN_CARD_STAGGER = 150; //ms between two cards of a card-1 chain leaving for the column
     public static readonly SWAP_FADE_OUT_DURATION = 300; //ms a card I give in a card 10 swap takes to fade out on the other player's avatar
-    public static readonly CARD_SWEEP_DURATION = 440; //ms each card leaving the game (a new round, a crash) takes to slide off-screen
-    public static readonly CARD_SWEEP_STAGGER = 48; //ms between two cards starting their sweep at a new round
-    public static readonly CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash (hand and column)
+    public static readonly BOARD_STACK_OFFSET = 10; //px right and down each card lands from the one before when several fly onto the same board spot at once (a card 10 swap)
+    public static readonly BOARD_ARRIVAL_HOLD = 100; //ms a card that has flown onto a player board (avatar or hand count) stays fully shown before it fades or goes
+    public static readonly CARD_SWEEP_DURATION = 293; //ms each card leaving at a new round (hand and columns) takes to slide off-screen, quicker than the deal so the two read apart
+    public static readonly CARD_SWEEP_STAGGER = 32; //ms between two cards starting their sweep at a new round
+    public static readonly CRASH_SWEEP_DURATION = 440; //ms each card leaving at a crash (hand and column) takes to slide off-screen
+    public static readonly CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash
     public static readonly CARD_SWEEP_EASING = 'ease-in-out';
     public static readonly CARD_DEAL_DURATION = 440; //ms each card of a new hand slides in for
     public static readonly CARD_DEAL_STAGGER = 48; //ms between the starts of two dealt cards (well under CARD_DEAL_DURATION: a few cards move at once)
@@ -370,9 +374,9 @@ export class Game {
     }
 
     //moves the copy from fromRect to toRect (both on screen), after options.delayMs at its start, fades it out there if
-    //options.fadeOutMs, then removes it
+    //options.fadeOutMs (after options.holdMs of stillness), then removes it
     private async moveSlidingClone(slidingClone: HTMLDivElement, fromRect: DOMRect, toRect: DOMRect, durationMs: number, options: SlideOptions): Promise<void> {
-        const { easing = Game.CARD_SLIDE_EASING, delayMs = 0, fadeOutMs = 0 } = options;
+        const { easing = Game.CARD_SLIDE_EASING, delayMs = 0, holdMs = 0, fadeOutMs = 0 } = options;
         const transformOnto = this.getSlidingCloneTransform(slidingClone);
 
         slidingClone.style.transform = transformOnto(fromRect);
@@ -383,6 +387,9 @@ export class Game {
         slidingClone.style.transform = transformOnto(toRect);
 
         await this.bga.gameui.wait(delayMs + durationMs);
+
+        if(holdMs > 0)
+            await this.bga.gameui.wait(holdMs);
 
         if(fadeOutMs > 0){
             slidingClone.style.transition = `opacity ${fadeOutMs}ms ease`;
@@ -565,8 +572,8 @@ export class Game {
 
             const slides: Promise<void>[] = [];
             for(let i = 0; i < count; i++){
-                slides.push(this.animateCardBackSlide(firstRect, secondPlayer));
-                slides.push(this.animateCardBackSlide(secondRect, firstPlayer));
+                slides.push(this.animateCardBackSlide(firstRect, Game.getStackedRect(secondRect, i)));
+                slides.push(this.animateCardBackSlide(secondRect, Game.getStackedRect(firstRect, i)));
             }
             await Promise.all(slides);
         }
@@ -576,11 +583,19 @@ export class Game {
         secondPlayer.setHandCount(secondPlayer.getHandCount());
     }
 
-    private async animateCardBackSlide(fromRect: DOMRect, toPlayer: PlayerHandler): Promise<void> {
+    //a mini card back flies from fromRect onto toRect (on the other board's hand count, stacked), stays there a moment
+    //(BOARD_ARRIVAL_HOLD), then goes; the hand count itself is redrawn after
+    private async animateCardBackSlide(fromRect: DOMRect, toRect: DOMRect): Promise<void> {
         const cardBack = this.createCardBackDiv();
         cardBack.classList.add('mini-card-back');
-        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_SLIDE_DURATION);
-        cardBack.remove();
+        await this.moveSlidingClone(this.createSlidingClone(cardBack), fromRect, toRect, Game.CARD_SLIDE_DURATION, { holdMs: Game.BOARD_ARRIVAL_HOLD });
+    }
+
+    //cards flying onto the same spot of a player board land as a visible stack: the index-th one (0 = the first, at the
+    //back) lands BOARD_STACK_OFFSET px further right and down per index, and later ones come later in <body>, so on top
+    public static getStackedRect(rect: DOMRect, index: number): DOMRect {
+        const offset = index * Game.BOARD_STACK_OFFSET;
+        return new DOMRect(rect.left + offset, rect.top + offset, rect.width, rect.height);
     }
     public getMyPlayerID(): number{ return this.myPlayerID; }
     public getPlayerOrder(): number[]{ return this.gamedatas.playerorder; } //turn order, starting with myself
@@ -613,20 +628,23 @@ export class Game {
     public async notif_newRound(args: NewRoundArgs) {
         await this.startTokenFlight; //the end-of-round pass (EndRound) lands before the columns clear
 
-        const columnsCleared: Promise<void>[] = [];
+        //every column and the cards left in my hand sweep out together, each with its own stagger; newHand deals once all have left
+        const sweeps: Promise<void>[] = [];
         for(let player_id in this.players){
             const player = this.players[player_id];
-            columnsCleared.push(player.getPlayedColumn().clear());
+            sweeps.push(player.getPlayedColumn().clear());
             player.setRoundStatus('in');
             player.setHandCount(args.hand_counts[player_id] ?? 0);
         }
+        if(this.handHandler)
+            sweeps.push(this.handHandler.discardAll());
         //args.dice (blank, not rolled yet) is not shown: last round's dice stay up through the deal, until diceRolled
 
-        await Promise.all(columnsCleared);
+        await Promise.all(sweeps);
     }
 
     public async notif_newHand(args: NewHandArgs) {
-        await this.handHandler?.setHand(args.cards); //old cards sweep out, then the new ones are dealt
+        await this.handHandler?.setHand(args.cards); //the old cards have already swept out (newRound): the new ones are dealt
         this.tooltipHandler.addTooltipsToCards();
     }
 
@@ -742,9 +760,9 @@ export class Game {
             return;
 
         player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
-        const discards: Promise<void>[] = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_STAGGER)];
+        const discards: Promise<void>[] = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)];
         if(args.player_id === this.myPlayerID && this.handHandler)
-            discards.push(this.handHandler.discardAll());
+            discards.push(this.handHandler.discardAll(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)); //started with the column's: both sweep together
 
         await Promise.all(discards);
         player.setHandCount(0);

@@ -88,13 +88,13 @@ export class PlayedColumnHandler{
 
     //a crash or a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
     //peeling the stack, staggerMs apart. The column keeps its height until the sweep has ended, so nothing below it moves meanwhile
-    public async clear(staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
+    public async clear(durationMs: number = Game.CARD_SWEEP_DURATION, staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
         this.playedCardsData = [];
 
         const cards = Array.from(this.cardsColumn.querySelectorAll('.a-card')) as HTMLDivElement[];
         if(cards.length > 0)
             this.cardsColumn.style.minHeight = getComputedStyle(this.cardsColumn).height; //CSS px, unrounded
-        const sweep = this.game.sweepCardsOffScreen(cards.reverse(), Game.CARD_SWEEP_DURATION, staggerMs);
+        const sweep = this.game.sweepCardsOffScreen(cards.reverse(), durationMs, staggerMs);
         this.cardsColumn.innerHTML = '';
         this.updateStarsTotal();
 

@@ -274,13 +274,14 @@ export class HandHandler{
             oldRects.set(parseInt(card.getAttribute('data-card-id')), card.getBoundingClientRect());
 
         const moves: Promise<void>[] = [];
+        let landedCount = 0; //the cards I give land as a stack on the other player's avatar, each in front of the one before
         for(let cardID of leavingCardIDs){
             const card = this.getCardDiv(cardID);
             if(!card)
                 continue;
 
             if(animate)
-                moves.push(this.game.animateSlideAway(card, boardRect, Game.CARD_SLIDE_DURATION, { keepSize: true, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
+                moves.push(this.game.animateSlideAway(card, Game.getStackedRect(boardRect, landedCount++), Game.CARD_SLIDE_DURATION, { keepSize: true, holdMs: Game.BOARD_ARRIVAL_HOLD, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
             card.remove();                                                                            //so the card can go right away
         }
 
@@ -326,15 +327,15 @@ export class HandHandler{
         await slidePromise;
     }
 
-    //a crash discards the whole hand: it sweeps off-screen up-left
-    public async discardAll(): Promise<void>{
-        await this.sweepOutCards(Game.CRASH_SWEEP_STAGGER);
+    //a crash or a new round (with every column, in newRound) discards the whole hand: it sweeps off-screen up-left
+    public async discardAll(durationMs: number = Game.CARD_SWEEP_DURATION, staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
+        await this.sweepOutCards(durationMs, staggerMs);
     }
 
-    //a new round's hand: the cards left from the previous round sweep out up-left as copies while the new hand is dealt
-    //card by card (dealIn). Resolves when the last card has landed
+    //a new round's hand, dealt card by card (dealIn) once the previous round's cards have swept out (newRound). Any card
+    //still in the hand sweeps out alongside the deal. Resolves when the last card has landed
     public async setHand(handData: RivieraCard[]): Promise<void>{
-        const sweep = this.sweepOutCards(); //empties the hand at once, the deal doesn't wait for the copies
+        const sweep = this.sweepOutCards(); //nothing left to sweep after newRound
 
         this.handData = handData;
         this.displayHand();
@@ -362,8 +363,8 @@ export class HandHandler{
     }
 
     //every card in my hand sweeps off-screen up-left (Game.sweepCardsOffScreen) and the hand is emptied at once
-    private async sweepOutCards(staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
-        const sweep = this.game.sweepCardsOffScreen(this.getCardDivs(), Game.CARD_SWEEP_DURATION, staggerMs);
+    private async sweepOutCards(durationMs: number = Game.CARD_SWEEP_DURATION, staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
+        const sweep = this.game.sweepCardsOffScreen(this.getCardDivs(), durationMs, staggerMs);
         this.handData = [];
         this.cardsContainer.innerHTML = '';
 

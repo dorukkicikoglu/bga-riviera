@@ -91,7 +91,7 @@ Activating a power is always optional (**[BGA]** except card 2). When several pl
 - Shuffle all cards in use, deal 10 to each player, rest is the draw pile.
 - **[BGA]** The "7+ cards of one color" rule is handled invisibly: the server redeals until every hand has at most 6 cards of any color. No log line, no animation; players never see a hand like that.
 - Everyone is "in" the round (not stopped, not crashed).
-- **[BGA]** Client: once the previous round's columns are cleared, the cards left in my hand sweep out to the left while my new hand is dealt card by card (right to left, each card flying in along the same 10 degree line from off-screen, above it and to the left; the old cards leave along the same line); the dice roll once the last card has landed. Last round's dice values stay shown until that roll. No sweep or deal on F5 or for spectators.
+- **[BGA]** Client: the previous round's columns and the cards left in my hand sweep out to the left together; once they are all gone, my new hand is dealt card by card (right to left, each card flying in along the same 10 degree line from off-screen, above it and to the left; the old cards leave along the same line); the dice roll once the last card has landed. Last round's dice values stay shown until that roll. No sweep or deal on F5 or for spectators.
 
 ## Turn sequence
 
