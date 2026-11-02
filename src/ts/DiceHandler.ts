@@ -18,6 +18,7 @@ export class DiceHandler{
     private static readonly SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
     private static readonly PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
     private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its ring, dashed
+    private static readonly COMBO_HIGHLIGHT_CLASS = 'die-highlight-combo'; //PlayCard: the dice that make the selected hand card playable
     private static readonly DIE_FACES = 6;
 
     //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
@@ -137,6 +138,12 @@ export class DiceHandler{
         aDie.setAttribute('data-value', DiceHandler.turnDieValue(realDieData.value, choice.delta).toString());
         aDie.classList.add(DiceHandler.PREVIEWED_CLASS_POWER9);
         this.previewedColorPOWER9 = choice.color;
+    }
+
+    //PlayCard: lights the dice that make the selected card playable ([] for none). Only the class is toggled on the dice
+    //already there, so the glow fades both ways, and a die in both the old and the new combination stays lit
+    public setComboHighlight(colors: DieColor[]): void {
+        this.diceContainer.querySelectorAll('.die-slot > .a-die').forEach((aDie: HTMLDivElement) => aDie.classList.toggle(DiceHandler.COMBO_HIGHLIGHT_CLASS, colors.includes(aDie.getAttribute('data-color') as DieColor)));
     }
 
     //6 + 1 wraps to 1, 1 - 1 wraps to 6, like the server

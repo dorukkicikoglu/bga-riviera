@@ -31,6 +31,7 @@ export class PlayCard {
     private chainCardIDs: number[] = [];
     private chainOpen: boolean = false;
     private playableCardIDs: number[] = [];
+    private playableCardDice: Record<number, DieColor[]> = {}; //from the server, fixed for the whole state: the dice that make each card playable
     private hasNoPlayableCard: boolean = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
     private canUseLastChance: boolean = false;
     private autoGrandSlam: boolean = false; //[BGA] the server played my last card for me: nothing to undo
@@ -45,6 +46,7 @@ export class PlayCard {
     onEnteringState(args: PlayCardArgs, isCurrentPlayerActive: boolean) {
         const privateArgs = args?._private;
         this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
+        this.playableCardDice = privateArgs?.playableCardDice ?? {};
         this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.autoGrandSlam = privateArgs?.autoGrandSlam ?? false;
@@ -62,6 +64,7 @@ export class PlayCard {
      */
     onLeavingState(args: PlayCardArgs, isCurrentPlayerActive: boolean) {
         this.game.handHandler?.clearSelectableCards();
+        this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
     }
 
@@ -78,6 +81,7 @@ export class PlayCard {
 
         this.bga.statusBar.removeActionButtons();
         handHandler?.clearSelectableCards();
+        this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
 
         //spectator, or a player who isn't choosing and has nothing pending
@@ -147,6 +151,9 @@ export class PlayCard {
             return;
         }
 
+        //the dice that make the selected card playable, so it is clear why it glows
+        this.game.diceHandler.setComboHighlight(selectedCard ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
+
         const isAddingToChain = this.pendingChoice !== null;
         if(selectedCard){
             this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
@@ -166,6 +173,7 @@ export class PlayCard {
         if(!selectedCardID)
             return;
 
+        this.game.diceHandler.setComboHighlight([]);
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
     }
 

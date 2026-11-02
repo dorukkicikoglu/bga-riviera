@@ -119,6 +119,8 @@ class PlayCard extends GameState
     /**
      * Playable cards and pending choices are private: each player only gets their own.
      * playableCardIDs leaves out the cards already chosen, so in the middle of a chain it lists the possible next cards.
+     * playableCardDice keeps every playable card with the dice that make it playable (the client highlights them on the
+     * selected card): the dice and the hand don't change in this state, so it holds for the whole chain and any Undo.
      */
     public function getArgs(): array
     {
@@ -138,6 +140,7 @@ class PlayCard extends GameState
 
             $privateArgs[$playerID] = [
                 'playableCardIDs' => $this->getRemainingPlayableCardIDs($playerID),
+                'playableCardDice' => $this->game->tableManager->getPlayableCardDice($playerID),
                 'hasNoPlayableCard' => $this->game->tableManager->hasNoPlayableCard($playerID),
                 'canUseLastChance' => $this->game->tableManager->canUseLastChance($playerID),
                 'autoGrandSlam' => in_array($playerID, $this->getAutoGrandSlamPlayerIDs(), true),

@@ -93,6 +93,7 @@ interface PendingPlayChoice {
 interface PlayCardArgs {
     _private?: {
         playableCardIDs: number[];
+        playableCardDice: Record<number, DieColor[]>; //every playable card (chosen ones included) => the dice that make it playable, leftmost combination
         hasNoPlayableCard: boolean;
         canUseLastChance: boolean;
         autoGrandSlam: boolean;

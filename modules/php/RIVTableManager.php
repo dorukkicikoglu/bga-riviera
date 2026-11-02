@@ -237,33 +237,44 @@ class RIVTableManager{
      * under the color of either of them. The golden die adds to a sum but never gives a color.
      */
     function getPlayableCardIDs(int $playerID): array{
+        return array_keys($this->getPlayableCardDice($playerID));
+    }
+
+    /**
+     * Playable hand cards of $playerID, each with the colors of the dice that make it playable (one die, or the two of a
+     * sum): card_id => die colors, in hand order. When several combinations work, the one furthest left in the dice row:
+     * by its leftmost die, then by the next one. getAvailableDice() is in the dice row's order, so the combinations below
+     * are tried in exactly that order ([0], [0, 1], [0, 2], ..., [1], [1, 2], ...) and the first one found is kept.
+     */
+    function getPlayableCardDice(int $playerID): array{
         $availableDice = $this->getAvailableDice($playerID);
 
-        $playableColorValues = []; //"color:value" => true
-        foreach($availableDice as $die){
-            if($die['color'] !== 'gold')
-                $playableColorValues[$die['color'].':'.$die['value']] = true;
-        }
-
+        $diceByColorValue = []; //"color:value" => die colors of the leftmost combination
         for($i = 0; $i < count($availableDice); $i++){
+            $firstDie = $availableDice[$i];
+            if($firstDie['color'] !== 'gold' && !isset($diceByColorValue[$firstDie['color'].':'.$firstDie['value']]))
+                $diceByColorValue[$firstDie['color'].':'.$firstDie['value']] = [$firstDie['color']];
+
             for($j = $i + 1; $j < count($availableDice); $j++){
-                $sum = $availableDice[$i]['value'] + $availableDice[$j]['value'];
-                foreach([$availableDice[$i], $availableDice[$j]] as $die){
-                    if($die['color'] !== 'gold')
-                        $playableColorValues[$die['color'].':'.$sum] = true;
+                $secondDie = $availableDice[$j];
+                $sum = $firstDie['value'] + $secondDie['value'];
+                foreach([$firstDie, $secondDie] as $die){
+                    if($die['color'] !== 'gold' && !isset($diceByColorValue[$die['color'].':'.$sum]))
+                        $diceByColorValue[$die['color'].':'.$sum] = [$firstDie['color'], $secondDie['color']];
                 }
             }
         }
 
         $handCardsDB = $this->game->getObjectListFromDB("SELECT `card_id`, `color`, `value` FROM `cards` WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID ORDER BY `color` ASC, `value` ASC");
 
-        $playableCardIDs = [];
+        $playableCardDice = [];
         foreach($handCardsDB as $cardDB){
-            if(isset($playableColorValues[$cardDB['color'].':'.$cardDB['value']]))
-                $playableCardIDs[] = (int) $cardDB['card_id'];
+            $dieColors = $diceByColorValue[$cardDB['color'].':'.$cardDB['value']] ?? null;
+            if($dieColors !== null)
+                $playableCardDice[(int) $cardDB['card_id']] = $dieColors;
         }
 
-        return $playableCardIDs;
+        return $playableCardDice;
     }
 
     /**

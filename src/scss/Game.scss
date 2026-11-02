@@ -44,6 +44,11 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --power-card-glow-peak-color: #ffffff;
     --power-card-glow-reach: 1.6;
 
+    //the dice that make the selected hand card playable (PlayCard, .die-highlight-combo): the playable cards' gold glow
+    --die-combo-glow-color: var(--card-glow-color);
+    --die-combo-glow-peak-color: var(--card-glow-peak-color);
+    --die-combo-transition-duration: 150ms;
+
     //one background per log type, each a pale take on a card color or the coast, light enough for the default dark log text
     --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
     --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
@@ -258,7 +263,8 @@ $piggy-bank-detail-color: #a34a62;
     //another player's card 2, from my side (data-reservation, DiceHandler.getReservationForMe): reserved 0.4, pending 0.7.
     //Only the face fades (its color, edge and drop shadow on ::before, and the pips), never the die itself, so its card 2
     //ring (an outline), the card 9 preview glow and the ± badge stay fully visible
-    .a-die{ --die-face-opacity: 1; background: none; box-shadow: none;
+    //the combo highlight's glow transitions here, on every die, so it fades both when the class comes and when it goes
+    .a-die{ --die-face-opacity: 1; background: none; box-shadow: none; transition: opacity 0.3s ease, box-shadow var(--die-combo-transition-duration) ease;
         &::before{ content: ""; position: absolute; inset: 0px; border-radius: inherit; background: var(--die-face); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
         .die-pip{ opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
         &[data-reservation="maybe-other"]{ --die-face-opacity: 0.7; }
@@ -289,6 +295,10 @@ $piggy-bank-detail-color: #a34a62;
     //card 9 preview (local to the owner): the die shows the value it would become, with a soft glow so it reads as a preview.
     //A box-shadow on the die, not a filter: a filter's glow would follow the face's opacity and fade with a reserved die
     .a-die.previewed-die-power9{ box-shadow: 0 0 3px 1px #ffe8a3, 0 0 8px 2px #ffd700; }
+    //PlayCard: the dice that make the selected hand card playable (DiceHandler.setComboHighlight), glowing gold like the
+    //playable cards. A box-shadow on the die (its face is ::before), so the card 2 ring (an outline, solid or dashed) is
+    //untouched. z-index: the glow paints over the neighbouring dice, still under the card 9 arrows (2)
+    .a-die.die-highlight-combo{ box-shadow: 0 0 6px 3px var(--die-combo-glow-peak-color), 0 0 14px 6px var(--die-combo-glow-color); z-index: 1; }
 }
 //a die of the new roll flying in (DiceHandler.rollIn): fixed in <body>, so no ancestor's overflow clips its entry from the
 //top right and it adds no scrollable overflow. Moved by translate, turned by rotate and sized by scale, around its center;

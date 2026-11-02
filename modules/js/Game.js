@@ -21,6 +21,7 @@ class PlayCard {
         this.chainCardIDs = [];
         this.chainOpen = false;
         this.playableCardIDs = [];
+        this.playableCardDice = {}; //from the server, fixed for the whole state: the dice that make each card playable
         this.hasNoPlayableCard = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
         this.canUseLastChance = false;
         this.autoGrandSlam = false; //[BGA] the server played my last card for me: nothing to undo
@@ -32,6 +33,7 @@ class PlayCard {
     onEnteringState(args, isCurrentPlayerActive) {
         const privateArgs = args?._private;
         this.playableCardIDs = privateArgs?.playableCardIDs ?? [];
+        this.playableCardDice = privateArgs?.playableCardDice ?? {};
         this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
         this.autoGrandSlam = privateArgs?.autoGrandSlam ?? false;
@@ -47,6 +49,7 @@ class PlayCard {
      */
     onLeavingState(args, isCurrentPlayerActive) {
         this.game.handHandler?.clearSelectableCards();
+        this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
     }
     /**
@@ -60,6 +63,7 @@ class PlayCard {
         const handHandler = this.game.handHandler;
         this.bga.statusBar.removeActionButtons();
         handHandler?.clearSelectableCards();
+        this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
         //spectator, or a player who isn't choosing and has nothing pending
         if (!handHandler || (!isCurrentPlayerActive && !this.pendingChoice)) {
@@ -122,6 +126,8 @@ class PlayCard {
             this.confirmClicked(this.confirmActionName);
             return;
         }
+        //the dice that make the selected card playable, so it is clear why it glows
+        this.game.diceHandler.setComboHighlight(selectedCard ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
         const isAddingToChain = this.pendingChoice !== null;
         if (selectedCard) {
             this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
@@ -140,6 +146,7 @@ class PlayCard {
         const selectedCardID = this.game.handHandler?.getSelectedCardID();
         if (!selectedCardID)
             return;
+        this.game.diceHandler.setComboHighlight([]);
         this.bga.actions.performAction(actionName, { cardID: selectedCardID });
     }
     getChosenCardIDs() {
@@ -324,6 +331,11 @@ class DiceHandler {
         aDie.setAttribute('data-value', DiceHandler.turnDieValue(realDieData.value, choice.delta).toString());
         aDie.classList.add(DiceHandler.PREVIEWED_CLASS_POWER9);
         this.previewedColorPOWER9 = choice.color;
+    }
+    //PlayCard: lights the dice that make the selected card playable ([] for none). Only the class is toggled on the dice
+    //already there, so the glow fades both ways, and a die in both the old and the new combination stays lit
+    setComboHighlight(colors) {
+        this.diceContainer.querySelectorAll('.die-slot > .a-die').forEach((aDie) => aDie.classList.toggle(DiceHandler.COMBO_HIGHLIGHT_CLASS, colors.includes(aDie.getAttribute('data-color'))));
     }
     //6 + 1 wraps to 1, 1 - 1 wraps to 6, like the server
     static turnDieValue(value, delta) { return ((value - 1 + delta + DiceHandler.DIE_FACES) % DiceHandler.DIE_FACES) + 1; }
@@ -583,6 +595,7 @@ DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows i
 DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
 DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
 DiceHandler.RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its ring, dashed
+DiceHandler.COMBO_HIGHLIGHT_CLASS = 'die-highlight-combo'; //PlayCard: the dice that make the selected hand card playable
 DiceHandler.DIE_FACES = 6;
 //roll-in (diceRolled): every die of the new roll comes in from the top right at 45 degrees (the same path for every die,
 //shifted to its own slot), spinning down to upright, while the previous roll's dice fade out in place, all at once

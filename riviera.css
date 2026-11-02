@@ -29,6 +29,9 @@
   --power-card-glow-color: #fff6dc;
   --power-card-glow-peak-color: #ffffff;
   --power-card-glow-reach: 1.6;
+  --die-combo-glow-color: var(--card-glow-color);
+  --die-combo-glow-peak-color: var(--card-glow-peak-color);
+  --die-combo-transition-duration: 150ms;
   --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
   --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
   --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
@@ -675,6 +678,7 @@ body .sliding-clone {
   --die-face-opacity: 1;
   background: none;
   box-shadow: none;
+  transition: opacity 0.3s ease, box-shadow var(--die-combo-transition-duration) ease;
 }
 #dice-container .a-die::before {
   content: "";
@@ -762,6 +766,10 @@ body .sliding-clone {
 }
 #dice-container .a-die.previewed-die-power9 {
   box-shadow: 0 0 3px 1px #ffe8a3, 0 0 8px 2px #ffd700;
+}
+#dice-container .a-die.die-highlight-combo {
+  box-shadow: 0 0 6px 3px var(--die-combo-glow-peak-color), 0 0 14px 6px var(--die-combo-glow-color);
+  z-index: 1;
 }
 
 body .a-die.rolling-die {
