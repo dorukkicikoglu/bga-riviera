@@ -157,7 +157,7 @@ export class PlayerHandler{
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
 
-    //a used Last Chance card disappears from the board; live, it shrinks and fades out first
+    //a used Last Chance card disappears from the board; live, it fades out first
     public async setLastChanceUsed(lastChanceUsed: boolean, animate: boolean = false): Promise<void> {
         this.lastChanceUsed = lastChanceUsed;
 

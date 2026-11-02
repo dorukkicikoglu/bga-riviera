@@ -13,8 +13,6 @@ import { Game } from "./Game";
 import { PlayerHandler } from "./PlayerHandler";
 
 export class PlayedColumnHandler{
-    private static readonly SLIDE_ANIM_TIME = 600;
-    private static readonly CLEAR_ANIM_TIME = 400;
     private static readonly LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
 
     private columnContainer: HTMLDivElement;
@@ -75,7 +73,8 @@ export class PlayedColumnHandler{
         this.updateStarsTotal();
     }
 
-    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board).
+    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board), at its
+    //full size the whole way, starting centered on fromElement (the top mini card back of a hand count).
     //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
     public async animateCardIn(cardData: PlayedCard, fromElement: HTMLDivElement): Promise<void>{
         this.playedCardsData.push(cardData);
@@ -83,22 +82,24 @@ export class PlayedColumnHandler{
         let aCard = this.game.createCardDiv(cardData);
         aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
 
-        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, PlayedColumnHandler.SLIDE_ANIM_TIME);
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, { keepSize: true });
         this.updateStarsTotal();
     }
 
-    //a crash or a new round empties the column
-    public async clear(): Promise<void>{
+    //a crash or a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
+    //peeling the stack, staggerMs apart. The column keeps its height until the sweep has ended, so nothing below it moves meanwhile
+    public async clear(staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
         this.playedCardsData = [];
 
-        if(this.cardsColumn.children.length > 0){
-            this.cardsColumn.classList.add('cards-fading-out');
-            await this.game.bga.gameui.wait(PlayedColumnHandler.CLEAR_ANIM_TIME);
-            this.cardsColumn.classList.remove('cards-fading-out');
-        }
-
+        const cards = Array.from(this.cardsColumn.querySelectorAll('.a-card')) as HTMLDivElement[];
+        if(cards.length > 0)
+            this.cardsColumn.style.minHeight = getComputedStyle(this.cardsColumn).height; //CSS px, unrounded
+        const sweep = this.game.sweepCardsOffScreen(cards.reverse(), Game.CARD_SWEEP_DURATION, staggerMs);
         this.cardsColumn.innerHTML = '';
         this.updateStarsTotal();
+
+        await sweep;
+        this.cardsColumn.style.minHeight = '';
     }
 
     public getStarsTotal(): number{

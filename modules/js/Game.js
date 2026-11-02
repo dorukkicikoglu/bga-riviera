@@ -800,7 +800,8 @@ class SwapCards {
 }
 
 /**
- * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold).
+ * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold) and an
+ * empty hand is hidden.
  */
 class GameEnd {
     constructor(game, bga) {
@@ -812,6 +813,7 @@ class GameEnd {
      */
     onEnteringState(args, isCurrentPlayerActive) {
         this.game.updateEndGameScoreHighlights();
+        this.game.handHandler?.updateGameOverVisibility();
     }
     /**
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
@@ -820,6 +822,17 @@ class GameEnd {
     }
 }
 
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * PlayedColumnHandler.ts
+ */
 class PlayedColumnHandler {
     constructor(game, owner, playedCardsData) {
         this.game = game;
@@ -868,25 +881,28 @@ class PlayedColumnHandler {
         this.insertCardToColumn(cardData);
         this.updateStarsTotal();
     }
-    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board).
+    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board), at its
+    //full size the whole way, starting centered on fromElement (the top mini card back of a hand count).
     //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
     async animateCardIn(cardData, fromElement) {
         this.playedCardsData.push(cardData);
         let aCard = this.game.createCardDiv(cardData);
         aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
-        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, PlayedColumnHandler.SLIDE_ANIM_TIME);
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, { keepSize: true });
         this.updateStarsTotal();
     }
-    //a crash or a new round empties the column
-    async clear() {
+    //a crash or a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
+    //peeling the stack, staggerMs apart. The column keeps its height until the sweep has ended, so nothing below it moves meanwhile
+    async clear(staggerMs = Game.CARD_SWEEP_STAGGER) {
         this.playedCardsData = [];
-        if (this.cardsColumn.children.length > 0) {
-            this.cardsColumn.classList.add('cards-fading-out');
-            await this.game.bga.gameui.wait(PlayedColumnHandler.CLEAR_ANIM_TIME);
-            this.cardsColumn.classList.remove('cards-fading-out');
-        }
+        const cards = Array.from(this.cardsColumn.querySelectorAll('.a-card'));
+        if (cards.length > 0)
+            this.cardsColumn.style.minHeight = getComputedStyle(this.cardsColumn).height; //CSS px, unrounded
+        const sweep = this.game.sweepCardsOffScreen(cards.reverse(), Game.CARD_SWEEP_DURATION, staggerMs);
         this.cardsColumn.innerHTML = '';
         this.updateStarsTotal();
+        await sweep;
+        this.cardsColumn.style.minHeight = '';
     }
     getStarsTotal() {
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
@@ -924,8 +940,6 @@ class PlayedColumnHandler {
     }
     getColumnContainer() { return this.columnContainer; }
 }
-PlayedColumnHandler.SLIDE_ANIM_TIME = 600;
-PlayedColumnHandler.CLEAR_ANIM_TIME = 400;
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
 
 class PlayerHandler {
@@ -1047,7 +1061,7 @@ class PlayerHandler {
         if (handCount > PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS)
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
-    //a used Last Chance card disappears from the board; live, it shrinks and fades out first
+    //a used Last Chance card disappears from the board; live, it fades out first
     async setLastChanceUsed(lastChanceUsed, animate = false) {
         this.lastChanceUsed = lastChanceUsed;
         if (lastChanceUsed && animate) {
@@ -1428,6 +1442,17 @@ class TooltipHandler {
 TooltipHandler.TOOLTIP_DELAY = 1000;
 TooltipHandler.GAME_AREA_CARDS_SELECTOR = '#my-hand-container .a-card[id], #played-columns-container .a-card[id]';
 
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * Riviera implementation : © Doruk Kicikoglu <doruk.kicikoglu@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * HandHandler.ts
+ */
 class HandHandler {
     constructor(game, handData) {
         this.game = game;
@@ -1601,34 +1626,25 @@ class HandHandler {
         for (let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
-    //card 10 redraw: cards leaving my hand fade out
-    async removeCards(cardIDs) {
-        this.handData = this.handData.filter(handCard => !cardIDs.includes(handCard.card_id));
-        const leavingCards = cardIDs.map(cardID => this.getCardDiv(cardID)).filter(card => card);
-        leavingCards.forEach(card => card.classList.add('card-fading-out'));
-        await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
-        leavingCards.forEach(card => card.remove());
-        this.recomputeCardSpacing();
-    }
-    //card 10 redraw: cards joining my hand take their sorted place and slide in from fromElement, or fade in
-    async addCards(cardsData, fromElement) {
-        this.handData = [...this.handData, ...cardsData];
+    //card 10 redraw: the discarded cards sweep off-screen up-left, then the drawn cards come in from off-screen up-left into
+    //their sorted slots, dealt like a new hand. The hand is laid out once, in its final order, as the sweep starts, with the
+    //drawn cards hidden in their slots. Resolves when the last drawn card has landed
+    async redrawCards(discardedCardIDs, drawnCardsData) {
+        const discardedCards = discardedCardIDs.map(cardID => this.getCardDiv(cardID)).filter(card => card);
+        const sweep = this.game.sweepCardsOffScreen(discardedCards, Game.REDRAW_SWEEP_DURATION, Game.REDRAW_SWEEP_STAGGER); //lifts the copies out, so the cards can go right away
+        discardedCards.forEach(card => card.remove());
+        this.handData = [...this.handData.filter(handCard => !discardedCardIDs.includes(handCard.card_id)), ...drawnCardsData];
         this.displayHand();
-        const arrivals = cardsData.map(cardData => {
-            const card = this.getCardDiv(cardData.card_id);
-            if (!card)
-                return Promise.resolve();
-            if (fromElement)
-                return this.game.animateSlide(card, fromElement, null, HandHandler.SLIDE_ANIM_TIME);
-            card.classList.add('card-fading-in');
-            return this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME).then(() => card.classList.remove('card-fading-in'));
-        });
-        await Promise.all(arrivals);
+        const drawnCardIDs = drawnCardsData.map(cardData => cardData.card_id);
+        const drawnCards = this.getCardDivs().filter(card => drawnCardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
+        drawnCards.forEach(card => card.style.visibility = 'hidden');
+        await sweep;
+        await this.dealIn(drawnCards, Game.REDRAW_DEAL_DURATION, Game.REDRAW_DEAL_STAGGER);
     }
-    //card 10 swap: the cards I give fly from their slots to the other player's board (boardRect, on screen), shrinking, the
-    //cards I get fly from it into their sorted slots, growing, and the cards I keep slide from their old places to their new
-    //ones. Every card is measured before the hand changes, the hand is laid out once in its final order, then every move
-    //starts at the same time. Resolves when the last one has landed
+    //card 10 swap: the cards I give fly from their slots onto the other player's board (boardRect, on screen) and fade out
+    //there, the cards I get fly from it into their sorted slots, and the cards I keep slide from their old places to their
+    //new ones, every card at its full size. Every card is measured before the hand changes, the hand is laid out once in its
+    //final order, then every move starts at the same time. Resolves when the last one has landed
     async swapCards(leavingCardIDs, arrivingCardsData, boardRect) {
         const animate = this.game.bga.gameui.bgaAnimationsActive();
         const oldRects = new Map();
@@ -1640,7 +1656,7 @@ class HandHandler {
             if (!card)
                 continue;
             if (animate)
-                moves.push(this.game.animateSlideAway(card, boardRect, HandHandler.SLIDE_ANIM_TIME)); //places the copy on card before its first await,
+                moves.push(this.game.animateSlideAway(card, boardRect, Game.CARD_SLIDE_DURATION, { keepSize: true, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
             card.remove(); //so the card can go right away
         }
         this.handData = [...this.handData.filter(handCard => !leavingCardIDs.includes(handCard.card_id)), ...arrivingCardsData];
@@ -1653,9 +1669,9 @@ class HandHandler {
             for (let card of this.getCardDivs()) {
                 const oldRect = oldRects.get(parseInt(card.getAttribute('data-card-id')));
                 if (!oldRect)
-                    moves.push(this.game.animateSlide(card, boardRect, null, HandHandler.SLIDE_ANIM_TIME));
+                    moves.push(this.game.animateSlide(card, boardRect, null, Game.CARD_SLIDE_DURATION, { keepSize: true }));
                 else if (HandHandler.hasMoved(oldRect, card.getBoundingClientRect()))
-                    moves.push(this.game.animateSlide(card, oldRect, null, HandHandler.SLIDE_ANIM_TIME));
+                    moves.push(this.game.animateSlide(card, oldRect, null, Game.CARD_SLIDE_DURATION));
             }
         }
         await Promise.all(moves);
@@ -1677,52 +1693,48 @@ class HandHandler {
         this.recomputeCardSpacing();
         await slidePromise;
     }
-    //a crash discards the whole hand
+    //a crash discards the whole hand: it sweeps off-screen up-left
     async discardAll() {
-        this.handData = [];
-        this.cardsContainer.classList.add('cards-fading-out');
-        await this.game.bga.gameui.wait(HandHandler.FADE_ANIM_TIME);
-        this.cardsContainer.innerHTML = '';
-        this.cardsContainer.classList.remove('cards-fading-out');
+        await this.sweepOutCards(Game.CRASH_SWEEP_STAGGER);
     }
-    //a new round's hand: the cards left from the previous round sweep out left as copies while the new hand is dealt card
-    //by card. The final hand is laid out first (sorted and spaced) with every card hidden in its slot, then a copy of each card flies
-    //in, rightmost first, and the real card shows when its copy lands, so no card moves during or after the deal. Every card
-    //starts DEAL_X_OFFSET to the left of its slot, at the same page y DEAL_START_Y (the document's, not the viewport's:
-    //scrolled down, the start is off-screen). Resolves when the last card has landed
+    //a new round's hand: the cards left from the previous round sweep out up-left as copies while the new hand is dealt
+    //card by card (dealIn). Resolves when the last card has landed
     async setHand(handData) {
         const sweep = this.sweepOutCards(); //empties the hand at once, the deal doesn't wait for the copies
         this.handData = handData;
         this.displayHand();
-        const cards = this.getCardDivs();
+        await Promise.all([sweep, this.dealIn(this.getCardDivs())]);
+    }
+    //cards already laid out in their final slots are hidden, then a copy of each flies in, rightmost first,
+    //staggerMs apart, and the real card shows when its copy lands, so no card moves during or after the deal.
+    //Every card starts DEAL_X_OFFSET window widths to the left of its slot (more if that isn't off-screen) and up along
+    //Game.CARD_SWEEP_ANGLE, read per card in case of a scroll. Resolves when the last one has landed
+    async dealIn(cards, durationMs = Game.CARD_DEAL_DURATION, staggerMs = Game.CARD_DEAL_STAGGER) {
         cards.forEach(card => card.style.visibility = 'hidden');
         const deals = [];
         for (let i = cards.length - 1; i >= 0; i--) {
             if (i < cards.length - 1)
-                await this.game.bga.gameui.wait(HandHandler.DEAL_STAGGER);
-            const pageTop = document.documentElement.getBoundingClientRect().top; //the page's top on screen, read per card in case of a scroll
-            const cardRect = cards[i].getBoundingClientRect();
-            const startLeft = cardRect.left - window.innerWidth * HandHandler.DEAL_X_OFFSET;
-            const startTop = pageTop + HandHandler.DEAL_START_Y - cardRect.height;
-            const startRect = new DOMRect(startLeft, startTop, cardRect.width, cardRect.height);
-            deals.push(this.game.animateSlide(cards[i], startRect, null, HandHandler.DEAL_DURATION, HandHandler.DEAL_EASING));
+                await this.game.bga.gameui.wait(staggerMs);
+            const startRect = Game.getOffScreenUpLeftRect(cards[i].getBoundingClientRect(), window.innerWidth * HandHandler.DEAL_X_OFFSET);
+            deals.push(this.game.animateSlide(cards[i], startRect, null, durationMs, { easing: Game.CARD_DEAL_EASING }));
         }
-        await Promise.all([sweep, ...deals]);
+        await Promise.all(deals);
     }
-    //every card in my hand is lifted out as a copy at its place on screen and the hand is emptied at once; the copies
-    //slide left together until they are off the screen's left side
-    async sweepOutCards() {
-        const sweeps = this.getCardDivs().map(card => {
-            const cardRect = card.getBoundingClientRect();
-            const offScreenRect = new DOMRect(-cardRect.width - 20, cardRect.top, cardRect.width, cardRect.height); //20px more for the drop shadow
-            return this.game.animateSlideAway(card, offScreenRect, HandHandler.OLD_HAND_SWEEP_DURATION, HandHandler.OLD_HAND_SWEEP_EASING);
-        });
+    //every card in my hand sweeps off-screen up-left (Game.sweepCardsOffScreen) and the hand is emptied at once
+    async sweepOutCards(staggerMs = Game.CARD_SWEEP_STAGGER) {
+        const sweep = this.game.sweepCardsOffScreen(this.getCardDivs(), Game.CARD_SWEEP_DURATION, staggerMs);
+        this.handData = [];
         this.cardsContainer.innerHTML = '';
-        await Promise.all(sweeps);
+        await sweep;
     }
     getCardDivs() { return Array.from(this.cardsContainer.querySelectorAll('.a-card')); }
     getCardDiv(cardID) { return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
     getCardCount() { return this.cardsContainer.querySelectorAll('.a-card').length; }
+    //the hand keeps its height when it is empty (Game.scss), so emptying it never moves the layout; only once the game is
+    //over with no card left for good is it hidden. Called on entering gameEnd (page load included) and with the end-game table
+    updateGameOverVisibility() {
+        this.handContainer.classList.toggle(HandHandler.GAME_OVER_EMPTY_HAND_CLASS, this.game.isGameOver() && this.getCardCount() === 0);
+    }
     getHandContainer() { return this.handContainer; }
 }
 HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
@@ -1730,17 +1742,12 @@ HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
 HandHandler.CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
-HandHandler.FADE_ANIM_TIME = 400;
-//new hand (setHand): the previous round's leftover cards sweep out left while the new hand is dealt right to left,
-//every new card travelling the same path, shifted to its own slot
-HandHandler.OLD_HAND_SWEEP_DURATION = 200; //ms the leftover cards take to slide left off-screen, all together, as the deal starts
-HandHandler.OLD_HAND_SWEEP_EASING = 'ease-in'; //CSS timing function of the sweep
-HandHandler.DEAL_X_OFFSET = 1.2; //a card starts this share of the window width to the left of its slot
-HandHandler.DEAL_START_Y = 0; //page (document) y, in px, of every card's bottom edge at the start: 0 = just above the top of the page
-HandHandler.DEAL_DURATION = 400; //ms each card slides for
-HandHandler.DEAL_STAGGER = 100; //ms between the starts of two cards (a bit less than DEAL_DURATION: 1 or 2 cards move at once)
-HandHandler.DEAL_EASING = 'ease-out'; //CSS timing function of each card's slide
-HandHandler.SLIDE_ANIM_TIME = 600;
+//new hand (setHand): the previous round's leftover cards sweep out up-left (Game.sweepCardsOffScreen) while the new hand
+//is dealt right to left, every new card travelling the same path, shifted to its own slot, in from the top-left along
+//Game.CARD_SWEEP_ANGLE. A card 10 redraw deals its drawn cards the same way. Durations, staggers, easings and the
+//angle: Game.CARD_DEAL_* / CARD_SWEEP_* (the redraw's own durations and staggers: Game.REDRAW_*)
+HandHandler.DEAL_X_OFFSET = 1.2; //a card starts at least this share of the window width to the left of its slot (and up along the angle)
+HandHandler.GAME_OVER_EMPTY_HAND_CLASS = 'game-over-empty-hand'; //hides the hand once the game is over with no card left
 HandHandler.SELECTION_STATES = ['PlayCard', 'SwapCards'];
 HandHandler.DEFAULT_CARD_OVERLAP = 0.1; //share of a card width each card covers of the one before
 HandHandler.MAX_CARD_OVERLAP = 0.7;
@@ -2329,6 +2336,7 @@ class EndGameScoringHandler {
         this.winner_ids = endGameScoring.winner_ids;
         this.scoreContainer = document.createElement('div');
         this.game.updateEndGameScoreHighlights(); //the game is over (isDisplayed): every score back to BGA's default look
+        this.game.handHandler?.updateGameOverVisibility(); //and an empty hand is hidden for good
         this.scoreContainer.classList.add('end-game-score-container');
         this.scoreContainer.style.opacity = '0';
         this.scoreContainer.innerHTML = `

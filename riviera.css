@@ -804,6 +804,9 @@ body .a-die.rolling-die {
 #my-hand-container:empty {
   display: none;
 }
+#my-hand-container.game-over-empty-hand {
+  display: none;
+}
 #my-hand-container {
   position: relative;
   text-align: center;
@@ -819,6 +822,7 @@ body .a-die.rolling-die {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  min-height: calc(var(--card-width) * 1.4740566038);
 }
 #my-hand-container .cards-container .a-card {
   margin-left: var(--hand-card-overlap, calc(var(--my-card-width) * -0.1));
@@ -838,19 +842,6 @@ body .a-die.rolling-die {
   outline: 5px solid #2e8b2e;
   outline-offset: -1px;
   z-index: 1;
-}
-#my-hand-container .cards-container .a-card.card-fading-out {
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  opacity: 0;
-  transform: translateY(20px);
-}
-#my-hand-container .cards-container .a-card.card-fading-in {
-  animation: card-fade-in 0.4s ease;
-}
-#my-hand-container .cards-container.cards-fading-out .a-card {
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  opacity: 0;
-  transform: translateY(20px);
 }
 
 body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card {
@@ -960,11 +951,6 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 #played-columns-container .a-played-column .cards-column .a-card + .a-card {
   margin-top: calc(var(--my-card-width) * 1.4740566038 * -0.75);
 }
-#played-columns-container .a-played-column .cards-column.cards-fading-out .a-card {
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  opacity: 0;
-  transform: scale(0.85);
-}
 #played-columns-container .a-played-column[data-is-myself=true] {
   border-width: 2px;
   box-shadow: 0 0 8px var(--column-owner-color);
@@ -1026,10 +1012,9 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 .riviera-player-board .player-board-cards-row .last-chance-indicator .a-card.mini-card {
   --my-card-width: 29px;
   box-shadow: 1px 1px 2px #000000;
-  transition: transform 0.4s ease, opacity 0.4s ease;
+  transition: opacity 0.4s ease;
 }
 .riviera-player-board .player-board-cards-row .last-chance-indicator.last-chance-fading .a-card.mini-card {
-  transform: scale(0);
   opacity: 0;
 }
 .riviera-player-board .player-board-cards-row .last-chance-indicator[data-used=true] {
@@ -2094,16 +2079,6 @@ body .start-token.flying-start-token {
   }
   50% {
     scale: 1.8;
-  }
-}
-@keyframes card-fade-in {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 @keyframes jumpAndTilt {

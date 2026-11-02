@@ -12,7 +12,8 @@
 import { Game } from "../Game";
 
 /**
- * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold).
+ * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold) and an
+ * empty hand is hidden.
  */
 export class GameEnd {
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
@@ -23,6 +24,7 @@ export class GameEnd {
      */
     onEnteringState(args: any, isCurrentPlayerActive: boolean) {
         this.game.updateEndGameScoreHighlights();
+        this.game.handHandler?.updateGameOverVisibility();
     }
 
     /**

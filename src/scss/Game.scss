@@ -304,10 +304,12 @@ body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-in
 
 #my-hand-container{
     &:empty{ display: none; } //spectators have no hand
+    &.game-over-empty-hand{ display: none; } //no card left for good (HandHandler.updateGameOverVisibility)
     position: relative; text-align: center; border: 1px solid var(--hand-owner-color); border-radius: 10px; margin-top: 30px; padding: 14px 10px 14px 10px;
     .my-hand-title{ color: var(--hand-owner-color); }
 
-    .cards-container{ display: flex; justify-content: center; align-items: flex-start;
+    //one card tall even when empty (a crash, the sweep at a new round), so emptying the hand never moves the layout
+    .cards-container{ display: flex; justify-content: center; align-items: flex-start; min-height: calc(var(--card-width) * #{$card-aspect});
         //every card on one line; only a selected or set-aside card moves (up). Desktop: HandHandler.recomputeCardSpacing
         //sets a bigger overlap when the hand wouldn't fit on one row. Mobile: it sets each card's margins inline instead
         //(Fugu's applyMobileCardSpacing), so the row spans the hand's width
@@ -317,11 +319,7 @@ body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-in
             &.selected-hand-card{ transform: translateY(-14px); outline: 3px solid #e8862b; outline-offset: -1px; z-index: 1; }
             //set aside until the reveal (a first card, then any card-1 chain)
             &.chosen-card{ transform: translateY(-18px); outline: 5px solid #2e8b2e; outline-offset: -1px; z-index: 1; }
-            //card 10: cards leaving or joining my hand
-            &.card-fading-out{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: translateY(20px); }
-            &.card-fading-in{ animation: card-fade-in 0.4s ease; }
         }
-        &.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: translateY(20px); }
     }
 }
 
@@ -367,8 +365,6 @@ body.current_player_is_active:not(.lockedInterface){
             .a-card + .a-card{ margin-top: calc(var(--my-card-width) * #{$card-aspect} * -0.75); }
         }
 
-        .cards-column.cards-fading-out .a-card{ transition: opacity 0.4s ease, transform 0.4s ease; opacity: 0; transform: scale(0.85); }
-
         &[data-is-myself="true"]{ border-width: 2px; box-shadow: 0 0 8px var(--column-owner-color); }
         &[data-round-status="crashed"]{ opacity: 0.45; transition: opacity 0.4s ease; }
         &.grand-slam-column{ box-shadow: 0 0 14px 4px #e9c45a; border-color: #e0b228; }
@@ -393,10 +389,10 @@ $hand-back-step-ratio: 0.2; //every 2nd back sits this share of the width lower
             }
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
-        //a used Last Chance card disappears; live, it shrinks and fades out first (PlayerHandler.setLastChanceUsed)
+        //a used Last Chance card disappears; live, it fades out first (PlayerHandler.setLastChanceUsed)
         .last-chance-indicator{ position: relative; display: flex; align-items: center; flex-shrink: 0; margin-right: var(--last-chance-margin-right, 0px); right: 4px; margin-bottom: 2px;
-            .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; transition: transform 0.4s ease, opacity 0.4s ease; }
-            &.last-chance-fading .a-card.mini-card{ transform: scale(0); opacity: 0; }
+            .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; transition: opacity 0.4s ease; }
+            &.last-chance-fading .a-card.mini-card{ opacity: 0; }
             &[data-used="true"]{ display: none; }
         }
         //STOPPED or CRASHED over the middle of the hand area, out of the greyed elements so it stays fully opaque. Only the
@@ -865,11 +861,6 @@ $power-icons: (
 @keyframes end-game-score-pulse {
   0%, 100% { scale: 1; }
   50% { scale: $end-game-score-peak-scale; }
-}
-
-@keyframes card-fade-in {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes jumpAndTilt {

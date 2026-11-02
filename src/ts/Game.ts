@@ -25,9 +25,33 @@ import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
 import { EndGameScoringHandler } from "./EndGameScoringHandler";
 import { PrefHandler } from "./PrefHandler";
 
+//optional settings of Game.animateSlide / animateSlideAway
+export type SlideOptions = {
+    easing?: string; //CSS timing function, Game.CARD_SLIDE_EASING by default
+    keepSize?: boolean; //the copy keeps the element's size, centered on the other end, instead of changing size on the way
+    delayMs?: number; //the copy waits this long at its start before it moves (a sweep's stagger)
+    fadeOutMs?: number; //animateSlideAway: the copy fades out for this long once it has arrived
+};
+
 export class Game {
-    private static readonly CARD_BACK_SLIDE_ANIM_TIME = 600;
-    private static readonly CHAIN_CARD_STAGGER_TIME = 150;
+    //every card animation's timing, in one place to tune them together (HandHandler and PlayedColumnHandler read them too)
+    public static readonly CARD_SLIDE_DURATION = 600; //ms of a card moving between two places in sight: the reveal into a column, a card 10 swap (and its card backs between two boards)
+    public static readonly CARD_SLIDE_EASING = 'ease-in-out';
+    public static readonly CHAIN_CARD_STAGGER = 150; //ms between two cards of a card-1 chain leaving for the column
+    public static readonly SWAP_FADE_OUT_DURATION = 300; //ms a card I give in a card 10 swap takes to fade out on the other player's avatar
+    public static readonly CARD_SWEEP_DURATION = 440; //ms each card leaving the game (a new round, a crash) takes to slide off-screen
+    public static readonly CARD_SWEEP_STAGGER = 48; //ms between two cards starting their sweep at a new round
+    public static readonly CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash (hand and column)
+    public static readonly CARD_SWEEP_EASING = 'ease-in-out';
+    public static readonly CARD_DEAL_DURATION = 440; //ms each card of a new hand slides in for
+    public static readonly CARD_DEAL_STAGGER = 48; //ms between the starts of two dealt cards (well under CARD_DEAL_DURATION: a few cards move at once)
+    public static readonly CARD_DEAL_EASING = 'ease-out';
+    public static readonly REDRAW_SWEEP_DURATION = 550; //card 10 redraw: the discarded cards' sweep, a little slower than a new round's (same easing)
+    public static readonly REDRAW_SWEEP_STAGGER = 60;
+    public static readonly REDRAW_DEAL_DURATION = 550; //card 10 redraw: the drawn cards' deal (same easing as a new hand's)
+    public static readonly REDRAW_DEAL_STAGGER = 100;
+    public static readonly CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
+    private static readonly OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
     private static readonly AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
     private static readonly AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
     private static readonly AUTO_CHOICE_DOT_COUNT = 3;
@@ -264,8 +288,10 @@ export class Game {
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
+    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from` (a card coming out
+    //of a player board's mini card back or avatar stays a full card).
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
-    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement | DOMRect, to: HTMLDivElement | null, durationMs: number, easing: string = 'ease-in-out'): Promise<void> {
+    public async animateSlide(element: HTMLDivElement, from: HTMLDivElement | DOMRect, to: HTMLDivElement | null, durationMs: number, options: SlideOptions = {}): Promise<void> {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
         const slidingClone = this.createSlidingClone(element);
 
@@ -273,19 +299,65 @@ export class Game {
         if(to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
+        const startRect = options.keepSize ? Game.getCenteredRect(fromRect, toRect.width, toRect.height) : fromRect;
 
-        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+        await this.moveSlidingClone(slidingClone, startRect, toRect, durationMs, options);
 
         element.style.visibility = null;
     }
 
     //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
-    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round)
-    public async animateSlideAway(element: HTMLDivElement, toRect: DOMRect, durationMs: number, easing: string = 'ease-in-out'): Promise<void> {
+    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round).
+    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.fadeOutMs, it fades
+    //out once there. The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't
+    //inherit in <body>
+    public async animateSlideAway(element: HTMLDivElement, toRect: DOMRect, durationMs: number, options: SlideOptions = {}): Promise<void> {
         const fromRect = element.getBoundingClientRect();
+        const shownOpacity = Game.getShownOpacity(element);
         const slidingClone = this.createSlidingClone(element);
+        if(shownOpacity < 1)
+            slidingClone.style.opacity = shownOpacity.toString();
+        const endRect = options.keepSize ? Game.getCenteredRect(toRect, fromRect.width, fromRect.height) : toRect;
 
-        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+        await this.moveSlidingClone(slidingClone, fromRect, endRect, durationMs, options);
+    }
+
+    //cards leaving the game (a new round, a crash, a card 10 redraw): each card is lifted out as a copy at its place on
+    //screen, and the copies slide up-left along CARD_SWEEP_ANGLE, at their size, until they are off the screen's left
+    //side, then go. They leave in
+    //the order given, staggerMs apart; every copy is placed at once, so the cards can be removed as soon as this
+    //is called. No copies with animations off (fast replay, hidden tab)
+    public async sweepCardsOffScreen(cards: HTMLDivElement[], durationMs: number = Game.CARD_SWEEP_DURATION, staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void> {
+        if(!this.bga.gameui.bgaAnimationsActive())
+            return;
+
+        await Promise.all(cards.map((card, index) => {
+            const offScreenRect = Game.getOffScreenUpLeftRect(card.getBoundingClientRect());
+            return this.animateSlideAway(card, offScreenRect, durationMs, { easing: Game.CARD_SWEEP_EASING, delayMs: index * staggerMs });
+        }));
+    }
+
+    //where a card on screen (cardRect) leaves for in a sweep, or comes from in a deal: up-left along CARD_SWEEP_ANGLE, so for
+    //dx px left it also goes dx * tan(angle) px up. dx is at least minDistance and always takes the card wholly past the
+    //screen's left edge, so it is out of view at that end whatever its height (a card near the top goes above the screen
+    //too, which changes nothing: past the left edge is enough)
+    public static getOffScreenUpLeftRect(cardRect: DOMRect, minDistance: number = 0): DOMRect {
+        const dx = Math.max(minDistance, cardRect.right + Game.OFF_SCREEN_MARGIN);
+        const dy = dx * Math.tan(Game.CARD_SWEEP_ANGLE * Math.PI / 180);
+        return new DOMRect(cardRect.left - dx, cardRect.top - dy, cardRect.width, cardRect.height);
+    }
+
+    //a width x height rect on screen, centered on rect
+    private static getCenteredRect(rect: DOMRect, width: number, height: number): DOMRect {
+        return new DOMRect(rect.left + (rect.width - width) / 2, rect.top + (rect.height - height) / 2, width, height);
+    }
+
+    //element's own opacity times its ancestors'
+    private static getShownOpacity(element: HTMLElement): number {
+        let opacity = 1;
+        for(let node: HTMLElement | null = element; node && node !== document.body; node = node.parentElement)
+            opacity *= parseFloat(getComputedStyle(node).opacity);
+        return opacity;
     }
 
     private createSlidingClone(element: HTMLDivElement): HTMLDivElement {
@@ -297,18 +369,26 @@ export class Game {
         return slidingClone;
     }
 
-    //moves the copy from fromRect to toRect (both on screen), then removes it
-    private async moveSlidingClone(slidingClone: HTMLDivElement, fromRect: DOMRect, toRect: DOMRect, durationMs: number, easing: string): Promise<void> {
+    //moves the copy from fromRect to toRect (both on screen), after options.delayMs at its start, fades it out there if
+    //options.fadeOutMs, then removes it
+    private async moveSlidingClone(slidingClone: HTMLDivElement, fromRect: DOMRect, toRect: DOMRect, durationMs: number, options: SlideOptions): Promise<void> {
+        const { easing = Game.CARD_SLIDE_EASING, delayMs = 0, fadeOutMs = 0 } = options;
         const transformOnto = this.getSlidingCloneTransform(slidingClone);
 
         slidingClone.style.transform = transformOnto(fromRect);
 
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
 
-        slidingClone.style.transition = `transform ${durationMs}ms ${easing}`;
+        slidingClone.style.transition = `transform ${durationMs}ms ${easing} ${delayMs}ms`;
         slidingClone.style.transform = transformOnto(toRect);
 
-        await this.bga.gameui.wait(durationMs);
+        await this.bga.gameui.wait(delayMs + durationMs);
+
+        if(fadeOutMs > 0){
+            slidingClone.style.transition = `opacity ${fadeOutMs}ms ease`;
+            slidingClone.style.opacity = '0';
+            await this.bga.gameui.wait(fadeOutMs);
+        }
 
         slidingClone.remove();
     }
@@ -499,7 +579,7 @@ export class Game {
     private async animateCardBackSlide(fromRect: DOMRect, toPlayer: PlayerHandler): Promise<void> {
         const cardBack = this.createCardBackDiv();
         cardBack.classList.add('mini-card-back');
-        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME);
+        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_SLIDE_DURATION);
         cardBack.remove();
     }
     public getMyPlayerID(): number{ return this.myPlayerID; }
@@ -592,7 +672,7 @@ export class Game {
         const slides: Promise<void>[] = [];
         for(let i = 0; i < revealedCards.length; i++){
             if(i > 0)
-                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER_TIME);
+                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER);
 
             if(reveal.player_id === this.myPlayerID && this.handHandler)
                 slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
@@ -662,7 +742,7 @@ export class Game {
             return;
 
         player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
-        const discards: Promise<void>[] = [player.getPlayedColumn().clear()];
+        const discards: Promise<void>[] = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_STAGGER)];
         if(args.player_id === this.myPlayerID && this.handHandler)
             discards.push(this.handHandler.discardAll());
 
@@ -757,8 +837,7 @@ export class Game {
             return;
         }
 
-        await this.handHandler.removeCards(args._private.discarded.map(card => card.card_id));
-        await this.handHandler.addCards(args._private.drawn, null);
+        await this.handHandler.redrawCards(args._private.discarded.map(card => card.card_id), args._private.drawn);
         this.tooltipHandler.addTooltipsToCards();
     }
 
