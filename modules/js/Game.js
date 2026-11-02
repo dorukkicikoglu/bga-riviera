@@ -2117,12 +2117,12 @@ class LogMutationObserver {
         return this.addLogClassTag(logHTML, 'start-token-log');
     }
     //one line per player, stoppers, then More, then players who crashed this round, each group clockwise from the Start token
-    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [play]", "name [bomb]" (the crash row's
+    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [forward]", "name [bomb]" (the crash row's
     //icon). Each icon sits in a fixed-width slot, so they all share one vertical axis; the play and bomb icons' titles name them
     createLogStopOrMoreRevealed(rows) {
         const iconsHTML = {
             stop: this.game.getPiggyBankSVG('log-piggy-bank'),
-            more: `<i class="fa6 fa-play stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
+            more: `<i class="fa6 fa-forward stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
             crash: `<i class="fa6 fa-bomb stop-or-more-icon" title="${_('Crashed').replace(/"/g, '&quot;')}"></i>`,
         };
         const linesByChoice = { stop: [], more: [], crash: [] };
@@ -2746,23 +2746,66 @@ class Game {
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
+    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from` (a card coming out
+    //of a player board's mini card back or avatar stays a full card).
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
-    async animateSlide(element, from, to, durationMs, easing = 'ease-in-out') {
+    async animateSlide(element, from, to, durationMs, options = {}) {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
         const slidingClone = this.createSlidingClone(element);
         element.style.visibility = 'hidden';
         if (to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
-        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+        const startRect = options.keepSize ? Game.getCenteredRect(fromRect, toRect.width, toRect.height) : fromRect;
+        await this.moveSlidingClone(slidingClone, startRect, toRect, durationMs, options);
         element.style.visibility = null;
     }
     //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
-    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round)
-    async animateSlideAway(element, toRect, durationMs, easing = 'ease-in-out') {
+    //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round).
+    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.fadeOutMs, it fades
+    //out once there. The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't
+    //inherit in <body>
+    async animateSlideAway(element, toRect, durationMs, options = {}) {
         const fromRect = element.getBoundingClientRect();
+        const shownOpacity = Game.getShownOpacity(element);
         const slidingClone = this.createSlidingClone(element);
-        await this.moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing);
+        if (shownOpacity < 1)
+            slidingClone.style.opacity = shownOpacity.toString();
+        const endRect = options.keepSize ? Game.getCenteredRect(toRect, fromRect.width, fromRect.height) : toRect;
+        await this.moveSlidingClone(slidingClone, fromRect, endRect, durationMs, options);
+    }
+    //cards leaving the game (a new round, a crash, a card 10 redraw): each card is lifted out as a copy at its place on
+    //screen, and the copies slide up-left along CARD_SWEEP_ANGLE, at their size, until they are off the screen's left
+    //side, then go. They leave in
+    //the order given, staggerMs apart; every copy is placed at once, so the cards can be removed as soon as this
+    //is called. No copies with animations off (fast replay, hidden tab)
+    async sweepCardsOffScreen(cards, durationMs = Game.CARD_SWEEP_DURATION, staggerMs = Game.CARD_SWEEP_STAGGER) {
+        if (!this.bga.gameui.bgaAnimationsActive())
+            return;
+        await Promise.all(cards.map((card, index) => {
+            const offScreenRect = Game.getOffScreenUpLeftRect(card.getBoundingClientRect());
+            return this.animateSlideAway(card, offScreenRect, durationMs, { easing: Game.CARD_SWEEP_EASING, delayMs: index * staggerMs });
+        }));
+    }
+    //where a card on screen (cardRect) leaves for in a sweep, or comes from in a deal: up-left along CARD_SWEEP_ANGLE, so for
+    //dx px left it also goes dx * tan(angle) px up. dx is at least minDistance and always takes the card wholly past the
+    //screen's left edge, so it is out of view at that end whatever its height (a card near the top goes above the screen
+    //too, which changes nothing: past the left edge is enough)
+    static getOffScreenUpLeftRect(cardRect, minDistance = 0) {
+        const dx = Math.max(minDistance, cardRect.right + Game.OFF_SCREEN_MARGIN);
+        const dy = dx * Math.tan(Game.CARD_SWEEP_ANGLE * Math.PI / 180);
+        return new DOMRect(cardRect.left - dx, cardRect.top - dy, cardRect.width, cardRect.height);
+    }
+    //a width x height rect on screen, centered on rect
+    static getCenteredRect(rect, width, height) {
+        return new DOMRect(rect.left + (rect.width - width) / 2, rect.top + (rect.height - height) / 2, width, height);
+    }
+    //element's own opacity times its ancestors'
+    static getShownOpacity(element) {
+        let opacity = 1;
+        for (let node = element; node && node !== document.body; node = node.parentElement)
+            opacity *= parseFloat(getComputedStyle(node).opacity);
+        return opacity;
     }
     createSlidingClone(element) {
         const slidingClone = element.cloneNode(true);
@@ -2772,14 +2815,21 @@ class Game {
         document.body.appendChild(slidingClone);
         return slidingClone;
     }
-    //moves the copy from fromRect to toRect (both on screen), then removes it
-    async moveSlidingClone(slidingClone, fromRect, toRect, durationMs, easing) {
+    //moves the copy from fromRect to toRect (both on screen), after options.delayMs at its start, fades it out there if
+    //options.fadeOutMs, then removes it
+    async moveSlidingClone(slidingClone, fromRect, toRect, durationMs, options) {
+        const { easing = Game.CARD_SLIDE_EASING, delayMs = 0, fadeOutMs = 0 } = options;
         const transformOnto = this.getSlidingCloneTransform(slidingClone);
         slidingClone.style.transform = transformOnto(fromRect);
         await this.bga.gameui.wait(20); //let the clone's start position paint before the transition kicks in
-        slidingClone.style.transition = `transform ${durationMs}ms ${easing}`;
+        slidingClone.style.transition = `transform ${durationMs}ms ${easing} ${delayMs}ms`;
         slidingClone.style.transform = transformOnto(toRect);
-        await this.bga.gameui.wait(durationMs);
+        await this.bga.gameui.wait(delayMs + durationMs);
+        if (fadeOutMs > 0) {
+            slidingClone.style.transition = `opacity ${fadeOutMs}ms ease`;
+            slidingClone.style.opacity = '0';
+            await this.bga.gameui.wait(fadeOutMs);
+        }
         slidingClone.remove();
     }
     //returns the transform that puts the copy (a fresh createSlidingClone, untransformed) onto an on-screen rect: scaled to
@@ -2949,7 +2999,7 @@ class Game {
     async animateCardBackSlide(fromRect, toPlayer) {
         const cardBack = this.createCardBackDiv();
         cardBack.classList.add('mini-card-back');
-        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_BACK_SLIDE_ANIM_TIME);
+        await this.animateSlide(cardBack, fromRect, toPlayer.getHandCountElement(), Game.CARD_SLIDE_DURATION);
         cardBack.remove();
     }
     getMyPlayerID() { return this.myPlayerID; }
@@ -3025,7 +3075,7 @@ class Game {
         const slides = [];
         for (let i = 0; i < revealedCards.length; i++) {
             if (i > 0)
-                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER_TIME);
+                await this.bga.gameui.wait(Game.CHAIN_CARD_STAGGER);
             if (reveal.player_id === this.myPlayerID && this.handHandler)
                 slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
             else
@@ -3086,7 +3136,7 @@ class Game {
         if (!player)
             return;
         player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
-        const discards = [player.getPlayedColumn().clear()];
+        const discards = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_STAGGER)];
         if (args.player_id === this.myPlayerID && this.handHandler)
             discards.push(this.handHandler.discardAll());
         await Promise.all(discards);
@@ -3165,8 +3215,7 @@ class Game {
             this.bouncePlayerBoards([args.player_id]);
             return;
         }
-        await this.handHandler.removeCards(args._private.discarded.map(card => card.card_id));
-        await this.handHandler.addCards(args._private.drawn, null);
+        await this.handHandler.redrawCards(args._private.discarded.map(card => card.card_id), args._private.drawn);
         this.tooltipHandler.addTooltipsToCards();
     }
     //card 10: the boards of the players involved bounce once the cards have landed, except my own (a swapper or victim
@@ -3184,8 +3233,24 @@ class Game {
         await this.endGameScoringHandler.displayEndGameScore(args.endGameScoring);
     }
 }
-Game.CARD_BACK_SLIDE_ANIM_TIME = 600;
-Game.CHAIN_CARD_STAGGER_TIME = 150;
+//every card animation's timing, in one place to tune them together (HandHandler and PlayedColumnHandler read them too)
+Game.CARD_SLIDE_DURATION = 600; //ms of a card moving between two places in sight: the reveal into a column, a card 10 swap (and its card backs between two boards)
+Game.CARD_SLIDE_EASING = 'ease-in-out';
+Game.CHAIN_CARD_STAGGER = 150; //ms between two cards of a card-1 chain leaving for the column
+Game.SWAP_FADE_OUT_DURATION = 300; //ms a card I give in a card 10 swap takes to fade out on the other player's avatar
+Game.CARD_SWEEP_DURATION = 440; //ms each card leaving the game (a new round, a crash) takes to slide off-screen
+Game.CARD_SWEEP_STAGGER = 48; //ms between two cards starting their sweep at a new round
+Game.CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash (hand and column)
+Game.CARD_SWEEP_EASING = 'ease-in-out';
+Game.CARD_DEAL_DURATION = 440; //ms each card of a new hand slides in for
+Game.CARD_DEAL_STAGGER = 48; //ms between the starts of two dealt cards (well under CARD_DEAL_DURATION: a few cards move at once)
+Game.CARD_DEAL_EASING = 'ease-out';
+Game.REDRAW_SWEEP_DURATION = 550; //card 10 redraw: the discarded cards' sweep, a little slower than a new round's (same easing)
+Game.REDRAW_SWEEP_STAGGER = 60;
+Game.REDRAW_DEAL_DURATION = 550; //card 10 redraw: the drawn cards' deal (same easing as a new hand's)
+Game.REDRAW_DEAL_STAGGER = 100;
+Game.CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
+Game.OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
 Game.AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
 Game.AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
 Game.AUTO_CHOICE_DOT_COUNT = 3;

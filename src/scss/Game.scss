@@ -629,12 +629,16 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .stop-or-more-choice{ display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
         .stop-or-more-icon-slot{ display: inline-flex; align-items: center; justify-content: center; width: 1.8em; flex-shrink: 0; }
         .stop-or-more-icon{ font-size: 1.36em; } //20% bigger than the names
-        .log-piggy-bank{ @include piggy-bank(1.5em); }
+        $stop-or-more-piggy-height: 1.5em;
+        .log-piggy-bank{ @include piggy-bank($stop-or-more-piggy-height); }
+        //More's forward icon looks as tall as the piggy bank: the pig's drawing fills 17.2 of its viewBox's 20 units (ear to
+        //feet), fa-forward's glyph about 0.754 of its font size
+        .stop-or-more-icon.fa-forward{ font-size: $stop-or-more-piggy-height * math.div(17.2, 20) * math.div(1, 0.754); }
         .stop-or-more-stars{ font-size: 1.2em;
             .stop-or-more-amount{ color: #424242; }
             .stop-or-more-star{ color: #f9a11a; }
         }
-        .fa-play{ color: #2e8b2e; }
+        .fa-forward{ color: #2e8b2e; }
         .fa-bomb{ color: #800000; } //the crash row's bomb color
     }
     .log-arrow{ color: #240e52; @include text-shade(#c7d7d0, 1px); }

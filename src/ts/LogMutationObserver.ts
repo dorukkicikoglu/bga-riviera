@@ -209,12 +209,12 @@ export class LogMutationObserver{
     }
 
     //one line per player, stoppers, then More, then players who crashed this round, each group clockwise from the Start token
-    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [play]", "name [bomb]" (the crash row's
+    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [forward]", "name [bomb]" (the crash row's
     //icon). Each icon sits in a fixed-width slot, so they all share one vertical axis; the play and bomb icons' titles name them
     public createLogStopOrMoreRevealed(rows: StopOrMoreRow[]): LogRowData {
         const iconsHTML: Record<StopOrMoreRow['choice'], string> = {
             stop: this.game.getPiggyBankSVG('log-piggy-bank'),
-            more: `<i class="fa6 fa-play stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
+            more: `<i class="fa6 fa-forward stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
             crash: `<i class="fa6 fa-bomb stop-or-more-icon" title="${_('Crashed').replace(/"/g, '&quot;')}"></i>`,
         };
         const linesByChoice: Record<StopOrMoreRow['choice'], string[]> = { stop: [], more: [], crash: [] };

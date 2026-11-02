@@ -1499,6 +1499,9 @@ body .start-token.flying-start-token {
 .log .stop-or-more-row .log-piggy-bank path[fill=none], .gamelogreview .stop-or-more-row .log-piggy-bank path[fill=none] {
   stroke-width: 1.2;
 }
+.log .stop-or-more-row .stop-or-more-icon.fa-forward, .gamelogreview .stop-or-more-row .stop-or-more-icon.fa-forward {
+  font-size: 1.7108753316em;
+}
 .log .stop-or-more-row .stop-or-more-stars, .gamelogreview .stop-or-more-row .stop-or-more-stars {
   font-size: 1.2em;
 }
@@ -1508,7 +1511,7 @@ body .start-token.flying-start-token {
 .log .stop-or-more-row .stop-or-more-stars .stop-or-more-star, .gamelogreview .stop-or-more-row .stop-or-more-stars .stop-or-more-star {
   color: #f9a11a;
 }
-.log .stop-or-more-row .fa-play, .gamelogreview .stop-or-more-row .fa-play {
+.log .stop-or-more-row .fa-forward, .gamelogreview .stop-or-more-row .fa-forward {
   color: #2e8b2e;
 }
 .log .stop-or-more-row .fa-bomb, .gamelogreview .stop-or-more-row .fa-bomb {
@@ -2102,5 +2105,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

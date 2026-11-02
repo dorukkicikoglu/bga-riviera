@@ -498,3 +498,4 @@ Card 2 row:
 - [ ] A card 2 is applied (`debug_POWER2()`): the row reads "name [die]", no "reserves" or "for the next roll". The die is blank (no pips) in the reserved die's color, as big as the roll row's dice, with the solid ring in the owner's color, like a reserved die in the dice area. Same after F5 and in a replay.
 - [ ] No card 2 icon: a white lock with a thin dark outline sits centred on the blank die, about 70% of the face's size, readable on every die color (yellow too). The row is still as tall as the Start token row. The die's face sits a little smaller inside its ring than a reserved die's in the roll row, with a clear gap; the ring itself is the same size. Dice in the dice area are unchanged.
 
+- [ ] Stop/More row: a player who chose More shows a green forward icon (two triangles) instead of the play triangle, as tall as the piggy bank and centred in the same column as the pig and the bomb. Hover: "Continues".
