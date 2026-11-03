@@ -15,7 +15,6 @@ import { POWER_CARD_VALUES } from "./TooltipHandler";
 
 export class HandHandler{
     private static readonly SELECTED_CARD_CLASS = 'selected-hand-card';
-    private static readonly HAS_SELECTION_CLASS = 'has-selection'; //on the cards container while a card is selected: no card pulses
     private static readonly CHOSEN_CARD_CLASS = 'chosen-card';
     private static readonly SELECTABLE_CARD_CLASS = 'selectable-card';
     private static readonly PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
@@ -165,7 +164,6 @@ export class HandHandler{
             this.selectCard(cardDiv);
         }
 
-        this.updateHasSelectionClass();
         this.game.handSelectionChanged();
     }
 
@@ -183,12 +181,6 @@ export class HandHandler{
 
     private clearSelection(): void{
         this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
-        this.updateHasSelectionClass();
-    }
-
-    //while a card is selected the other cards stop glowing (Game.scss), and the glow comes back once nothing is selected
-    private updateHasSelectionClass(): void{
-        this.cardsContainer.classList.toggle(HandHandler.HAS_SELECTION_CLASS, this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS) !== null);
     }
 
     public getSelectedCardID(): number | null{

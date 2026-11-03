@@ -360,8 +360,8 @@ body.current_player_is_active:not(.lockedInterface){
         &.playable-power-card{ --glow-color: var(--power-card-glow-color); --glow-peak-color: var(--power-card-glow-peak-color); --glow-reach: var(--power-card-glow-reach); }
     }
     &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation-name: mobile-selectable-card-glow-pulse; }
-    //once a card is selected (HandHandler.updateHasSelectionClass) no card pulses; the selected one keeps its still glow
-    #my-hand-container .cards-container.has-selection .a-card.selectable-card{ animation: none; }
+    //the selected card holds its still glow; the other playable cards keep pulsing until the play is confirmed
+    #my-hand-container .cards-container .a-card.selectable-card.selected-hand-card{ animation: none; }
 }
 
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;

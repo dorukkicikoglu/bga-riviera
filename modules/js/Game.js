@@ -1579,7 +1579,6 @@ class HandHandler {
                 selectedCards[0].classList.remove(HandHandler.SELECTED_CARD_CLASS);
             this.selectCard(cardDiv);
         }
-        this.updateHasSelectionClass();
         this.game.handSelectionChanged();
     }
     selectCard(cardDiv) {
@@ -1594,11 +1593,6 @@ class HandHandler {
     }
     clearSelection() {
         this.cardsContainer.querySelectorAll('.a-card.' + HandHandler.SELECTED_CARD_CLASS).forEach(card => card.classList.remove(HandHandler.SELECTED_CARD_CLASS));
-        this.updateHasSelectionClass();
-    }
-    //while a card is selected the other cards stop glowing (Game.scss), and the glow comes back once nothing is selected
-    updateHasSelectionClass() {
-        this.cardsContainer.classList.toggle(HandHandler.HAS_SELECTION_CLASS, this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS) !== null);
     }
     getSelectedCardID() {
         const selectedCard = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTED_CARD_CLASS);
@@ -1762,7 +1756,6 @@ class HandHandler {
     getHandContainer() { return this.handContainer; }
 }
 HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
-HandHandler.HAS_SELECTION_CLASS = 'has-selection'; //on the cards container while a card is selected: no card pulses
 HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold

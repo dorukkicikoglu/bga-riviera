@@ -886,7 +886,7 @@ body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-co
 body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-container .cards-container .a-card.selectable-card {
   animation-name: mobile-selectable-card-glow-pulse;
 }
-body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container.has-selection .a-card.selectable-card {
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card.selected-hand-card {
   animation: none;
 }
 
