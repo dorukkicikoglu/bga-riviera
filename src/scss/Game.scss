@@ -326,7 +326,7 @@ body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-in
         .a-card{ margin-left: var(--hand-card-overlap, calc(var(--my-card-width) * -0.1)); transition: transform 0.2s ease, filter 0.2s ease;
             &:first-child{ margin-left: 0px; }
 
-            &.selected-hand-card{ transform: translateY(-14px); outline: 3px solid #e8862b; outline-offset: -1px; z-index: 1; }
+            &.selected-hand-card{ transform: translateY(-14px); z-index: 1; }
             //set aside until the reveal (a first card, then any card-1 chain)
             &.chosen-card{ transform: translateY(-18px); outline: 5px solid #2e8b2e; outline-offset: -1px; z-index: 1; }
         }
