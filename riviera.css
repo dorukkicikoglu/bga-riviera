@@ -29,6 +29,8 @@
   --power-card-glow-color: #fff6dc;
   --power-card-glow-peak-color: #ffffff;
   --power-card-glow-reach: 1.6;
+  --still-glow-size: 11px;
+  --chosen-glow-size: 5px;
   --die-combo-glow-color: var(--card-glow-color);
   --die-combo-glow-peak-color: var(--card-glow-peak-color);
   --die-combo-transition-duration: 150ms;
@@ -55,6 +57,8 @@
 .mobile_version {
   --card-width: min(28.5vw, 150px);
   --die-size: min(13.3vw, 55px);
+  --still-glow-size: 8px;
+  --chosen-glow-size: 4px;
 }
 
 body {
@@ -844,10 +848,20 @@ body .a-die.rolling-die {
   z-index: 1;
 }
 #my-hand-container .cards-container .a-card.chosen-card {
-  transform: translateY(-18px);
-  outline: 5px solid #2e8b2e;
-  outline-offset: -1px;
+  transform: translateY(-14px);
   z-index: 1;
+}
+#my-hand-container .cards-container .a-card.selected-hand-card, #my-hand-container .cards-container .a-card.chosen-card {
+  --still-glow-color: var(--card-glow-peak-color);
+  --still-glow-reach: 1;
+  box-shadow: 0 0 calc(var(--still-glow-size) * var(--still-glow-reach)) calc(var(--still-glow-size) * var(--still-glow-reach)) var(--still-glow-color);
+}
+#my-hand-container .cards-container .a-card.chosen-card {
+  --still-glow-size: var(--chosen-glow-size);
+}
+#my-hand-container .cards-container .a-card.selected-hand-card.playable-power-card, #my-hand-container .cards-container .a-card.chosen-card:is([data-value="1"], [data-value="2"], [data-value="9"], [data-value="10"], [data-value="11"]) {
+  --still-glow-color: var(--power-card-glow-peak-color);
+  --still-glow-reach: var(--power-card-glow-reach);
 }
 
 body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card {
@@ -864,6 +878,9 @@ body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-co
 }
 body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-container .cards-container .a-card.selectable-card {
   animation-name: mobile-selectable-card-glow-pulse;
+}
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container.has-selection .a-card.selectable-card {
+  animation: none;
 }
 
 #played-columns-container {
@@ -2122,5 +2139,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

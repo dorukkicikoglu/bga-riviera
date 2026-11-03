@@ -43,6 +43,8 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --power-card-glow-color: #fff6dc;
     --power-card-glow-peak-color: #ffffff;
     --power-card-glow-reach: 1.6;
+    --still-glow-size: 11px; //the selected and set-aside cards' still glow: the pulse's peak blur and spread (times the reach)
+    --chosen-glow-size: 5px; //a set-aside card's thinner still glow: the pulse's lowest blur and spread
 
     //the dice that make the selected hand card playable (PlayCard, .die-highlight-combo): the playable cards' gold glow
     --die-combo-glow-color: var(--card-glow-color);
@@ -74,7 +76,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 
 //mobile, like Fugu: BGA lays the game out at least 740px wide (gameinfos game_interface_width) and scales it down to the
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
-.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; }
+.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; }
 
 //img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
 //tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
@@ -328,7 +330,17 @@ body .a-die.rolling-die{ position: fixed; left: 0px; top: 0px; margin: 0px; z-in
 
             &.selected-hand-card{ transform: translateY(-14px); z-index: 1; }
             //set aside until the reveal (a first card, then any card-1 chain)
-            &.chosen-card{ transform: translateY(-18px); outline: 5px solid #2e8b2e; outline-offset: -1px; z-index: 1; }
+            &.chosen-card{ transform: translateY(-14px); z-index: 1; }
+
+            //the selected card and the set-aside cards hold the playable glow at its peak, with no pulse: gold, or cream and
+            //further on a power card (a selected playable power card, or a chosen card of value 1, 2, 9, 10 or 11, which is
+            //no longer marked playable once confirmed). Card 10's swap selection stays gold, like its selectable glow.
+            //A chosen card's glow is thinner, so a confirmed card reads as settled
+            &.selected-hand-card, &.chosen-card{ --still-glow-color: var(--card-glow-peak-color); --still-glow-reach: 1;
+                box-shadow: 0 0 calc(var(--still-glow-size) * var(--still-glow-reach)) calc(var(--still-glow-size) * var(--still-glow-reach)) var(--still-glow-color);
+            }
+            &.chosen-card{ --still-glow-size: var(--chosen-glow-size); }
+            &.selected-hand-card.playable-power-card, &.chosen-card:is([data-value="1"], [data-value="2"], [data-value="9"], [data-value="10"], [data-value="11"]){ --still-glow-color: var(--power-card-glow-peak-color); --still-glow-reach: var(--power-card-glow-reach); }
         }
     }
 }
@@ -338,6 +350,8 @@ body.current_player_is_active:not(.lockedInterface){
         &.playable-power-card{ --glow-color: var(--power-card-glow-color); --glow-peak-color: var(--power-card-glow-peak-color); --glow-reach: var(--power-card-glow-reach); }
     }
     &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation-name: mobile-selectable-card-glow-pulse; }
+    //once a card is selected (HandHandler.updateHasSelectionClass) no card pulses; the selected one keeps its still glow
+    #my-hand-container .cards-container.has-selection .a-card.selectable-card{ animation: none; }
 }
 
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
