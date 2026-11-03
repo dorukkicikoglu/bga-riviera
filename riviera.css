@@ -423,6 +423,7 @@ body .sliding-clone {
 }
 #stop-button .button-star {
   line-height: 0;
+  margin-left: 0.15em;
 }
 #stop-button .button-piggy-bank {
   display: inline-block;
@@ -2146,3 +2147,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

@@ -183,7 +183,9 @@ $forward-icon-to-piggy-height: math.div(17.2, 20) * math.div(1, 0.754);
 $button-piggy-height: 1.3em;
 #stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
     &:hover{ background: #437f24; border-color: #437f24; }
-    .button-star{ line-height: 0; }
+    //pulled toward the number: the translated label's space plus the fallback font's side bearing left too wide a gap,
+    //and dropping the space (which translators keep) left too narrow a one
+    .button-star{ line-height: 0; margin-left: 0.15em; }
     //a little taller than the text, centered on the letters. The negative top and bottom margins keep its margin box 1em
     //tall, inside the line box, so the button keeps its height
     //not the rose piggy-bank mixin: on the green button it stays white like the text, with no outline
