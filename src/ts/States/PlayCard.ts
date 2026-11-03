@@ -122,8 +122,10 @@ export class PlayCard {
                 this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         } else {
             if(this.pendingChoice.choice === 'card'){
-                const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardIconHTML(handHandler.getCardData(cardID))).join('');
-                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players').replace('${card}', cardsIcons || _('a card')));
+                //each chosen card with its power icon, like "Play [card]?"
+                const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardWithPowerHTML(handHandler.getCardData(cardID))).join('');
+                this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players'), { card: cardsIcons || _('a card') });
+                this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
             } else {
                 const pendingChoiceTitles: Record<Exclude<PlayChoice, 'card'>, string> = {
                     last_chance: _('${you} chose your Last Chance. Waiting for other players'),
