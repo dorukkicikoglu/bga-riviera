@@ -499,3 +499,9 @@ Card 2 row:
 - [ ] No card 2 icon: a white lock with a thin dark outline sits centred on the blank die, about 70% of the face's size, readable on every die color (yellow too). The row is still as tall as the Start token row. The die's face sits a little smaller inside its ring than a reserved die's in the roll row, with a clear gap; the ring itself is the same size. Dice in the dice area are unchanged.
 
 - [ ] Stop/More row: a player who chose More shows a green forward icon (two triangles) instead of the play triangle, as tall as the piggy bank and centred in the same column as the pig and the bomb. Hover: "Continues".
+
+Card 11 row:
+- [ ] Add the golden die (`debug_POWER11()`): the row reads "name [plus] [die]" on one line, no "add(s) the golden die to the next roll". A bold dark grey plus about 75% of the die's height, close to the die (a little further from the name), then a blank gold die (no pips) with a flat face, no bevel, the same size as the card 2 row's die face, with no ring. The row is as tall as the Start token and card 2 rows. Same after F5 and in a replay.
+
+
+- [ ] Reveal row, card-1 chain (`debug_POWER1()`, chain a second card): no "+" between the cards; the chain's cards sit right next to each other with the same small gap as the card 10 swap row's, after the one arrow. Names, arrows and cards still line up in their columns. Same after F5 and in a replay.

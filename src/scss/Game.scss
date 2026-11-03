@@ -600,27 +600,37 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .reveal-entry{ display: contents; }
         .playername{ display: block; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .reveal-cards{ display: inline-flex; align-items: center; gap: 5px; }
-        .reveal-chain-plus{ font-weight: bold; color: #27271c; }
     }
     //power rows: text with mini dice or mini cards inline
     .die-reserved-row, .golden-die-row, .die-modified-row, .cards-swapped-row, .cards-redrawn-row, .power-skipped-row{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
         .a-die{ display: inline-block; --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
         .minimised-card-icon + .minimised-card-icon{ margin-left: 2px; }
     }
-    //"name [die]", no taller than a single-row log like the Start token's: the blank reserved die's card 2 ring
-    //(an outline, outside the layout) as big as on a $log-reserved-die-size die, but the face inside it 8% smaller, so the gap
-    //between the face and the ring shows better. The ring keeps that die's width, and its gap grows by what the face lost on
-    //each side. Side margins only, as wide as the ring reaches past the face, keep it clear of the icon; above and below, the
-    //ring stays inside the row's height, so it needs no room
+    //card 2 and card 11 rows on one line, no taller than a single-row log like the Start token's (its mini token's height),
+    //each with a blank die (no value, it is rolled next, LogMutationObserver.getBlankMiniDieHTML), the card 2 die's face size
+    //in both. Card 2, "name [die]": a lock centred on the die, white with a thin dark outline so it reads on every die color,
+    //light dice too, absolutely placed so it never makes the row taller
+    $log-blank-die-size: $log-reserved-die-size * (1 - $log-reserved-die-face-shrink);
+    .die-reserved-row, .golden-die-row{ flex-wrap: nowrap; min-height: calc(var(--log-card-icon-size) * 0.9);
+        .a-die{ --die-size: #{$log-blank-die-size}; }
+        .log-die-icon{ position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-size: calc(var(--die-size) * 0.68); line-height: 1; color: #ffffff; @include text-shade(rgba(0, 0, 0, 0.5), 1px); }
+    }
+    //card 11, "name [plus] [die]": a bold (solid, weight 900) dark grey plus about 75% of the die's height (fa-plus's glyph
+    //fills about 0.875 of its font size), grouped with the die (2px apart) and a little further from the name (6px; the row's
+    //gap is 4px), then the golden die with a flat face in its gradient's middle gold, like the other log dice, not the bevel
+    .golden-die-row{
+        //nudged 1px down (top, so the row's layout doesn't move): the die's drop shadow falls down-right, so its face reads
+        //lower than its box, and the plus looked high next to it
+        .golden-die-plus{ position: relative; top: 1px; font-size: #{$log-blank-die-size * math.div(0.75, 0.875)}; font-weight: 900; line-height: 1; color: #424242; margin: 0px -2px 0px 2px; }
+        .a-die[data-color="gold"]{ --die-face: #e0b228; }
+    }
+    //card 2: the reserved die's ring (an outline, outside the layout) as big as on a $log-reserved-die-size die, but the face
+    //inside it 8% smaller, so the gap between the face and the ring shows better. The ring keeps that die's width, and its gap
+    //grows by what the face lost on each side. Side margins only, as wide as the ring reaches past the face, keep it clear of
+    //the name; above and below, the ring fills the row's height, so it needs no room. Card 11's die has no ring and no margin
     $log-reserved-ring-reach: $log-reserved-die-size * (0.08 + $log-reserved-die-face-shrink * 0.5 + 0.075);
-    //as tall as the Start token row (its mini token): the ring fills that height
-    .die-reserved-row{ min-height: calc(var(--log-card-icon-size) * 0.9); }
-    .die-reserved-row .a-die{ --die-size: #{$log-reserved-die-size * (1 - $log-reserved-die-face-shrink)};
-        --reserved-ring-width: #{$log-reserved-die-size * 0.075}; --reserved-ring-gap: #{$log-reserved-die-size * (0.08 + $log-reserved-die-face-shrink * 0.5)};
+    .die-reserved-row .a-die{ --reserved-ring-width: #{$log-reserved-die-size * 0.075}; --reserved-ring-gap: #{$log-reserved-die-size * (0.08 + $log-reserved-die-face-shrink * 0.5)};
         margin: 0px #{$log-reserved-ring-reach};
-        //the lock on the blank face, centred, 70% of the face's size, white with a thin dark outline so it reads on every die
-        //color, light dice too. Absolutely placed, so it never makes the row taller
-        .reserved-die-lock{ position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-size: calc(var(--die-size) * 0.68); line-height: 1; color: #ffffff; @include text-shade(rgba(0, 0, 0, 0.5), 1px); }
     }
     //a reserved log die: the drop shadow falls all around it, not down-right, where it filled the gap inside the card 2 ring
     //and made the die look off-center in it

@@ -136,16 +136,15 @@ export class LogMutationObserver{
 
     public createLogCardsRevealed(reveals: CardReveal[]): LogRowData {
         const revealsHTML = reveals.map(reveal => {
-            //a card as the status bar's circular card icon; Last Chance has no icon, so it stays a mini card
-            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
-            //a card-1 chain: the first card, then "+" and each card added to it
-            const chainHTML = (reveal.extra_cards_POWER1 ?? []).map(extraCard => `<span class="reveal-chain-plus">+</span>${this.getCardIconsHTML([extraCard])}`).join('');
+            //a card as the status bar's circular card icon, a card-1 chain's cards right after it in the same icons container
+            //(spaced like the swap row's cards); Last Chance has no icon, so it stays a mini card
+            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card, ...(reveal.extra_cards_POWER1 ?? [])]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
                     ${this.getCutPlayerNameHTML(reveal.player_id)}
                     <i class="log-arrow place-under-icon fa6 fa-share" aria-hidden="true"></i>
-                    <span class="reveal-cards">${choiceHTML}${chainHTML}</span>
+                    <span class="reveal-cards">${choiceHTML}</span>
                 </div>`;
         }).join('');
 
@@ -245,22 +244,21 @@ export class LogMutationObserver{
         let logHTML = `
             <div class="die-reserved-row">
                 ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
-                ${this.getLockedMiniDieHTML({ ...die, pending_reserved_by_POWER2: null })}
+                ${this.getBlankMiniDieHTML({ ...die, pending_reserved_by_POWER2: null }, 'fa-lock')}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'die-reserved-power2-log');
     }
 
+    //icons only: "name [plus] [die]", the golden die blank (it has no value until the next roll), as big as the card 2 row's
+    //die but with no ring and a flat gold face (the server's GOLDEN_DIE_POWER11_LOG_STR is the plain-text fallback)
     public createLogGoldenDiePOWER11(player_id: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        //no die drawn: the golden die has no value until the next roll, and a die never shows without one
-        const goldenDieText = player_id === this.game.getMyPlayerID()
-            ? _('${you} add the golden die to the next roll').replace('${you}', playerNameHTML)
-            : _('${playerName} adds the golden die to the next roll').replace('${playerName}', playerNameHTML);
-
+        const goldenDie: RivieraDie = { color: 'gold', value: null, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
         let logHTML = `
             <div class="golden-die-row">
-                ${goldenDieText}
+                ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
+                <i class="fa6 fa-solid fa-plus golden-die-plus" aria-hidden="true"></i>
+                ${this.getBlankMiniDieHTML(goldenDie)}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'golden-die-power11-log');
@@ -411,12 +409,13 @@ export class LogMutationObserver{
         return this.game.diceHandler.createDieDiv(die).outerHTML;
     }
 
-    //a reserved die with no face and a lock centred on it: data-value "blank" matches no pip rule, so no pips show, and unlike
-    //"" (no value) it is not hidden
-    private getLockedMiniDieHTML(die: RivieraDie): string {
+    //a die with no face, with a Font Awesome icon centred on it when iconClass is given (fa-lock for card 2): data-value
+    //"blank" matches no pip rule, so no pips show, and unlike "" (no value) it is not hidden
+    private getBlankMiniDieHTML(die: RivieraDie, iconClass: string | null = null): string {
         const aDie = this.game.diceHandler.createDieDiv(die);
         aDie.setAttribute('data-value', 'blank');
-        aDie.insertAdjacentHTML('beforeend', '<i class="fa6 fa-lock reserved-die-lock" aria-hidden="true"></i>');
+        if(iconClass)
+            aDie.insertAdjacentHTML('beforeend', `<i class="fa6 ${iconClass} log-die-icon" aria-hidden="true"></i>`);
         return aDie.outerHTML;
     }
 }
