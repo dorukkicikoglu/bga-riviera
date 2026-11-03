@@ -250,25 +250,23 @@ $button-piggy-height: 1.3em;
     }
     &[data-value=""]{ display: none; } //no value: never shown. DiceHandler only blanks a die on a roll, so the golden die stays up until the next roll
 
-    //card 2: a ring in the reserver's color, an outline on the die itself, so it is centered at any --die-size. Its width
-    //and gap are shares of --die-size (3px and 3.2px at 40px); the dice area and its rolling copies keep their own px values
-    --reserved-ring-width: calc(var(--die-size) * 0.075); --reserved-ring-gap: calc(var(--die-size) * 0.08);
-    &:not([data-reserved-by-power2=""]){ outline: var(--reserved-ring-width) solid var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
-    //a card 2 whose roll hasn't come yet (revealed, or applied before the roll): the same ring, dashed
-    &.die-reservation-pending-power2{ outline: var(--reserved-ring-width) dashed var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
     &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
 
     &.die-changed{ animation: die-changed 300ms ease; }
+
+    //card 2 padlock badge: only #dice-container shows it; hidden on the rolling copies in <body>, which never have one
+    .die-lock-badge-power2{ display: none; }
 }
 
 //the space above and below the dice is always reserved for the card-9 arrows (just their height plus a gap), in every
 //state, so the dice never move when the arrows appear or go. The die's drop shadow falls 2px below it, so the gap below
-//is 2px wider: the two gaps then look the same
-#dice-container .a-die, body .a-die.rolling-die{ --reserved-ring-width: #{3px * $dice-area-die-scale}; --reserved-ring-gap: #{2px * $dice-area-die-scale}; }
+//is 2px wider: the two gaps then look the same. Below, the space is also never shorter than the card 2 padlock badge's
+//reach under the die (two thirds of it) plus 3px for its shadow, so a badge never overlaps what follows the dice row
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
-    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px; min-height: var(--die-size);
+    --lock-badge-size: calc(var(--die-size) * 0.54); --lock-badge-below: calc(var(--lock-badge-size) * 2 / 3);
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px max(calc(var(--die-arrow-height) + var(--die-arrow-gap-below)), calc(var(--lock-badge-below) + 3px)) 0px; min-height: var(--die-size);
     position: relative; //for the fading copies
     isolation: isolate; //its own stacking context: the card 9 arrows' z-index and the dice's filters stay inside the dice area, under the Start token (z-index 10)
 
@@ -276,7 +274,7 @@ $button-piggy-height: 1.3em;
 
     //another player's card 2, from my side (data-reservation, DiceHandler.getReservationForMe): reserved 0.4, pending 0.7.
     //Only the face fades (its color, edge and drop shadow on ::before, and the pips), never the die itself, so its card 2
-    //ring (an outline), the card 9 preview glow and the ± badge stay fully visible
+    //padlock, the card 9 preview glow and the ± badge stay fully visible
     //the combo highlight's glow transitions here, on every die, so it fades both when the class comes and when it goes
     .a-die{ --die-face-opacity: 1; background: none; box-shadow: none; transition: opacity 0.3s ease, box-shadow var(--die-combo-transition-duration) ease;
         &::before{ content: ""; position: absolute; inset: 0px; border-radius: inherit; background: var(--die-face); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
@@ -286,6 +284,31 @@ $button-piggy-height: 1.3em;
     }
     //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
     .fading-out-die{ position: absolute; margin: 0px; pointer-events: none; }
+
+    //card 2: a padlock badge on the die's bottom edge (DiceHandler.LOCK_BADGE_HTML_POWER2), closed once reserved,
+    //open at 75% while a revealed card 2 hasn't had its roll yet (that class wins when both are set, as the dashed ring did).
+    //The disc is the reserver's color (--lock-color) with a thin dark ring, so it stands out even on a die of the same
+    //color; the padlock is white or black (--lock-icon-color, DiceHandler.getLockIconColorPOWER2), 27% of --die-size tall,
+    //half the disc's diameter. The disc (--lock-badge-size, 54% of --die-size, set on #dice-container) is centered on the
+    //die's bottom edge, a third of it over the die and two thirds below (--lock-badge-below), so it stays within the die's
+    //own width (23% to 77%) and never reaches the gap or the next die. It clears the bottom-left and bottom-right pips
+    //(centered at 22% and 78%, 20% wide, on faces 2 to 6) by about 5% of the die; the bottom-middle pip is never shown. A
+    //child of the die, so the die's box-shadow glows (combo highlight, card 9 preview) paint under it and never on it, and
+    //the face's fade (--die-face-opacity) leaves it alone. Absolutely placed and pointer-events none: no layout shift, no
+    //blocked clicks. It inherits the die's visibility, so it hides with a die waiting for its rolling copy
+    .die-lock-badge-power2{ display: none; position: absolute; z-index: 1; width: var(--lock-badge-size); height: var(--lock-badge-size); left: calc(50% - var(--lock-badge-size) / 2); bottom: calc(-1 * var(--lock-badge-below)); box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff); pointer-events: none;
+        //both share the viewBox (576 x 512), centered on the lock's body, so the closed and open padlocks overlap exactly
+        .die-lock-open-icon, .die-lock-closed-icon{ position: absolute; left: 50%; top: 50%; translate: -50% -50%; height: calc(var(--lock-badge-size) * 0.5); width: calc(var(--lock-badge-size) * 0.5 * 576 / 512); fill: currentColor; }
+        .die-lock-open-icon{ opacity: 0; }
+    }
+    .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2{ display: block; }
+    .a-die.die-reservation-pending-power2 .die-lock-badge-power2{ display: block;
+        .die-lock-open-icon{ opacity: 0.75; }
+        .die-lock-closed-icon{ opacity: 0; }
+    }
+    //card 9: the down arrow sits where the badge is, so a die showing its arrows (the active owner only, ModifyDie) hides it
+    //until they go
+    .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2{ display: none; }
 
     //card 9, active owner only (DiceHandler.showModifyArrowsPOWER9): two transparent hit containers on top of each die that
     //can be turned. The up one (+1) runs from its triangle's tip down to the die's middle line, the down one (-1) from that
@@ -310,7 +333,7 @@ $button-piggy-height: 1.3em;
     //A box-shadow on the die, not a filter: a filter's glow would follow the face's opacity and fade with a reserved die
     .a-die.previewed-die-power9{ box-shadow: 0 0 3px 1px #ffe8a3, 0 0 8px 2px #ffd700; }
     //PlayCard: the dice that make the selected hand card playable (DiceHandler.setComboHighlight), glowing gold like the
-    //playable cards. A box-shadow on the die (its face is ::before), so the card 2 ring (an outline, solid or dashed) is
+    //playable cards. A box-shadow on the die (its face is ::before), so the card 2 padlock (a child of the die) is
     //untouched. z-index: the glow paints over the neighbouring dice, still under the card 9 arrows (2)
     .a-die.die-highlight-combo{ box-shadow: 0 0 6px 3px var(--die-combo-glow-peak-color), 0 0 14px 6px var(--die-combo-glow-color); z-index: 1; }
 }
@@ -649,6 +672,15 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         //lower than its box, and the plus looked high next to it
         .golden-die-plus{ position: relative; top: 1px; font-size: #{$log-blank-die-size * math.div(0.75, 0.875)}; font-weight: 900; line-height: 1; color: #424242; margin: 0px -2px 0px 2px; }
         .a-die[data-color="gold"]{ --die-face: #e0b228; }
+    }
+    //card 2 in log rows (the dice area shows a padlock badge instead): a ring in the reserver's color, an outline on the die
+    //itself, so it is centered at any --die-size. Its width and gap are shares of --die-size; pending (revealed, or applied
+    //before the roll), the same ring, dashed
+    .dice-rolled-row, .die-reserved-row, .die-modified-row{
+        .a-die{ --reserved-ring-width: calc(var(--die-size) * 0.075); --reserved-ring-gap: calc(var(--die-size) * 0.08);
+            &:not([data-reserved-by-power2=""]){ outline: var(--reserved-ring-width) solid var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
+            &.die-reservation-pending-power2{ outline: var(--reserved-ring-width) dashed var(--reserver-color); outline-offset: var(--reserved-ring-gap); }
+        }
     }
     //card 2: the reserved die's ring (an outline, outside the layout) as big as on a $log-reserved-die-size die, but the face
     //inside it 8% smaller, so the gap between the face and the ring shows better. The ring keeps that die's width, and its gap

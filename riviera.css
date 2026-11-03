@@ -623,18 +623,6 @@ body .sliding-clone {
 .a-die[data-value=""] {
   display: none;
 }
-.a-die {
-  --reserved-ring-width: calc(var(--die-size) * 0.075);
-  --reserved-ring-gap: calc(var(--die-size) * 0.08);
-}
-.a-die:not([data-reserved-by-power2=""]) {
-  outline: var(--reserved-ring-width) solid var(--reserver-color);
-  outline-offset: var(--reserved-ring-gap);
-}
-.a-die.die-reservation-pending-power2 {
-  outline: var(--reserved-ring-width) dashed var(--reserver-color);
-  outline-offset: var(--reserved-ring-gap);
-}
 .a-die[data-modified-by-power9=true]::after {
   content: "±";
   position: absolute;
@@ -654,10 +642,8 @@ body .sliding-clone {
 .a-die.die-changed {
   animation: die-changed 300ms ease;
 }
-
-#dice-container .a-die, body .a-die.rolling-die {
-  --reserved-ring-width: 4.5px;
-  --reserved-ring-gap: 3px;
+.a-die .die-lock-badge-power2 {
+  display: none;
 }
 
 #dice-container {
@@ -673,12 +659,14 @@ body .sliding-clone {
   --die-arrow-height: calc(var(--die-arrow-width) * 0.62);
   --die-arrow-gap: 3px;
   --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
+  --lock-badge-size: calc(var(--die-size) * 0.54);
+  --lock-badge-below: calc(var(--lock-badge-size) * 2 / 3);
   display: flex;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px calc(var(--die-arrow-height) + var(--die-arrow-gap-below)) 0px;
+  padding: calc(var(--die-arrow-height) + var(--die-arrow-gap) + 21px) 0px max(var(--die-arrow-height) + var(--die-arrow-gap-below), var(--lock-badge-below) + 3px) 0px;
   min-height: var(--die-size);
   position: relative;
   isolation: isolate;
@@ -716,6 +704,49 @@ body .sliding-clone {
   position: absolute;
   margin: 0px;
   pointer-events: none;
+}
+#dice-container .die-lock-badge-power2 {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  width: var(--lock-badge-size);
+  height: var(--lock-badge-size);
+  left: calc(50% - var(--lock-badge-size) / 2);
+  bottom: calc(-1 * var(--lock-badge-below));
+  box-sizing: border-box;
+  border: 1.5px solid #1b1b1b;
+  border-radius: 50%;
+  background: var(--lock-color, #1b1b1b);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6);
+  color: var(--lock-icon-color, #ffffff);
+  pointer-events: none;
+}
+#dice-container .die-lock-badge-power2 .die-lock-open-icon, #dice-container .die-lock-badge-power2 .die-lock-closed-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  height: calc(var(--lock-badge-size) * 0.5);
+  width: calc(var(--lock-badge-size) * 0.5 * 576 / 512);
+  fill: currentColor;
+}
+#dice-container .die-lock-badge-power2 .die-lock-open-icon {
+  opacity: 0;
+}
+#dice-container .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2 {
+  display: block;
+}
+#dice-container .a-die.die-reservation-pending-power2 .die-lock-badge-power2 {
+  display: block;
+}
+#dice-container .a-die.die-reservation-pending-power2 .die-lock-badge-power2 .die-lock-open-icon {
+  opacity: 0.75;
+}
+#dice-container .a-die.die-reservation-pending-power2 .die-lock-badge-power2 .die-lock-closed-icon {
+  opacity: 0;
+}
+#dice-container .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2 {
+  display: none;
 }
 #dice-container .die-arrow {
   position: absolute;
@@ -1488,6 +1519,18 @@ body .start-token.flying-start-token {
 .log .golden-die-row .a-die[data-color=gold], .gamelogreview .golden-die-row .a-die[data-color=gold] {
   --die-face: #e0b228;
 }
+.log .dice-rolled-row .a-die, .log .die-reserved-row .a-die, .log .die-modified-row .a-die, .gamelogreview .dice-rolled-row .a-die, .gamelogreview .die-reserved-row .a-die, .gamelogreview .die-modified-row .a-die {
+  --reserved-ring-width: calc(var(--die-size) * 0.075);
+  --reserved-ring-gap: calc(var(--die-size) * 0.08);
+}
+.log .dice-rolled-row .a-die:not([data-reserved-by-power2=""]), .log .die-reserved-row .a-die:not([data-reserved-by-power2=""]), .log .die-modified-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .dice-rolled-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .die-reserved-row .a-die:not([data-reserved-by-power2=""]), .gamelogreview .die-modified-row .a-die:not([data-reserved-by-power2=""]) {
+  outline: var(--reserved-ring-width) solid var(--reserver-color);
+  outline-offset: var(--reserved-ring-gap);
+}
+.log .dice-rolled-row .a-die.die-reservation-pending-power2, .log .die-reserved-row .a-die.die-reservation-pending-power2, .log .die-modified-row .a-die.die-reservation-pending-power2, .gamelogreview .dice-rolled-row .a-die.die-reservation-pending-power2, .gamelogreview .die-reserved-row .a-die.die-reservation-pending-power2, .gamelogreview .die-modified-row .a-die.die-reservation-pending-power2 {
+  outline: var(--reserved-ring-width) dashed var(--reserver-color);
+  outline-offset: var(--reserved-ring-gap);
+}
 .log .die-reserved-row .a-die, .gamelogreview .die-reserved-row .a-die {
   --reserved-ring-width: 1.65px;
   --reserved-ring-gap: 2.64px;
@@ -2147,5 +2190,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

@@ -17,7 +17,18 @@ export class DiceHandler{
     private static readonly MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows its card-9 arrows
     private static readonly SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
     private static readonly PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
-    private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its ring, dashed
+    private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
+    //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
+    //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
+    //lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). One viewBox,
+    //centered on the body both share, so only the shackle differs: the open one's is raised and swung out to the right
+    private static readonly LOCK_ICON_VIEWBOX_POWER2 = '-64 0 576 512';
+    private static readonly LOCK_BADGE_HTML_POWER2 = '<span class="die-lock-badge-power2" aria-hidden="true">'
+        + `<svg class="die-lock-open-icon" viewBox="${DiceHandler.LOCK_ICON_VIEWBOX_POWER2}"><path d="M352 144c0-44.2 35.8-80 80-80s80 35.8 80 80v48c0 17.7 14.3 32 32 32s32-14.3 32-32V144C576 64.5 511.5 0 432 0S288 64.5 288 144v48H64c-35.3 0-64 28.7-64 64V448c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V256c0-35.3-28.7-64-64-64H352V144z"/></svg>`
+        + `<svg class="die-lock-closed-icon" viewBox="${DiceHandler.LOCK_ICON_VIEWBOX_POWER2}"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>`
+        + '</span>';
+    private static readonly LOCK_ICON_WHITE_MAX_LUMINANCE_POWER2 = 0.3; //a white padlock keeps at least WCAG's 3:1 contrast for graphics on a player color up to this relative luminance; lighter colors get a black one
+    private static readonly LOCK_CLOSE_DURATION_POWER2 = 180; //ms of the padlock closing, once a pending reservation's roll has landed
     private static readonly COMBO_HIGHLIGHT_CLASS = 'die-highlight-combo'; //PlayCard: the dice that make the selected hand card playable
     private static readonly DIE_FACES = 6;
 
@@ -50,6 +61,7 @@ export class DiceHandler{
         for(let dieData of this.diceData){
             const aDie = this.createDieDiv(dieData);
             aDie.id = 'die-' + dieData.color;
+            aDie.insertAdjacentHTML('beforeend', DiceHandler.LOCK_BADGE_HTML_POWER2);
 
             const dieSlot = document.createElement('div');
             dieSlot.className = 'die-slot';
@@ -171,22 +183,62 @@ export class DiceHandler{
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
 
-        this.applyReservationRingPOWER2(aDie, withRing ? dieData : null);
+        this.applyReservationRingPOWER2(aDie, withRing ? dieData : null, !isRoll);
     }
 
-    //card 2: pending (dashed ring) from the reveal until the roll it is for, reserved (solid ring) from then. null: no ring
-    //(a die rolling in gets its ring once it has landed). The dice area also fades another player's reservation (data-reservation)
-    private applyReservationRingPOWER2(aDie: HTMLDivElement, dieData: RivieraDie | null): void {
+    //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,
+    //reserved (closed padlock, solid ring) from then. null: none (a die rolling in gets its padlock once it has landed). The
+    //dice area also fades another player's reservation (data-reservation). animateLock: a die already showing its open
+    //padlock that is now reserved closes it with an animation. A roll never animates it (the dice roll in with no padlock
+    //and get it in its final state once they have landed)
+    private applyReservationRingPOWER2(aDie: HTMLDivElement, dieData: RivieraDie | null, animateLock: boolean = true): void {
+        const lockWasOpen = animateLock && aDie.classList.contains(DiceHandler.RESERVATION_PENDING_CLASS_POWER2);
         const reserverID = dieData?.reserved_by_POWER2 ?? null;
         const pendingReserverID = dieData?.pending_reserved_by_POWER2 ?? null;
         aDie.setAttribute('data-reserved-by-power2', reserverID === null ? '' : reserverID.toString());
         aDie.setAttribute('data-reservation', this.getReservationForMe(reserverID, pendingReserverID));
         aDie.classList.toggle(DiceHandler.RESERVATION_PENDING_CLASS_POWER2, pendingReserverID !== null);
+        //the reserver's color: the log rows' ring (--reserver-color), the dice area's padlock badge (--lock-color) and its icon
         const ringOwnerID = pendingReserverID ?? reserverID;
-        if(ringOwnerID !== null)
-            aDie.style.setProperty('--reserver-color', '#' + this.game.getPlayerColor(ringOwnerID));
-        else
+        if(ringOwnerID !== null){
+            const reserverColor = '#' + this.game.getPlayerColor(ringOwnerID);
+            aDie.style.setProperty('--reserver-color', reserverColor);
+            aDie.style.setProperty('--lock-color', reserverColor);
+            aDie.style.setProperty('--lock-icon-color', DiceHandler.getLockIconColorPOWER2(reserverColor));
+        }
+        else{
             aDie.style.removeProperty('--reserver-color');
+            aDie.style.removeProperty('--lock-color');
+            aDie.style.removeProperty('--lock-icon-color');
+        }
+
+        if(lockWasOpen && reserverID !== null && pendingReserverID === null)
+            this.playLockClosingPOWER2(aDie);
+    }
+
+    //white on the player's color, or black when it is too light for white (sRGB relative luminance)
+    private static getLockIconColorPOWER2(hexColor: string): string {
+        const channels = [1, 3, 5].map(start => parseInt(hexColor.substring(start, start + 2), 16) / 255)
+            .map(channel => (channel <= 0.04045) ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
+        const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+        return (luminance <= DiceHandler.LOCK_ICON_WHITE_MAX_LUMINANCE_POWER2) ? '#ffffff' : '#000000';
+    }
+
+    //the padlock badge going from pending to reserved: the badge pops while the open padlock (at 75%) fades out and the
+    //closed one drops into place at full opacity. Translate and scale only, never transform. None in replays or with BGA's
+    //animations off
+    private playLockClosingPOWER2(aDie: HTMLDivElement): void {
+        const badge = aDie.querySelector('.die-lock-badge-power2');
+        if(!badge || this.game.isReplay() || !this.game.bga.gameui.bgaAnimationsActive())
+            return;
+
+        const timing: KeyframeAnimationOptions = { duration: DiceHandler.LOCK_CLOSE_DURATION_POWER2, easing: 'ease-out' };
+        badge.animate([{ scale: 1 }, { scale: 1.2, offset: 0.5 }, { scale: 1 }], timing);
+        badge.querySelector('.die-lock-open-icon')?.animate([{ opacity: 0.75 }, { opacity: 0, offset: 0.6 }, { opacity: 0 }], timing);
+        badge.querySelector('.die-lock-closed-icon')?.animate([
+            { opacity: 0, translate: '-50% -75%' },
+            { opacity: 1, translate: '-50% -50%' },
+        ], timing);
     }
 
     //a reservation seen by the current player: another player's ('reserved-other', faded most), another player's revealed
@@ -228,8 +280,9 @@ export class DiceHandler{
      * golden die left out of this roll only fades out). Resolves once the last die has stopped, so the notification waits
      * for it. With BGA's animations off (fast replay, hidden tab) the dice just change. A card 9 change is not a roll: it
      * goes through updateDice.
-     * The fading copies keep the rings they had (a pending reservation stays dashed); the dice rolling in have none, and
-     * get their card 2 rings once the last die has landed (each die's travel and delay are random, so no fixed time).
+     * No die shows a card 2 padlock while the roll runs: the fading copies drop theirs and the dice rolling in have none.
+     * The real dice get their padlocks once the last die has landed (awaiting every rollIn, each die's travel and delay
+     * being random), already in their final state: no closing animation, which would flash the old open padlock first.
      */
     public async rollDice(diceData: RivieraDie[]): Promise<void> {
         if(this.previewedColorPOWER9)
@@ -258,9 +311,9 @@ export class DiceHandler{
 
         await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
 
-        //every die has landed: the card 2 rings show together
+        //every die has landed: the card 2 padlocks show together
         for(let rolledDie of rolledDice){
-            this.applyReservationRingPOWER2(rolledDie.aDie, rolledDie.dieData);
+            this.applyReservationRingPOWER2(rolledDie.aDie, rolledDie.dieData, false);
             this.game.tooltipHandler?.updateDieTooltip(rolledDie.dieData);
         }
     }
@@ -279,6 +332,7 @@ export class DiceHandler{
             fadingDie.removeAttribute('id');
             fadingDie.classList.remove(DiceHandler.CHANGE_ANIM_CLASS, DiceHandler.PREVIEWED_CLASS_POWER9);
             fadingDie.classList.add('fading-out-die');
+            fadingDie.querySelector('.die-lock-badge-power2')?.remove(); //the replaced die's padlock goes as the roll starts
             fadingDie.style.left = ((dieRect.left - containerRect.left) / zoom - this.diceContainer.clientLeft) + 'px';
             fadingDie.style.top = ((dieRect.top - containerRect.top) / zoom - this.diceContainer.clientTop) + 'px';
             this.diceContainer.prepend(fadingDie);
@@ -302,7 +356,7 @@ export class DiceHandler{
     //scaling of the game area, so it is scaled (scale property, set once) to the die's on-screen size; only translate and
     //rotate animate, never transform. fill 'backwards' keeps it at its start during its delay. Its travel time is
     //ROLL_DURATION give or take ROLL_DURATION_VARIATION. The face changes each time the rotation passes a multiple of
-    //FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel. Its card 2 ring waits for rollDice
+    //FACE_TURN, and is the real value from FACE_LOCK_FRACTION of the travel. Its card 2 padlock waits for rollDice
     private async rollIn(aDie: HTMLDivElement, dieData: RivieraDie): Promise<void> {
         const dieRect = aDie.getBoundingClientRect();
         const cssSize = parseFloat(window.getComputedStyle(aDie).width) || dieRect.width;
