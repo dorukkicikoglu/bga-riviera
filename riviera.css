@@ -433,6 +433,13 @@ body .sliding-clone {
   fill: currentColor;
 }
 
+#more-button .button-forward-icon {
+  font-size: 1.4827586207em;
+  line-height: 0;
+  margin: 0px 0.2023255814em 0px -4px;
+  vertical-align: -0.145em;
+}
+
 .auto-choice-dots > span {
   visibility: hidden;
 }
@@ -1546,7 +1553,7 @@ body .start-token.flying-start-token {
   color: #f9a11a;
 }
 .log .stop-or-more-row .fa-forward, .gamelogreview .stop-or-more-row .fa-forward {
-  color: #2e8b2e;
+  color: var(--palette-bga-primary, #0b72b5);
 }
 .log .stop-or-more-row .fa-bomb, .gamelogreview .stop-or-more-row .fa-bomb {
   color: #800000;

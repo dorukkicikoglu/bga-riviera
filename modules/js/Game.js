@@ -230,7 +230,9 @@ class StopOrMore {
             //the piggy bank goes in front of the translated label, so translators never see the SVG
             const stopLabel = this.game.getPiggyBankSVG('button-piggy-bank') + _('Stop and bank ${stars} ★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
             this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
-            this.bga.statusBar.addActionButton(_('Keep Going'), () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
+            //the logs' More icon, in front of the translated label like the Stop button's piggy bank
+            const moreLabel = '<i class="fa6 fa-forward button-forward-icon" aria-hidden="true"></i>' + _('Keep Going');
+            this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
         }
         else if (this.pendingChoice) {
             const pendingChoiceTitles = {
