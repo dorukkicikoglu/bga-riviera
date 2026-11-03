@@ -29,8 +29,10 @@ use Bga\Games\Riviera\Game;
  * With no such opponent, the owner discards and draws instead, [BGA] only as many cards as can be drawn (the
  * discard pile is reshuffled into a short draw pile), so card 10 never changes a hand size. Owners with fewer than
  * 2 cards never get here: RIVPowerManager skips their power.
- * Hidden information: the owner and victim get a private notification with the cards; everyone else gets a public
- * one with the count only (the owner and victim hide that public row, so everyone sees exactly one row).
+ * Hidden information: each action sends one notification to everyone (cardsSwapped_POWER10, cardsRedrawn_POWER10),
+ * so everyone gets exactly one log row. The cards go in its _private part, which the framework only sends to the
+ * players who know them (the owner and the victim of a swap, the owner of a redraw); everyone else, spectators
+ * included, gets the ids and the count, and sees card backs.
  */
 class SwapCards extends GameState
 {
@@ -110,7 +112,7 @@ class SwapCards extends GameState
         $this->checkPendingPower($activePlayerId);
 
         if(!empty($this->game->powerManager->getSwapTargetsPOWER10($activePlayerId)))
-            throw new UserException(clienttranslate('An opponent still in the round has 2 cards: swap with them'));
+            throw new UserException(clienttranslate('An opponent still in the round has at least 2 cards: swap with them'));
 
         $myHandCount = $this->game->tableManager->getHandCounts()[$activePlayerId] ?? 0;
         $redrawCount = min(CARDS_SWAPPED_BY_POWER10, $myHandCount, $this->game->tableManager->getDrawableCountPOWER10());

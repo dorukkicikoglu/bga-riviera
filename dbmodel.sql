@@ -52,7 +52,7 @@ ALTER TABLE `player` ADD `play_choice` ENUM('card', 'last_chance', 'crash') NULL
 ALTER TABLE `player` ADD `play_choice_card_id` INT UNSIGNED NULL AFTER `play_choice`;
 ALTER TABLE `player` ADD `stop_or_more_choice` ENUM('stop', 'more') NULL AFTER `play_choice_card_id`;
 ALTER TABLE `player` ADD `made_choice_this_state` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `stop_or_more_choice`;
--- a non-1 power revealed this turn, waiting to resolve: 2, 10 and 11 after Stop or More (owners who chose More), 9 after the next roll
+-- a non-1 power revealed this turn, waiting to resolve: 10 before Stop or More (owners still in the round), 2 and 11 after Stop or More (owners who chose More), 9 after the next roll
 ALTER TABLE `player` ADD `pending_POWER2` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `made_choice_this_state`;
 ALTER TABLE `player` ADD `pending_POWER9` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER2`;
 ALTER TABLE `player` ADD `pending_POWER10` ENUM('yes', 'no') NOT NULL DEFAULT 'no' AFTER `pending_POWER9`;

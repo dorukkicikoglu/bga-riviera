@@ -1430,11 +1430,11 @@ class TooltipHandler {
     //the only source of the power texts. They follow our BGA rules (SPEC.md), not the rulebook's wording
     getPowerText(value) {
         const powerTexts = {
-            1: _('Play one more card from your hand on the same roll, revealed with it. It must be playable too, and another 1 lets you add again.'),
-            2: _('Automatic: on the next roll, the die of this card\'s color is reserved for you. Opponents can\'t use it, alone or in a sum. Only if you choose More.'),
-            10: _('Swap 2 cards of your choice for 2 random cards of an opponent still in the round with at least 2 cards. If there is none, discard up to 2 cards and draw as many instead.'),
-            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts in a sum with a colored die. Only if you choose More.'),
-            9: _('Turn one die by 1 up or down (a 6 becomes a 1, and a 1 a 6), for everyone. The golden die and a reserved die can be turned. Each die only once per roll. Only if you are still in the round.'),
+            1: _('You may play another card from your hand on the same roll. It must match dice as usual and can trigger its own power.'),
+            2: _('Automatic: on the next roll, the die of this card\'s color is reserved only for you. Opponents can\'t use it, either alone or in a sum. Usable only if you stay in the round.'),
+            9: _('Turn any die 1 up or down (a 1 can become a 6, and a 6 a 1). This applies to everyone. You can\'t change a die that was already changed this turn. Usable only if you are still in the round.'),
+            10: _('Swap 2 cards of your choice with 2 random cards from an opponent\'s hand. If no other player still in the round has at least 2 cards, discard 2 cards and draw 2 instead.'),
+            11: _('Add the golden die to the next roll, for everyone. It has no color and only counts when added to another die. Stays for 1 turn only. Usable only if you stay in the round.'),
         };
         return powerTexts[value];
     }
