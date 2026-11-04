@@ -1470,6 +1470,14 @@ body .start-token.flying-start-token {
   align-items: center;
   gap: 5px;
 }
+.log .cards-revealed-row .log-card-icons, .gamelogreview .cards-revealed-row .log-card-icons {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.log .cards-revealed-row .reveal-entry:has(.log-card-icons) .playername, .log .cards-revealed-row .reveal-entry:has(.log-card-icons) .log-arrow, .gamelogreview .cards-revealed-row .reveal-entry:has(.log-card-icons) .playername, .gamelogreview .cards-revealed-row .reveal-entry:has(.log-card-icons) .log-arrow {
+  align-self: start;
+  line-height: var(--log-card-icon-size);
+}
 .log .die-reserved-row, .log .golden-die-row, .log .die-modified-row, .log .cards-swapped-row, .log .cards-redrawn-row, .log .power-skipped-row, .gamelogreview .die-reserved-row, .gamelogreview .golden-die-row, .gamelogreview .die-modified-row, .gamelogreview .cards-swapped-row, .gamelogreview .cards-redrawn-row, .gamelogreview .power-skipped-row {
   display: flex;
   justify-content: center;
@@ -2027,62 +2035,103 @@ body .start-token.flying-start-token {
   height: 38px;
 }
 .power-icon[data-power-value="1"] {
-  width: 26.5396825397px;
-  background-size: 229.2063492063px 38px;
-  background-position: -9.6507936508px 0px;
+  width: calc(38px * 0.6984126984);
+  background-size: calc(38px * 6.0317460317) calc(38px * 1);
+  background-position: calc(38px * -0.253968254) calc(38px * 0);
 }
 .power-icon[data-power-value="2"] {
-  width: 38px;
-  background-size: 229.2063492063px 38px;
-  background-position: -49.4603174603px 0px;
+  width: calc(38px * 1);
+  background-size: calc(38px * 6.0317460317) calc(38px * 1);
+  background-position: calc(38px * -1.3015873016) calc(38px * 0);
 }
 .power-icon[data-power-value="9"] {
-  width: 38px;
-  background-size: 229.2063492063px 38px;
-  background-position: -95.3015873016px 0px;
+  width: calc(38px * 1);
+  background-size: calc(38px * 6.0317460317) calc(38px * 1);
+  background-position: calc(38px * -2.5079365079) calc(38px * 0);
 }
 .power-icon[data-power-value="10"] {
-  width: 60.1666666667px;
-  background-size: 300.8333333333px 49.875px;
-  background-position: -180.5px -5.5416666667px;
+  width: calc(38px * 1.5833333333);
+  background-size: calc(38px * 7.9166666667) calc(38px * 1.3125);
+  background-position: calc(38px * -4.75) calc(38px * -0.1458333333);
 }
 .power-icon[data-power-value="11"] {
-  width: 38px;
-  background-size: 229.2063492063px 38px;
-  background-position: -186.9841269841px 0px;
+  width: calc(38px * 1);
+  background-size: calc(38px * 6.0317460317) calc(38px * 1);
+  background-position: calc(38px * -4.9206349206) calc(38px * 0);
 }
 
-.status-card-icon + .power-icon {
-  float: none;
-  display: inline-block;
+.status-card-with-power {
+  display: inline-flex;
+  align-items: center;
   vertical-align: middle;
-  margin: 0px 3px 0px 2px;
+}
+.status-card-with-power .status-card-icon {
+  margin-right: 0px;
+}
+.status-card-with-power .power-icon {
+  margin: 0px 3px 0px 2.5px;
   height: 40px;
 }
-.status-card-icon + .power-icon[data-power-value="1"] {
-  width: 27.9365079365px;
-  background-size: 241.2698412698px 40px;
-  background-position: -10.1587301587px 0px;
+.status-card-with-power .power-icon[data-power-value="1"] {
+  width: calc(40px * 0.6984126984);
+  background-size: calc(40px * 6.0317460317) calc(40px * 1);
+  background-position: calc(40px * -0.253968254) calc(40px * 0);
 }
-.status-card-icon + .power-icon[data-power-value="2"] {
-  width: 40px;
-  background-size: 241.2698412698px 40px;
-  background-position: -52.0634920635px 0px;
+.status-card-with-power .power-icon[data-power-value="2"] {
+  width: calc(40px * 1);
+  background-size: calc(40px * 6.0317460317) calc(40px * 1);
+  background-position: calc(40px * -1.3015873016) calc(40px * 0);
 }
-.status-card-icon + .power-icon[data-power-value="9"] {
-  width: 40px;
-  background-size: 241.2698412698px 40px;
-  background-position: -100.3174603175px 0px;
+.status-card-with-power .power-icon[data-power-value="9"] {
+  width: calc(40px * 1);
+  background-size: calc(40px * 6.0317460317) calc(40px * 1);
+  background-position: calc(40px * -2.5079365079) calc(40px * 0);
 }
-.status-card-icon + .power-icon[data-power-value="10"] {
-  width: 63.3333333333px;
-  background-size: 316.6666666667px 52.5px;
-  background-position: -190px -5.8333333333px;
+.status-card-with-power .power-icon[data-power-value="10"] {
+  width: calc(40px * 1.5833333333);
+  background-size: calc(40px * 7.9166666667) calc(40px * 1.3125);
+  background-position: calc(40px * -4.75) calc(40px * -0.1458333333);
 }
-.status-card-icon + .power-icon[data-power-value="11"] {
-  width: 40px;
-  background-size: 241.2698412698px 40px;
-  background-position: -196.8253968254px 0px;
+.status-card-with-power .power-icon[data-power-value="11"] {
+  width: calc(40px * 1);
+  background-size: calc(40px * 6.0317460317) calc(40px * 1);
+  background-position: calc(40px * -4.9206349206) calc(40px * 0);
+}
+
+.log .log-card-icons .status-card-with-power .status-card-icon, .gamelogreview .log-card-icons .status-card-with-power .status-card-icon {
+  margin-right: 0px;
+}
+.log .log-card-icons .status-card-with-power .power-icon, .gamelogreview .log-card-icons .status-card-with-power .power-icon {
+  margin: 0px 1px 0px 2.5px;
+  height: calc(var(--log-card-icon-size) * 0.75);
+}
+.log .log-card-icons .status-card-with-power .power-icon[data-power-value="1"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="1"] {
+  width: calc(calc(var(--log-card-icon-size) * 0.75) * 0.6984126984);
+  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -0.253968254) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+}
+.log .log-card-icons .status-card-with-power .power-icon[data-power-value="2"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="2"] {
+  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -1.3015873016) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+}
+.log .log-card-icons .status-card-with-power .power-icon[data-power-value="9"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="9"] {
+  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -2.5079365079) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+}
+.log .log-card-icons .status-card-with-power .power-icon[data-power-value="10"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="10"] {
+  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1.5833333333);
+  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 7.9166666667) calc(calc(var(--log-card-icon-size) * 0.75) * 1.3125);
+  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -4.75) calc(calc(var(--log-card-icon-size) * 0.75) * -0.1458333333);
+}
+.log .log-card-icons .status-card-with-power .power-icon[data-power-value="11"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="11"] {
+  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
+  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -4.9206349206) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+}
+.log .log-card-icons .status-card-with-power:not(:last-child), .gamelogreview .log-card-icons .status-card-with-power:not(:last-child) {
+  margin-right: 4px;
 }
 
 .safari-mobile-power-reference-container {

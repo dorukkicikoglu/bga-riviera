@@ -136,9 +136,9 @@ export class LogMutationObserver{
 
     public createLogCardsRevealed(reveals: CardReveal[]): LogRowData {
         const revealsHTML = reveals.map(reveal => {
-            //a card as the status bar's circular card icon, a card-1 chain's cards right after it in the same icons container
-            //(spaced like the swap row's cards); Last Chance has no icon, so it stays a mini card
-            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card, ...(reveal.extra_cards_POWER1 ?? [])]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
+            //a card as the status bar's circular card icon with its power icon, a card-1 chain's cards right after it in the same
+            //icons container; Last Chance has no icon, so it stays a mini card
+            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card, ...(reveal.extra_cards_POWER1 ?? [])], true) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
@@ -366,9 +366,11 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'game-end-log');
     }
 
-    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons
-    private getCardIconsHTML(cards: RivieraCard[]): string {
-        return `<span class="log-card-icons">${cards.map(card => this.game.getStatusCardIconHTML(card)).join('')}</span>`;
+    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons. withPowerIcons:
+    //each power card followed by its power icon, as in the status bar (Game.getStatusCardWithPowerHTML)
+    private getCardIconsHTML(cards: RivieraCard[], withPowerIcons: boolean = false): string {
+        const iconsHTML = cards.map(card => withPowerIcons ? this.game.getStatusCardWithPowerHTML(card) : this.game.getStatusCardIconHTML(card)).join('');
+        return `<span class="log-card-icons">${iconsHTML}</span>`;
     }
 
     private getMiniCardBacksHTML(count: number): string {

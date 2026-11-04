@@ -1320,8 +1320,8 @@ class TooltipHandler {
     addTooltipsToCardsIn(container) {
         if (this.isSafariMobile() || !container)
             return;
-        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
-        //Circular card icons also appear in log rows, where they keep the log mini cards' tooltip look
+        //.power-icon[id]: the power icon next to a circular card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
+        //Both also appear in log rows, where they keep the log mini cards' tooltip look
         container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
@@ -2124,9 +2124,9 @@ class LogMutationObserver {
     }
     createLogCardsRevealed(reveals) {
         const revealsHTML = reveals.map(reveal => {
-            //a card as the status bar's circular card icon, a card-1 chain's cards right after it in the same icons container
-            //(spaced like the swap row's cards); Last Chance has no icon, so it stays a mini card
-            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card, ...(reveal.extra_cards_POWER1 ?? [])]) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
+            //a card as the status bar's circular card icon with its power icon, a card-1 chain's cards right after it in the same
+            //icons container; Last Chance has no icon, so it stays a mini card
+            const choiceHTML = (reveal.choice === 'card' && reveal.card) ? this.getCardIconsHTML([reveal.card, ...(reveal.extra_cards_POWER1 ?? [])], true) : `<div class="minimised-card-icon">${this.game.createLastChanceDiv().outerHTML}</div>`;
             //one table row: name, arrow, cards (the row's grid lays the entries out as columns)
             return `
                 <div class="reveal-entry">
@@ -2317,9 +2317,11 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'game-end-log');
     }
-    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons
-    getCardIconsHTML(cards) {
-        return `<span class="log-card-icons">${cards.map(card => this.game.getStatusCardIconHTML(card)).join('')}</span>`;
+    //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons. withPowerIcons:
+    //each power card followed by its power icon, as in the status bar (Game.getStatusCardWithPowerHTML)
+    getCardIconsHTML(cards, withPowerIcons = false) {
+        const iconsHTML = cards.map(card => withPowerIcons ? this.game.getStatusCardWithPowerHTML(card) : this.game.getStatusCardIconHTML(card)).join('');
+        return `<span class="log-card-icons">${iconsHTML}</span>`;
     }
     getMiniCardBacksHTML(count) {
         let backsHTML = '';
@@ -2992,14 +2994,15 @@ class Game {
     }
     //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
     //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
-    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. Cards without a power get the card icon alone
+    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. The two are wrapped in one .status-card-with-power,
+    //which holds them closer than separate cards and on the same line. Cards without a power get the card icon alone
     getStatusCardWithPowerHTML(card) {
         if (!card || !POWER_CARD_VALUES.includes(card.value))
             return this.getStatusCardIconHTML(card);
-        return this.getStatusCardIconHTML(card) + this.getPowerIconHTML(card.value);
+        return `<span class="status-card-with-power">${this.getStatusCardIconHTML(card)}${this.getPowerIconHTML(card.value)}</span>`;
     }
     //a power's icon (the power reference's .power-icon) with its own id and the power-card-POWER<n> class, so
-    //addTooltipsToCardsIn gives it that power's tooltip. Sized by where it sits (status bar title)
+    //addTooltipsToCardsIn gives it that power's tooltip. Sized by where it sits (status bar title, reveal log row)
     getPowerIconHTML(value) {
         const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;

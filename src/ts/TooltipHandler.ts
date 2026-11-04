@@ -55,8 +55,8 @@ export class TooltipHandler{
         if(this.isSafariMobile() || !container)
             return;
 
-        //.power-icon[id]: the power icon next to a status bar card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
-        //Circular card icons also appear in log rows, where they keep the log mini cards' tooltip look
+        //.power-icon[id]: the power icon next to a circular card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
+        //Both also appear in log rows, where they keep the log mini cards' tooltip look
         container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card: HTMLElement) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if(card.classList.contains(TooltipHandler.getPowerCardClass(value)))

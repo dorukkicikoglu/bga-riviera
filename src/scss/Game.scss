@@ -179,7 +179,7 @@ $forward-icon-to-piggy-height: math.div(17.2, 20) * math.div(1, 0.754);
 
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
 //metrics, which grew the button: its span gets line-height 0 so it can't. The piggy bank (Game.getPiggyBankSVG) is white like
-//the text
+//the text 
 $button-piggy-height: 1.3em;
 #stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
     &:hover{ background: #437f24; border-color: #437f24; }
@@ -649,6 +649,12 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .reveal-entry{ display: contents; }
         .playername{ display: block; max-width: $reveal-name-max-width; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .reveal-cards{ display: inline-flex; align-items: center; gap: 5px; }
+        //a long card-1 chain wraps between cards, never between a card and its power icon
+        .log-card-icons{ flex-wrap: wrap; row-gap: 4px; }
+        //the name and arrow stay centered on the cards' first line, not between the lines of a wrapped chain
+        .reveal-entry:has(.log-card-icons){
+            .playername, .log-arrow{ align-self: start; line-height: var(--log-card-icon-size); }
+        }
     }
     //power rows: text with mini dice or mini cards inline
     .die-reserved-row, .golden-die-row, .die-modified-row, .cards-swapped-row, .cards-redrawn-row, .power-skipped-row{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
@@ -886,16 +892,33 @@ $power-icons: (
     10: (x: 228, y: 7, width: 76, height: 48),
     11: (x: 310, y: 0, width: 63, height: 63),
 );
+//$height can be a CSS variable (the logs' --log-card-icon-size), so the sizes are calc() ratios of it
 @mixin power-icon-size($height){ height: $height;
     @each $value, $icon in $power-icons {
-        $scale: math.div($height, map.get($icon, height));
-        &[data-power-value="#{$value}"]{ width: $scale * map.get($icon, width); background-size: $scale * $power-icon-sprite-width $scale * $power-icon-sprite-height; background-position: (-$scale * map.get($icon, x)) (-$scale * map.get($icon, y)); }
+        $scale: math.div(1, map.get($icon, height));
+        &[data-power-value="#{$value}"]{ width: calc(#{$height} * #{$scale * map.get($icon, width)}); background-size: calc(#{$height} * #{$scale * $power-icon-sprite-width}) calc(#{$height} * #{$scale * $power-icon-sprite-height}); background-position: calc(#{$height} * #{-$scale * map.get($icon, x)}) calc(#{$height} * #{-$scale * map.get($icon, y)}); }
     }
 }
 .power-icon{ float: left; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat; @include power-icon-size($power-icon-height); }
 //status bar titles (Game.getStatusCardWithPowerHTML): the power icon right after the circular card icon, as tall as it and
-//centered on the text like it. The card icon's 3px right margin plus 2px makes the gap
-.status-card-icon + .power-icon{ float: none; display: inline-block; vertical-align: middle; margin: 0px 3px 0px 2px; @include power-icon-size($status-card-icon-size); }
+//centered on the text like it. Half the 5px it used to be from its card, so it reads as that card's; the outer margins are
+//the card icon's and the power icon's own, so the 6px to a neighbouring card doesn't change
+.status-card-with-power{ display: inline-flex; align-items: center; vertical-align: middle;
+    .status-card-icon{ margin-right: 0px; }
+    .power-icon{ margin: 0px 3px 0px 2.5px; @include power-icon-size($status-card-icon-size); }
+}
+//the same group in a log row (the reveal row's cards), the power icon a little smaller than its card icon and centered on it.
+//Log cards sit only 2px apart, closer than a card to its power icon, so the wrapper's margin makes the gap after a power icon
+//the status bar's 6px, with the power icon's 1px and the next card's 1px. A card-1 chain only continues after a 1, so every
+//card gap in this row follows a power icon
+$log-power-icon-scale: 0.75;
+.log, .gamelogreview{
+    .log-card-icons .status-card-with-power{
+        .status-card-icon{ margin-right: 0px; }
+        .power-icon{ margin: 0px 1px 0px 2.5px; @include power-icon-size(calc(var(--log-card-icon-size) * #{$log-power-icon-scale})); }
+        &:not(:last-child){ margin-right: 4px; }
+    }
+}
 
 //Safari on mobile gets the power reference at the bottom of the page instead of tooltips
 .safari-mobile-power-reference-container{ display: none; }
