@@ -2070,32 +2070,32 @@ body .start-token.flying-start-token {
 }
 .status-card-with-power .power-icon {
   margin: 0px 3px 0px 2.5px;
-  height: 40px;
+  height: 30px;
 }
 .status-card-with-power .power-icon[data-power-value="1"] {
-  width: calc(40px * 0.6984126984);
-  background-size: calc(40px * 6.0317460317) calc(40px * 1);
-  background-position: calc(40px * -0.253968254) calc(40px * 0);
+  width: calc(30px * 0.6984126984);
+  background-size: calc(30px * 6.0317460317) calc(30px * 1);
+  background-position: calc(30px * -0.253968254) calc(30px * 0);
 }
 .status-card-with-power .power-icon[data-power-value="2"] {
-  width: calc(40px * 1);
-  background-size: calc(40px * 6.0317460317) calc(40px * 1);
-  background-position: calc(40px * -1.3015873016) calc(40px * 0);
+  width: calc(30px * 1);
+  background-size: calc(30px * 6.0317460317) calc(30px * 1);
+  background-position: calc(30px * -1.3015873016) calc(30px * 0);
 }
 .status-card-with-power .power-icon[data-power-value="9"] {
-  width: calc(40px * 1);
-  background-size: calc(40px * 6.0317460317) calc(40px * 1);
-  background-position: calc(40px * -2.5079365079) calc(40px * 0);
+  width: calc(30px * 1);
+  background-size: calc(30px * 6.0317460317) calc(30px * 1);
+  background-position: calc(30px * -2.5079365079) calc(30px * 0);
 }
 .status-card-with-power .power-icon[data-power-value="10"] {
-  width: calc(40px * 1.5833333333);
-  background-size: calc(40px * 7.9166666667) calc(40px * 1.3125);
-  background-position: calc(40px * -4.75) calc(40px * -0.1458333333);
+  width: calc(30px * 1.5833333333);
+  background-size: calc(30px * 7.9166666667) calc(30px * 1.3125);
+  background-position: calc(30px * -4.75) calc(30px * -0.1458333333);
 }
 .status-card-with-power .power-icon[data-power-value="11"] {
-  width: calc(40px * 1);
-  background-size: calc(40px * 6.0317460317) calc(40px * 1);
-  background-position: calc(40px * -4.9206349206) calc(40px * 0);
+  width: calc(30px * 1);
+  background-size: calc(30px * 6.0317460317) calc(30px * 1);
+  background-position: calc(30px * -4.9206349206) calc(30px * 0);
 }
 
 .log .log-card-icons .status-card-with-power .status-card-icon, .gamelogreview .log-card-icons .status-card-with-power .status-card-icon {

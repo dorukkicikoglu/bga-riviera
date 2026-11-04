@@ -900,22 +900,22 @@ $power-icons: (
     }
 }
 .power-icon{ float: left; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat; @include power-icon-size($power-icon-height); }
-//status bar titles (Game.getStatusCardWithPowerHTML): the power icon right after the circular card icon, as tall as it and
-//centered on the text like it. Half the 5px it used to be from its card, so it reads as that card's; the outer margins are
-//the card icon's and the power icon's own, so the 6px to a neighbouring card doesn't change
+//a power icon's height next to its card icon, as a share of the card icon's, in status bar titles and log rows alike
+$card-power-icon-scale: 0.75;
+//status bar titles (Game.getStatusCardWithPowerHTML): the power icon right after the circular card icon, a little smaller than
+//it and centered on it, so both are centered on the text. Half the 5px it used to be from its card, so it reads as that card's;
+//the outer margins are the card icon's and the power icon's own, so the 6px to a neighbouring card doesn't change
 .status-card-with-power{ display: inline-flex; align-items: center; vertical-align: middle;
     .status-card-icon{ margin-right: 0px; }
-    .power-icon{ margin: 0px 3px 0px 2.5px; @include power-icon-size($status-card-icon-size); }
+    .power-icon{ margin: 0px 3px 0px 2.5px; @include power-icon-size($status-card-icon-size * $card-power-icon-scale); }
 }
-//the same group in a log row (the reveal row's cards), the power icon a little smaller than its card icon and centered on it.
-//Log cards sit only 2px apart, closer than a card to its power icon, so the wrapper's margin makes the gap after a power icon
-//the status bar's 6px, with the power icon's 1px and the next card's 1px. A card-1 chain only continues after a 1, so every
-//card gap in this row follows a power icon
-$log-power-icon-scale: 0.75;
+//the same group in a log row (the reveal row's cards), sized from the log's card icons. Log cards sit only 2px apart, closer
+//than a card to its power icon, so the wrapper's margin makes the gap after a power icon the status bar's 6px, with the power
+//icon's 1px and the next card's 1px. A card-1 chain only continues after a 1, so every card gap in this row follows a power icon
 .log, .gamelogreview{
     .log-card-icons .status-card-with-power{
         .status-card-icon{ margin-right: 0px; }
-        .power-icon{ margin: 0px 1px 0px 2.5px; @include power-icon-size(calc(var(--log-card-icon-size) * #{$log-power-icon-scale})); }
+        .power-icon{ margin: 0px 1px 0px 2.5px; @include power-icon-size(calc(var(--log-card-icon-size) * #{$card-power-icon-scale})); }
         &:not(:last-child){ margin-right: 4px; }
     }
 }
