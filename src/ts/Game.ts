@@ -24,6 +24,7 @@ import { UndoHandler } from "./UndoHandler";
 import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
 import { EndGameScoringHandler } from "./EndGameScoringHandler";
 import { PrefHandler } from "./PrefHandler";
+import { BackgroundHandler } from "./BackgroundHandler";
 
 //optional settings of Game.animateSlide / animateSlideAway
 export type SlideOptions = {
@@ -82,6 +83,7 @@ export class Game {
     public tooltipHandler: TooltipHandler;
     private endGameScoringHandler: EndGameScoringHandler;
     public prefHandler: PrefHandler;
+    public backgroundHandler: BackgroundHandler;
 
     constructor(bga: Bga<RivieraPlayer, RivieraGamedatas>) {
         this.bga = bga;
@@ -120,6 +122,8 @@ export class Game {
         this.gamedatas = gamedatas;
 
         document.body.setAttribute('data-player-count', Object.keys(gamedatas.players).length.toString());
+
+        this.backgroundHandler = BackgroundHandler.getInstance(this);
 
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
             <div id="dice-container"></div>

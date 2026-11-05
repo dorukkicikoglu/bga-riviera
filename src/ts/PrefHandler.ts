@@ -31,6 +31,9 @@ export class PrefHandler{
                 if(!isInitialLoad)
                     this.game.playCard.preferenceChanged();
             break;
+            case this.prefNameToIndex.background_trees:
+                this.game.backgroundHandler.applyTreePreference(prefValue);
+            break;
         }
     }
 

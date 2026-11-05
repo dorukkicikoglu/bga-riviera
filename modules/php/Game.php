@@ -33,6 +33,7 @@ class Game extends \Bga\GameFramework\Table
     public RIVPowerManager $powerManager;
     public array $userPrefs = array(
         'one_click_play' => 101,
+        'background_trees' => 102,
     );
 
     /**

@@ -17,6 +17,7 @@
   --image-source-start-token: url(img/start_token.webp);
   --image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
   --image-source-power-icons: url(img/power_icons_sprite.webp);
+  --image-source-bg-trees: url(img/bg_trees.webp);
   --die-color-red: #c8322b;
   --die-color-green: #4f9a2a;
   --die-color-purple: #5f2d8c;
@@ -75,6 +76,55 @@ body.desktop_version {
   min-height: calc(100dvh / var(--bga-game-zoom, 1));
 }
 
+.background-trees-container {
+  position: fixed;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.4;
+}
+.background-trees-container .background-tree {
+  position: absolute;
+  background-image: var(--image-source-bg-trees);
+  background-size: 300% 200%;
+  background-repeat: no-repeat;
+  transform-origin: bottom center;
+  will-change: transform;
+  animation-iteration-count: infinite;
+}
+.background-trees-container .background-tree[data-tree-color=teal] {
+  background-position: 0% 0%;
+}
+.background-trees-container .background-tree[data-tree-color=yellow] {
+  background-position: 50% 0%;
+}
+.background-trees-container .background-tree[data-tree-color=green] {
+  background-position: 100% 0%;
+}
+.background-trees-container .background-tree[data-tree-color=orange] {
+  background-position: 0% 100%;
+}
+.background-trees-container .background-tree[data-tree-color=pink] {
+  background-position: 50% 100%;
+}
+.background-trees-container .background-tree[data-tree-color=purple] {
+  background-position: 100% 100%;
+}
+
+.background-trees-container.no-wind .background-tree {
+  animation: none !important;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .background-trees-container .background-tree {
+    animation: none !important;
+    will-change: auto;
+  }
+}
 .a-card {
   position: relative;
   overflow: hidden;
@@ -2239,5 +2289,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

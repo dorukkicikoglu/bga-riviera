@@ -35,5 +35,21 @@
       }
     },
     "default": 0
+  },
+
+  "102": {
+    "name": "Swaying trees",
+    "values": {
+      "1": {
+        "name": "On"
+      },
+      "2": {
+        "name": "No wind"
+      },
+      "3": {
+        "name": "No trees"
+      }
+    },
+    "default": 1
   }
 }

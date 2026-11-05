@@ -180,6 +180,7 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 ## Preferences [BGA]
 
 - "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included. It also skips the card 9 Confirm: clicking a die's arrow (or half) turns it at once.
+- "Background trees" (On by default, pref 102): On (trees sway), No wind (trees at rest, upright; reduced motion forces this too) or No trees. Applies at once, with no reload.
 
 ## Hidden information
 

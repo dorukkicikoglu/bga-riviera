@@ -2608,12 +2608,223 @@ class PrefHandler {
                 if (!isInitialLoad)
                     this.game.playCard.preferenceChanged();
                 break;
+            case this.prefNameToIndex.background_trees:
+                this.game.backgroundHandler.applyTreePreference(prefValue);
+                break;
         }
     }
     //game specific functions
     //clicking a playable card plays it at once, with no Confirm step
     isOneClickPlay() { return this.oneClickPlay; }
 }
+
+class BackgroundHandler {
+    static getInstance(game) {
+        return BackgroundHandler.instance ?? (BackgroundHandler.instance = new BackgroundHandler(game));
+    }
+    constructor(game) {
+        this.swayVariants = BackgroundHandler.SWAY_SHAPES.slice(0, BackgroundHandler.numOfSwayAnimations).map((_, variant) => `background-tree-sway-${variant}`); //the @keyframes names
+        this.treeAspect = null; //width / height of one sprite cell, read from the image once it has loaded
+        this.builtWidth = 0;
+        this.builtAsMobile = false;
+        this.treesEnabled = true;
+        this.resizeDebounceTimeout = null;
+        this.onResize = () => this.scheduleRebuild();
+        this.onSwayCycleEnd = (event) => this.reshuffleTree(event.target);
+        this.container = document.createElement('div');
+        this.container.classList.add('background-trees-container');
+        this.container.style.zIndex = `${BackgroundHandler.treeContainerZIndex}`;
+        this.container.addEventListener('animationiteration', this.onSwayCycleEnd);
+        document.body.insertAdjacentElement('afterbegin', this.container);
+        this.keyframesStyle = document.createElement('style');
+        this.keyframesStyle.textContent = this.getSwayKeyframesCSS();
+        document.head.appendChild(this.keyframesStyle);
+        //never drawn: only here to read the cell's aspect ratio. The trees themselves use the same file as a CSS background
+        this.spriteImage = new Image();
+        this.spriteImage.onload = () => {
+            this.treeAspect = (this.spriteImage.naturalWidth / BackgroundHandler.SPRITE_COLUMNS) / (this.spriteImage.naturalHeight / BackgroundHandler.SPRITE_ROWS);
+            this.buildTrees();
+        };
+        this.spriteImage.src = game.bga.images.getImgUrl(BackgroundHandler.SPRITE_FILE);
+        window.addEventListener('resize', this.onResize);
+    }
+    //from PrefHandler, on setup and whenever the player changes it. No wind is a class in Game.scss, the same rule as prefers-reduced-motion, which applies whatever this says
+    applyTreePreference(value) {
+        this.treesEnabled = value != BackgroundHandler.TREES_PREF_NO_TREES;
+        this.container.classList.toggle('no-wind', value == BackgroundHandler.TREES_PREF_NO_WIND);
+        this.container.style.display = this.treesEnabled ? '' : 'none';
+        if (!this.treesEnabled)
+            this.container.replaceChildren();
+        else if (this.treeAspect !== null && !this.container.hasChildNodes()) //not loaded yet: the sprite's onload builds them
+            this.buildTrees();
+    }
+    destroy() {
+        this.spriteImage.onload = null; //the image may still be loading
+        window.removeEventListener('resize', this.onResize);
+        if (this.resizeDebounceTimeout)
+            clearTimeout(this.resizeDebounceTimeout);
+        this.container.removeEventListener('animationiteration', this.onSwayCycleEnd);
+        this.container.remove();
+        this.keyframesStyle.remove();
+        BackgroundHandler.instance = null;
+    }
+    getSwayKeyframesCSS() {
+        return this.swayVariants.map((variantName, variant) => {
+            const keyframes = BackgroundHandler.SWAY_SHAPES[variant].map(([percent, lean]) => `${percent}% { transform: rotate(calc(var(--sway) * ${lean})) skewX(calc(var(--sway) * ${lean * BackgroundHandler.swaySkew})); }`);
+            return `@keyframes ${variantName} { ${keyframes.join(' ')} }`;
+        }).join('\n');
+    }
+    isMobileWidth() { return window.innerWidth <= BackgroundHandler.mobileBreakpoint; }
+    scheduleRebuild() {
+        if (this.resizeDebounceTimeout)
+            clearTimeout(this.resizeDebounceTimeout);
+        this.resizeDebounceTimeout = setTimeout(() => {
+            this.resizeDebounceTimeout = null;
+            if (this.treeAspect === null) //not loaded yet: the first build will read the new size
+                return;
+            const crossedBreakpoint = this.isMobileWidth() !== this.builtAsMobile;
+            const widthChange = Math.abs(window.innerWidth - this.builtWidth) / this.builtWidth;
+            if (crossedBreakpoint || widthChange >= BackgroundHandler.rebuildWidthChange)
+                this.buildTrees();
+        }, BackgroundHandler.resizeDebounceTime);
+    }
+    buildTrees() {
+        if (!this.treesEnabled)
+            return;
+        this.builtWidth = window.innerWidth;
+        this.builtAsMobile = this.isMobileWidth();
+        let previousColor = null;
+        const treeElements = this.getTreePlacements().map(placement => {
+            previousColor = BackgroundHandler.randomItemExcept(BackgroundHandler.pickableTreeColors, previousColor);
+            return this.createTree(placement, previousColor);
+        });
+        this.container.replaceChildren(...treeElements);
+    }
+    //sizes and places a new forest, sorted left to right so neighbours in the array are neighbours on screen
+    getTreePlacements() {
+        let placements = this.walkAcrossScreen(1);
+        for (let retry = 1; placements.length < BackgroundHandler.minNumOfTrees && retry <= BackgroundHandler.maxWalkRetries; retry++)
+            placements = this.walkAcrossScreen(BackgroundHandler.retryStepScale ** retry);
+        return placements.sort((a, b) => (a.left + a.width / 2) - (b.left + b.width / 2));
+    }
+    //places trees from just off the left edge to just past the right edge, so the whole width is covered at any screen size
+    walkAcrossScreen(stepScale) {
+        const { minHeight, maxHeight } = this.getHeightRange();
+        const placements = [];
+        let x = null; //the next tree's left edge
+        while (placements.length < BackgroundHandler.maxNumOfTrees) {
+            const rawHeight = BackgroundHandler.randomBetween(minHeight, maxHeight);
+            //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
+            const height = Math.round(rawHeight);
+            const width = Math.round(rawHeight * this.treeAspect);
+            const bleed = width * BackgroundHandler.edgeBleed;
+            x ?? (x = -bleed);
+            if (x > this.builtWidth + bleed)
+                break;
+            placements.push({ left: x, width, height });
+            const spacing = BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter);
+            x += width * spacing * stepScale;
+        }
+        return placements;
+    }
+    getHeightRange() {
+        const maxHeight = Math.min(this.builtAsMobile ? BackgroundHandler.maxTreeHeightMobile : BackgroundHandler.maxTreeHeight, window.innerHeight * BackgroundHandler.maxTreeHeightOfViewport);
+        const minHeight = Math.min(this.builtAsMobile ? BackgroundHandler.minTreeHeightMobile : BackgroundHandler.minTreeHeight, maxHeight);
+        return { minHeight: Math.max(minHeight, maxHeight / BackgroundHandler.maxHeightRatio), maxHeight };
+    }
+    createTree(placement, color) {
+        const tree = document.createElement('div');
+        tree.classList.add('background-tree');
+        tree.dataset.treeColor = color;
+        tree.style.left = `${placement.left / this.builtWidth * 100}%`;
+        tree.style.width = `${placement.width}px`;
+        tree.style.height = `${placement.height}px`;
+        tree.style.zIndex = `${Math.round(BackgroundHandler.maxTreeHeight - placement.height)}`; //taller trees further back
+        tree.style.bottom = `${-Math.round(placement.height * BackgroundHandler.treeSinkRatio)}px`; //the rotation's pivot (transform-origin: bottom center) sinks with it, so the trunk's bottom stays below the screen
+        const duration = this.applyRandomSway(tree);
+        tree.style.animationDelay = `${-Math.random() * duration}s`; //negative: starts mid-cycle, so the trees aren't in sync
+        return tree;
+    }
+    //gives the tree a new variant, strength, duration and easing; returns the duration
+    applyRandomSway(tree) {
+        const duration = BackgroundHandler.randomBetween(BackgroundHandler.minSwayDuration, BackgroundHandler.maxSwayDuration);
+        const strength = BackgroundHandler.randomBetween(BackgroundHandler.minWindStrength, BackgroundHandler.maxWindStrength);
+        const direction = Math.random() < 0.5 ? -1 : 1;
+        tree.style.setProperty('--sway', `${(strength * direction).toFixed(2)}deg`);
+        tree.style.animationName = BackgroundHandler.randomItemExcept(this.swayVariants, tree.style.animationName);
+        tree.style.animationDuration = `${duration.toFixed(2)}s`;
+        tree.style.animationTimingFunction = BackgroundHandler.randomItemExcept(BackgroundHandler.swayEasings, null);
+        return duration;
+    }
+    //runs as a cycle ends, when the tree is upright and at rest, so nothing jumps. The new variant name starts a fresh animation
+    //from its beginning: the delay has to go, or the tree would jump into the middle of its new cycle
+    reshuffleTree(tree) {
+        if (Math.random() >= BackgroundHandler.animationReshuffleChance)
+            return;
+        this.applyRandomSway(tree);
+        tree.style.animationDelay = '0s';
+    }
+    static randomBetween(min, max) { return min + Math.random() * (max - min); }
+    static randomItemExcept(items, excluded) {
+        const candidates = items.filter(item => item !== excluded);
+        const pickFrom = candidates.length > 0 ? candidates : items; //a single item left to pick (one tree color not excluded) repeats rather than giving nothing
+        return pickFrom[Math.floor(Math.random() * pickFrom.length)];
+    }
+}
+//tree count follows from the screen's width (the walk in getTreePlacements): these are only safety bounds
+BackgroundHandler.minNumOfTrees = 2; //under it the walk is retried with a shorter step
+BackgroundHandler.maxNumOfTrees = 40; //the walk stops adding here: covers about 6000px at the default sizes and spacing
+//tree height in px, picked per tree; the width follows from the sprite's cell
+BackgroundHandler.minTreeHeight = 50;
+BackgroundHandler.maxTreeHeight = 120;
+BackgroundHandler.minTreeHeightMobile = 40;
+BackgroundHandler.maxTreeHeightMobile = 80;
+BackgroundHandler.maxHeightRatio = 1.5; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
+BackgroundHandler.treeSinkRatio = 0.06; //share of a tree's height below the screen's bottom edge, so no gap shows under the trunk as it rotates
+BackgroundHandler.mobileBreakpoint = 700; //px of window width, at or under it the mobile heights apply (same as the 700px media query in Game.scss)
+BackgroundHandler.maxTreeHeightOfViewport = 0.85; //no tree is taller than this share of the window, so a landscape phone doesn't cut the canopies off
+//horizontal spacing: a walk across the screen, each step measured in the width of the tree just placed
+BackgroundHandler.treeSpacing = 0.9; //step to the next tree; under 1 neighbours overlap, over 1 there is a gap between them
+BackgroundHandler.spacingJitter = 0.15; //random change to each step, added to or taken from treeSpacing
+BackgroundHandler.edgeBleed = 0.3; //share of a tree's width the walk starts off the left edge, and goes on past the right edge
+BackgroundHandler.retryStepScale = 0.85; //each retry's step, relative to the last, when a walk places under minNumOfTrees
+BackgroundHandler.maxWalkRetries = 10;
+//wind
+BackgroundHandler.minWindStrength = 0.75; //degrees of rotation at peak sway
+BackgroundHandler.maxWindStrength = 2.5;
+BackgroundHandler.minSwayDuration = 7.5; //seconds per cycle
+BackgroundHandler.maxSwayDuration = 11;
+BackgroundHandler.numOfSwayAnimations = 8; //baked keyframe variants, at most SWAY_SHAPES.length
+BackgroundHandler.animationReshuffleChance = 0.35; //probability a tree switches to a different variant each time its cycle ends
+BackgroundHandler.swaySkew = -0.3; //skewX per degree of rotation, the canopy trailing behind the lean (negative skews the same way as the rotation). Follows the wind strength: a weaker wind skews less on its own
+//every one eases to a stop on each keyframe, so a tree switching variant at the end of its cycle (at rest, upright) never jerks: no plain 'ease' or 'linear' here
+BackgroundHandler.swayEasings = ['ease-in-out', 'cubic-bezier(0.37, 0, 0.63, 1)', 'cubic-bezier(0.45, 0, 0.55, 1)', 'cubic-bezier(0.65, 0, 0.35, 1)'];
+//every variant starts and ends upright (lean 0): reshuffleTree() relies on it. A tree's --sway can be negative, which mirrors the shape
+BackgroundHandler.SWAY_SHAPES = [
+    [[0, 0], [25, 1], [75, -1], [100, 0]], //gentle and symmetric
+    [[0, 0], [17, 0.6], [50, -0.6], [83, 0.6], [100, 0]], //gentle and symmetric, smaller and busier
+    [[0, 0], [50, 0.8], [100, 0]], //a slow lean and back
+    [[0, 0], [25, 1], [100, 0]], //a strong push, a slow return
+    [[0, 0], [25, 1], [60, -0.25], [100, 0]], //a strong push, overshooting on the way back
+    [[0, 0], [30, 0.3], [50, 1], [80, -0.2], [100, 0]], //a gust building up
+    [[0, 0], [25, 1], [40, 0.7], [55, 0.85], [100, 0]], //a strong push, held with a flutter
+    [[0, 0], [20, 0.8], [32, 0.45], [44, 0.9], [58, 0.5], [100, 0]], //double flutter
+];
+//sprite: img/bg_trees.webp, one tree per cell, left to right, top to bottom. These are the data-tree-color values Game.scss places
+BackgroundHandler.SPRITE_FILE = 'bg_trees.webp';
+BackgroundHandler.SPRITE_COLUMNS = 3;
+BackgroundHandler.SPRITE_ROWS = 2;
+BackgroundHandler.TREE_COLORS = ['teal', 'yellow', 'green', 'orange', 'pink', 'purple'];
+BackgroundHandler.excludedTreeColors = ['yellow']; //sprite cells no tree uses; empty this to bring them back
+BackgroundHandler.pickableTreeColors = BackgroundHandler.TREE_COLORS.filter(color => !BackgroundHandler.excludedTreeColors.includes(color));
+//stacking and rebuilding
+BackgroundHandler.treeContainerZIndex = 0; //like Fugu's background: first in <body>, so all of BGA's positioned content paints over it. Its own stacking context, so a tree's z-index stays inside it
+BackgroundHandler.resizeDebounceTime = 250; //ms
+BackgroundHandler.rebuildWidthChange = 0.15; //share of the width a resize must change it by to rebuild, so a phone's address bar showing or hiding (height only) or a small drag does nothing. Trees are placed in %, so they follow until then
+//the "Background trees" preference (gamepreferences.jsonc): any other value is On
+BackgroundHandler.TREES_PREF_NO_WIND = 2;
+BackgroundHandler.TREES_PREF_NO_TREES = 3;
+BackgroundHandler.instance = null; //guards against a second background if the game sets its UI up again
 
 /**
  *------
@@ -2662,6 +2873,7 @@ class Game {
     setup(gamedatas) {
         this.gamedatas = gamedatas;
         document.body.setAttribute('data-player-count', Object.keys(gamedatas.players).length.toString());
+        this.backgroundHandler = BackgroundHandler.getInstance(this);
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
             <div id="dice-container"></div>
             <div id="my-hand-container"></div>

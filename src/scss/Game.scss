@@ -26,6 +26,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 	--image-source-start-token: url(img/start_token.webp);
 	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
 	--image-source-power-icons: url(img/power_icons_sprite.webp);
+	--image-source-bg-trees: url(img/bg_trees.webp);
 
     --die-color-red: #c8322b;
     --die-color-green: #4f9a2a;
@@ -85,6 +86,24 @@ body{ background: url(img/bg_riviera.webp) top center / min(100%, 700px) auto re
 body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #ffffff; }
 
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
+
+//the palm trees along the bottom of the screen (BackgroundHandler): one tree per cell of a 3 x 2 sprite. Its size, place, stacking
+//and sway are per tree, inline. The container is as tall as the window, so a swaying canopy is never cut, and clips what bleeds off the sides
+.background-trees-container{ position: fixed; left: 0px; right: 0px; bottom: 0px; height: 100%; overflow: hidden; pointer-events: none; opacity: 0.4;
+    .background-tree{ position: absolute; background-image: var(--image-source-bg-trees); background-size: 300% 200%; background-repeat: no-repeat; transform-origin: bottom center; will-change: transform; animation-iteration-count: infinite;
+        &[data-tree-color="teal"]{ background-position: 0% 0%; }
+        &[data-tree-color="yellow"]{ background-position: 50% 0%; }
+        &[data-tree-color="green"]{ background-position: 100% 0%; }
+        &[data-tree-color="orange"]{ background-position: 0% 100%; }
+        &[data-tree-color="pink"]{ background-position: 50% 100%; }
+        &[data-tree-color="purple"]{ background-position: 100% 100%; }
+    }
+}
+//the "No wind" preference and reduced motion: at rest, upright. !important against the inline animation values
+.background-trees-container.no-wind .background-tree{ animation: none !important; will-change: auto; }
+@media (prefers-reduced-motion: reduce){
+    .background-trees-container .background-tree{ animation: none !important; will-change: auto; }
+}
 
 @mixin text-shade($color, $size) { text-shadow: #{$size} 0 $color, -#{$size} 0 $color, 0 #{$size} $color, 0 -#{$size} $color, #{math.div($size, 2)} #{math.div($size, 2)} $color, -#{math.div($size, 2)} -#{math.div($size, 2)} $color, #{math.div($size, 2)} -#{math.div($size, 2)} $color, -#{math.div($size, 2)} #{math.div($size, 2)} $color; }
 @mixin pearl-background(){ background: radial-gradient(ellipse farthest-corner at right bottom, #E8F4FC 0%, #D6EAF8 8%, #C9E4F5 25%, #EAF6FB 40%, transparent 80%), radial-gradient(ellipse farthest-corner at left top, #FFFFFF 0%, #F4FBFF 8%, #DCEEFA 25%, #B8DCEF 62.5%, #A9C9D9 100%); }
