@@ -17,11 +17,17 @@ export const POWER_CARD_VALUES = [1, 2, 9, 10, 11];
 export class TooltipHandler{
     private static readonly TOOLTIP_DELAY = 1000;
     private static readonly GAME_AREA_CARDS_SELECTOR = '#my-hand-container .a-card[id], #played-columns-container .a-card[id]';
+    private static readonly POWER_REFERENCE_DIALOG_ID = 'power_reference_dialog'; //its popin's id is popin_<this>, styled in Game.scss
+    private static readonly LONG_PRESS_DURATION = 450;
+    private static readonly LONG_PRESS_MOVE_TOLERANCE = 10; //px: a finger moving further is scrolling
 
     private powerReferenceHTMLByValue: Record<number, string> = {}; //0: the whole reference, no power on top
+    private cardPowersInDialog: boolean;
 
     constructor(private game: Game) {
+        this.cardPowersInDialog = this.game.isTouchOrMobile();
         this.addTooltipsToCards();
+        this.addCardLongPress();
         this.addTooltipsToBoards();
 
         //log rows written before this handler existed; later rows come through LogMutationObserver
@@ -41,12 +47,91 @@ export class TooltipHandler{
             return;
         }
 
-        document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card: HTMLDivElement) => {
-            const value = parseInt(card.getAttribute('data-value'));
-            this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0), TooltipHandler.TOOLTIP_DELAY);
-        });
+        //touch and mobile: the reference is too long for a tooltip, a long press opens it in a dialog instead (addCardLongPress)
+        if(!this.cardPowersInDialog) {
+            document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card: HTMLDivElement) => {
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getCardPowerReferenceHTML(card), TooltipHandler.TOOLTIP_DELAY);
+            });
+        }
 
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
+    }
+
+    //BGA's resize hook: a window can cross BGA's mobile width, so the cards already on the page swap between the tooltip and the dialog
+    public syncCardPowersDisplay(){
+        const cardPowersInDialog = this.game.isTouchOrMobile();
+        if(cardPowersInDialog === this.cardPowersInDialog || this.isSafariMobile())
+            return;
+
+        this.cardPowersInDialog = cardPowersInDialog;
+        if(cardPowersInDialog)
+            document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card: HTMLDivElement) => this.game.bga.gameui.removeTooltip(card.id));
+        else this.addTooltipsToCards();
+    }
+
+    private getCardPowerReferenceHTML(card: HTMLElement): string {
+        const value = parseInt(card.getAttribute('data-value'));
+        return this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+    }
+
+    //a tap stays the card's selection, so only a long press on a game-area card opens the dialog. On the document, since cards come and go.
+    //Any pointer type: a narrow desktop window has BGA's mobile layout and a mouse
+    private addCardLongPress(){
+        let pressTimeout: ReturnType<typeof setTimeout> | null = null;
+        let pressX = 0;
+        let pressY = 0;
+        const cancelPress = () => {
+            clearTimeout(pressTimeout);
+            pressTimeout = null;
+        };
+
+        document.addEventListener('pointerdown', (event: PointerEvent) => {
+            cancelPress();
+            const card = (event.target as HTMLElement).closest?.(TooltipHandler.GAME_AREA_CARDS_SELECTOR) as HTMLElement;
+            if(!card || !event.isPrimary || event.button !== 0 || !this.game.isTouchOrMobile())
+                return;
+
+            pressX = event.clientX;
+            pressY = event.clientY;
+            pressTimeout = setTimeout(() => {
+                pressTimeout = null;
+                this.swallowClickAfterLongPress();
+                this.showPowerReferenceDialog(card);
+            }, TooltipHandler.LONG_PRESS_DURATION);
+        });
+        document.addEventListener('pointermove', (event: PointerEvent) => {
+            if(pressTimeout !== null && Math.hypot(event.clientX - pressX, event.clientY - pressY) > TooltipHandler.LONG_PRESS_MOVE_TOLERANCE)
+                cancelPress();
+        });
+        document.addEventListener('pointerup', cancelPress);
+        document.addEventListener('pointercancel', cancelPress); //the browser took the touch over to scroll
+
+        //Android's own long press menu
+        document.addEventListener('contextmenu', (event: Event) => {
+            if(this.game.isTouchOrMobile() && (event.target as HTMLElement).closest?.(TooltipHandler.GAME_AREA_CARDS_SELECTOR))
+                event.preventDefault();
+        });
+    }
+
+    //releasing a long press can still click: that must neither select the card nor reach the dialog's underlay, which would close it at once.
+    //Some browsers send no click, so the next press ends the wait and keeps its own click
+    private swallowClickAfterLongPress(){
+        const swallowClick = (event: Event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+        document.addEventListener('click', swallowClick, {capture: true, once: true});
+        document.addEventListener('pointerdown', () => document.removeEventListener('click', swallowClick, {capture: true}), {capture: true, once: true});
+    }
+
+    private showPowerReferenceDialog(card: HTMLElement){
+        const dialog = new ebg.popindialog();
+        dialog.create(TooltipHandler.POWER_REFERENCE_DIALOG_ID);
+        dialog.setTitle(_('Card powers'));
+        dialog.setContent(`<div class="power-reference-dialog-content">${this.getCardPowerReferenceHTML(card)}</div>`);
+        dialog.show();
+
+        document.getElementById(`popin_${TooltipHandler.POWER_REFERENCE_DIALOG_ID}_underlay`)?.addEventListener('click', () => dialog.destroy());
     }
 
     //a log row (its mini cards) or the status bar title (its circular card icons and power icons): single-power tooltips. Only that container

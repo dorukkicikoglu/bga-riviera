@@ -448,6 +448,7 @@ export class Game {
     }
     public onScreenWidthChange(): void { //BGA's resize hook (window resize, including orientation changes); also fires once at load
         this.handHandler?.recomputeCardSpacingAfterResize();
+        this.tooltipHandler?.syncCardPowersDisplay();
         for(let player_id in this.players){
             this.players[player_id].updateLastChanceInset();
             this.players[player_id].updateStartTokenPlace();
@@ -456,6 +457,7 @@ export class Game {
     }
     public isDesktop(): boolean { return document.body.classList.contains('desktop_version'); }
     public isMobile(): boolean { return document.body.classList.contains('mobile_version'); }
+    public isTouchOrMobile(): boolean { return this.isMobile() || window.matchMedia('(hover: none)').matches; } //BGA's mobile layout, or a device that can't hover (a tablet in the desktop layout). Not BGA's touch-device class, which a touch laptop with a mouse has too
     public isReplay(): boolean { return typeof g_replayFrom != 'undefined' || g_archive_mode; } //"replay from this move" in an ongoing game, or an archived game
     public isInterfaceLocked(): boolean { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     public updateStatusText(statusText): void{ $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }

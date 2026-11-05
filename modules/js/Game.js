@@ -1293,7 +1293,9 @@ class TooltipHandler {
     constructor(game) {
         this.game = game;
         this.powerReferenceHTMLByValue = {}; //0: the whole reference, no power on top
+        this.cardPowersInDialog = this.game.isTouchOrMobile();
         this.addTooltipsToCards();
+        this.addCardLongPress();
         this.addTooltipsToBoards();
         //log rows written before this handler existed; later rows come through LogMutationObserver
         const logs = document.getElementById('logs');
@@ -1309,11 +1311,81 @@ class TooltipHandler {
             this.addTooltipToBottomForSafari();
             return;
         }
-        document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card) => {
-            const value = parseInt(card.getAttribute('data-value'));
-            this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0), TooltipHandler.TOOLTIP_DELAY);
-        });
+        //touch and mobile: the reference is too long for a tooltip, a long press opens it in a dialog instead (addCardLongPress)
+        if (!this.cardPowersInDialog) {
+            document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card) => {
+                this.game.bga.gameui.addTooltipHtml(card.id, this.getCardPowerReferenceHTML(card), TooltipHandler.TOOLTIP_DELAY);
+            });
+        }
         this.game.bga.gameui.addTooltipToClass('last-chance-card', this.getLastChanceTooltipText(), '', TooltipHandler.TOOLTIP_DELAY);
+    }
+    //BGA's resize hook: a window can cross BGA's mobile width, so the cards already on the page swap between the tooltip and the dialog
+    syncCardPowersDisplay() {
+        const cardPowersInDialog = this.game.isTouchOrMobile();
+        if (cardPowersInDialog === this.cardPowersInDialog || this.isSafariMobile())
+            return;
+        this.cardPowersInDialog = cardPowersInDialog;
+        if (cardPowersInDialog)
+            document.querySelectorAll(TooltipHandler.GAME_AREA_CARDS_SELECTOR).forEach((card) => this.game.bga.gameui.removeTooltip(card.id));
+        else
+            this.addTooltipsToCards();
+    }
+    getCardPowerReferenceHTML(card) {
+        const value = parseInt(card.getAttribute('data-value'));
+        return this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+    }
+    //a tap stays the card's selection, so only a long press on a game-area card opens the dialog. On the document, since cards come and go.
+    //Any pointer type: a narrow desktop window has BGA's mobile layout and a mouse
+    addCardLongPress() {
+        let pressTimeout = null;
+        let pressX = 0;
+        let pressY = 0;
+        const cancelPress = () => {
+            clearTimeout(pressTimeout);
+            pressTimeout = null;
+        };
+        document.addEventListener('pointerdown', (event) => {
+            cancelPress();
+            const card = event.target.closest?.(TooltipHandler.GAME_AREA_CARDS_SELECTOR);
+            if (!card || !event.isPrimary || event.button !== 0 || !this.game.isTouchOrMobile())
+                return;
+            pressX = event.clientX;
+            pressY = event.clientY;
+            pressTimeout = setTimeout(() => {
+                pressTimeout = null;
+                this.swallowClickAfterLongPress();
+                this.showPowerReferenceDialog(card);
+            }, TooltipHandler.LONG_PRESS_DURATION);
+        });
+        document.addEventListener('pointermove', (event) => {
+            if (pressTimeout !== null && Math.hypot(event.clientX - pressX, event.clientY - pressY) > TooltipHandler.LONG_PRESS_MOVE_TOLERANCE)
+                cancelPress();
+        });
+        document.addEventListener('pointerup', cancelPress);
+        document.addEventListener('pointercancel', cancelPress); //the browser took the touch over to scroll
+        //Android's own long press menu
+        document.addEventListener('contextmenu', (event) => {
+            if (this.game.isTouchOrMobile() && event.target.closest?.(TooltipHandler.GAME_AREA_CARDS_SELECTOR))
+                event.preventDefault();
+        });
+    }
+    //releasing a long press can still click: that must neither select the card nor reach the dialog's underlay, which would close it at once.
+    //Some browsers send no click, so the next press ends the wait and keeps its own click
+    swallowClickAfterLongPress() {
+        const swallowClick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+        document.addEventListener('click', swallowClick, { capture: true, once: true });
+        document.addEventListener('pointerdown', () => document.removeEventListener('click', swallowClick, { capture: true }), { capture: true, once: true });
+    }
+    showPowerReferenceDialog(card) {
+        const dialog = new ebg.popindialog();
+        dialog.create(TooltipHandler.POWER_REFERENCE_DIALOG_ID);
+        dialog.setTitle(_('Card powers'));
+        dialog.setContent(`<div class="power-reference-dialog-content">${this.getCardPowerReferenceHTML(card)}</div>`);
+        dialog.show();
+        document.getElementById(`popin_${TooltipHandler.POWER_REFERENCE_DIALOG_ID}_underlay`)?.addEventListener('click', () => dialog.destroy());
     }
     //a log row (its mini cards) or the status bar title (its circular card icons and power icons): single-power tooltips. Only that container
     //is queried, so loading a long log stays cheap
@@ -1508,6 +1580,9 @@ class TooltipHandler {
 }
 TooltipHandler.TOOLTIP_DELAY = 1000;
 TooltipHandler.GAME_AREA_CARDS_SELECTOR = '#my-hand-container .a-card[id], #played-columns-container .a-card[id]';
+TooltipHandler.POWER_REFERENCE_DIALOG_ID = 'power_reference_dialog'; //its popin's id is popin_<this>, styled in Game.scss
+TooltipHandler.LONG_PRESS_DURATION = 450;
+TooltipHandler.LONG_PRESS_MOVE_TOLERANCE = 10; //px: a finger moving further is scrolling
 
 /**
  *------
@@ -3157,6 +3232,7 @@ class Game {
     }
     onScreenWidthChange() {
         this.handHandler?.recomputeCardSpacingAfterResize();
+        this.tooltipHandler?.syncCardPowersDisplay();
         for (let player_id in this.players) {
             this.players[player_id].updateLastChanceInset();
             this.players[player_id].updateStartTokenPlace();
@@ -3165,6 +3241,7 @@ class Game {
     }
     isDesktop() { return document.body.classList.contains('desktop_version'); }
     isMobile() { return document.body.classList.contains('mobile_version'); }
+    isTouchOrMobile() { return this.isMobile() || window.matchMedia('(hover: none)').matches; } //BGA's mobile layout, or a device that can't hover (a tablet in the desktop layout). Not BGA's touch-device class, which a touch laptop with a mouse has too
     isReplay() { return typeof g_replayFrom != 'undefined' || g_archive_mode; } //"replay from this move" in an ongoing game, or an archived game
     isInterfaceLocked() { return document.body.classList.contains('lockedInterface'); } //gameui.isInterfaceLocked() is gone from this framework version; Fugu's SCSS already keys off this body class
     updateStatusText(statusText) { $('gameaction_status').innerHTML = statusText; $('pagemaintitletext').innerHTML = statusText; }

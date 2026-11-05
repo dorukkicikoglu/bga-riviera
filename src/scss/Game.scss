@@ -816,21 +816,28 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
 }
 //end end-game scoring table
 
-//tooltip (TooltipHandler), from Fugu
-.dijitTooltipContainer{
-	&:has(.tooltip-wrapper){ background: none; }
-}
-.tooltip-wrapper { outline: 0.5px solid #ffffff; min-width: 230px; max-width: 300px; background: var(--bg-gradient-tooltip); padding: 10px; margin: -6px -6px -6px -6px; color: #27271c; }
-.tundra:has(.tooltip-wrapper){ /* to change the color of the little tooltip arrow */
-	.dijitTooltip {
-		.dijitTooltipConnector{ overflow: hidden; background: none;
-			&:after{ content: ""; position: absolute; width: 86%; background: var(--bg-gradient-tooltip-connector); aspect-ratio: 1;  }
-		}
-		&.dijitTooltipAbove .dijitTooltipConnector::after{ top: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: -1px -1px 2px 2px #adadad; }
-		&.dijitTooltipBelow .dijitTooltipConnector::after{ bottom: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: 1px 1px 2px 2px #adadad; }
-		&.dijitTooltipRight .dijitTooltipConnector::after{ right: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: 1px -1px 2px 2px #adadad; }
-		&.dijitTooltipLeft .dijitTooltipConnector::after{ left: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: -1px 1px 2px 2px #adadad; }
+//no tooltip, BGA's plain ones included, is ever wider than the screen. Dojo also sets its own width on .dijitTooltip when a tooltip has less room
+//than that beside its target, so the content follows the tooltip's width and wraps. Left and right tooltips have 14px of arrow padding on top of their width
+.dijitTooltip{ max-width: calc(100vw - 16px); overflow-wrap: break-word; }
+.dijitTooltipLeft, .dijitTooltipRight{ max-width: calc(100vw - 30px); }
+//addTooltipHtml wraps everything in a .midSizeDialog, 500px at most, narrower than the power reference
+.midSizeDialog:has(.tooltip-wrapper){ max-width: none; }
+
+//tooltip (TooltipHandler), from Fugu. Every custom-colored tooltip's root is a .tooltip-wrapper, which carries its own color, padding and radius.
+//BGA's wrapper around it has .45em of padding, a 1px border and its own background, so it is emptied, only when it holds a .tooltip-wrapper
+//(a plain BGA tooltip keeps its default look). !important: html.dark .tundra .dijitTooltipContainer is more specific than this rule
+$tooltip-border-radius: 8px;
+.dijitTooltipContainer:has(.tooltip-wrapper){ padding: 0px !important; background: transparent !important; border: none !important; border-radius: $tooltip-border-radius !important; overflow: hidden; }
+.tooltip-wrapper { outline: 0.5px solid #ffffff; outline-offset: -0.5px; min-width: 230px; max-width: 300px; background: var(--bg-gradient-tooltip); padding: 10px; border-radius: $tooltip-border-radius; color: #27271c; }
+//the little tooltip arrow's color. Scoped to the tooltip that holds the .tooltip-wrapper, not the page: the Safari mobile reference is one that never leaves it
+.tundra .dijitTooltip:has(.tooltip-wrapper){
+	.dijitTooltipConnector{ overflow: hidden; background: none;
+		&:after{ content: ""; position: absolute; width: 86%; background: var(--bg-gradient-tooltip-connector); aspect-ratio: 1;  }
 	}
+	&.dijitTooltipAbove .dijitTooltipConnector::after{ top: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: -1px -1px 2px 2px #adadad; }
+	&.dijitTooltipBelow .dijitTooltipConnector::after{ bottom: -52%; transform: scale(0.75, 1.1) rotate(45deg); box-shadow: 1px 1px 2px 2px #adadad; }
+	&.dijitTooltipRight .dijitTooltipConnector::after{ right: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: 1px -1px 2px 2px #adadad; }
+	&.dijitTooltipLeft .dijitTooltipConnector::after{ left: -47%; transform: scale(1.1, 0.75) rotate(45deg); box-shadow: -1px 1px 2px 2px #adadad; }
 }
 .mobile_version .tooltip-wrapper{ min-width: 250px; }
 
@@ -838,7 +845,7 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
 //Colors are explicit (teal and dark text sampled from the rulebook), so BGA's dark mode doesn't change them
 $power-reference-background: #13a6ba;
 $power-reference-text: #051121;
-.tooltip-wrapper.power-reference{ display: flex; gap: 18px; box-sizing: border-box; width: min(640px, 92vw); max-width: 640px; min-width: 0; padding: 12px 14px; background: $power-reference-background; color: $power-reference-text; outline: none; border-radius: 6px; font-size: 14px; line-height: 1.35; text-align: left;
+.tooltip-wrapper.power-reference{ display: flex; gap: 18px; box-sizing: border-box; width: min(640px, 92vw); max-width: 100%; min-width: 0; padding: 12px 14px; background: $power-reference-background; color: $power-reference-text; outline: none; font-size: 14px; line-height: 1.35; text-align: left;
     .power-reference-column{ flex: 1 1 0; min-width: 0;
         & + .power-reference-column{ padding-left: 18px; border-left: 1px solid rgba(5, 17, 33, 0.35); } //separator between the two columns
     }
@@ -874,7 +881,7 @@ $power-reference-text: #051121;
 .tooltip-wrapper.single-power-reference{ @include power-reference-one-column();
     .power-reference-entry{ margin-bottom: 0px; }
 }
-.tundra:has(.power-reference) .dijitTooltip .dijitTooltipConnector:after{ background: $power-reference-background; }
+.tundra .dijitTooltip:has(.power-reference) .dijitTooltipConnector:after{ background: $power-reference-background; }
 //a player name in a tooltip on the card tooltips' teal (divColoredPlayer with the tooltip-playername class), by the player's
 //color, not by who is looking: red, green and white get a dense white glow (the soft one was too faint on mobile), the other light colors the logs' dark outline
 .tooltip-playername{
@@ -886,17 +893,27 @@ $power-reference-text: #051121;
     }
 }
 //dice tooltips (TooltipHandler.updateDieTooltip): the single power look, as wide as their text up to the single power width.
-//A card 2 reservation is one line that never wraps
-.tooltip-wrapper.single-power-reference.die-tooltip{ width: fit-content; max-width: min(340px, 92vw);
-    &.die-reservation-tooltip-power2{ white-space: nowrap; max-width: none; }
+//A card 2 reservation is one line, as long as the screen has the room for it
+.tooltip-wrapper.single-power-reference.die-tooltip{ width: fit-content; max-width: min(340px, 100%);
+    &.die-reservation-tooltip-power2{ width: max-content; max-width: 100%; }
 }
-.dijitTooltipContainer:has(.power-reference){ max-width: none; } //in case BGA caps tooltip widths: the reference sets its own
 //the status bar's card icon and power icon tooltips (Game.getStatusCardWithPowerHTML): the plain tooltip background and arrow
 //behind the power row, which keeps its play-area look: the highlight's translucent white laid over the reference's teal
-.tooltip-wrapper.power-reference.status-bar-power-tooltip{ background: var(--bg-gradient-tooltip); outline: 0.5px solid #ffffff; border-radius: 0px; color: #27271c;
+.tooltip-wrapper.power-reference.status-bar-power-tooltip{ background: var(--bg-gradient-tooltip); outline: 0.5px solid #ffffff; color: #27271c;
     .power-reference-entry.highlighted-power-entry{ background: linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)), $power-reference-background; color: $power-reference-text; }
 }
-.tundra:has(.status-bar-power-tooltip) .dijitTooltip .dijitTooltipConnector:after{ background: var(--bg-gradient-tooltip-connector); }
+.tundra .dijitTooltip:has(.status-bar-power-tooltip) .dijitTooltipConnector:after{ background: var(--bg-gradient-tooltip-connector); }
+
+//touch and mobile: the power reference in a popin (TooltipHandler.showPowerReferenceDialog), the tooltip's colors right to its frame.
+//The content scrolls, at most 80% of the screen and never past its bottom (BGA places a popin at least 65px down, plus the title and padding)
+#popin_power_reference_dialog{ padding: 10px; background: $power-reference-background; border-color: $power-reference-text; color: $power-reference-text;
+    .standard_popin_title{ margin: 0px 0px 8px 0px; color: inherit; }
+    .standard_popin_closeicon{ color: $power-reference-text !important; }
+    //the entries' -6px side margins stay inside the scrolling box
+    .tooltip-wrapper.power-reference{ padding: 0px 6px; background: none; }
+}
+.power-reference-dialog-content{ max-height: min(80vh, calc(100vh - 140px)); overflow-y: auto; overscroll-behavior: contain; }
+#my-hand-container .a-card, #played-columns-container .a-card{ @include non-selectable(); } //no text selection or callout on a long press
 
 //img/power_icons_sprite.webp is 380x63 with a transparent background: 5 icons left to right (cards 1, 2, 9, 10, 11).
 //Boxes measured from the image (not equal frames: card 1 is narrower, card 10 wider and only 48px tall). Each icon is cut to
@@ -941,9 +958,7 @@ $card-power-icon-scale: 0.75;
 
 //Safari on mobile gets the power reference at the bottom of the page instead of tooltips
 .safari-mobile-power-reference-container{ display: none; }
-.mobile_version.safari-browser .safari-mobile-power-reference-container{ display: block; width: fit-content; max-width: 100%; margin: 40px auto 0px auto;
-    .tooltip-wrapper.power-reference{ margin: 0px; }
-}
+.mobile_version.safari-browser .safari-mobile-power-reference-container{ display: block; width: fit-content; max-width: 100%; margin: 40px auto 0px auto; }
 //end tooltip
 
 //colours come from the card's --glow-color / --glow-peak-color (gold, or cream on a playable power card), its blur and
