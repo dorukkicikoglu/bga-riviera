@@ -82,7 +82,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 //tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
 body{ background: url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #032a2e; }
 //desktop: the same tile a little lighter, under a 10% white layer (mobile keeps the plain tile)
-body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #ffffff; }
+body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #ffffff; }
 
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
 
