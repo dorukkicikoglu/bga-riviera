@@ -948,14 +948,14 @@ class PlayedColumnHandler {
         this.insertCardToColumn(cardData);
         this.updateStarsTotal();
     }
-    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board), at its
-    //full size the whole way, starting centered on fromElement (the top mini card back of a hand count).
+    //a revealed card slides in from fromElement: my hand card, at its full size the whole way, or (fromBoard) another player's
+    //hand count on their board, starting at Game.BOARD_CARD_SCALE centered on its top mini card back and growing to full size.
     //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
-    async animateCardIn(cardData, fromElement) {
+    async animateCardIn(cardData, fromElement, fromBoard = false) {
         this.playedCardsData.push(cardData);
         let aCard = this.game.createCardDiv(cardData);
         aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
-        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, { keepSize: true });
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, fromBoard ? { boardEnd: true } : { keepSize: true });
         this.updateStarsTotal();
     }
     //a crash or a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
@@ -1785,8 +1785,9 @@ class HandHandler {
     }
     //card 10 swap: the cards I give fly from their slots onto the other player's board (boardRect, on screen) and fade out
     //there, the cards I get fly from it into their sorted slots, and the cards I keep slide from their old places to their
-    //new ones, every card at its full size. Every card is measured before the hand changes, the hand is laid out once in its
-    //final order, then every move starts at the same time. Resolves when the last one has landed
+    //new ones. A card is Game.BOARD_CARD_SCALE of its full size on the board and full size in my hand. Every card is measured
+    //before the hand changes, the hand is laid out once in its final order, then every move starts at the same time. Resolves
+    //when the last one has landed
     async swapCards(leavingCardIDs, arrivingCardsData, boardRect) {
         const animate = this.game.bga.gameui.bgaAnimationsActive();
         const oldRects = new Map();
@@ -1799,7 +1800,7 @@ class HandHandler {
             if (!card)
                 continue;
             if (animate)
-                moves.push(this.game.animateSlideAway(card, Game.getStackedRect(boardRect, landedCount++), Game.CARD_SLIDE_DURATION, { keepSize: true, holdMs: Game.BOARD_ARRIVAL_HOLD, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
+                moves.push(this.game.animateSlideAway(card, boardRect, Game.CARD_SLIDE_DURATION, { boardEnd: true, stackIndex: landedCount++, holdMs: Game.BOARD_ARRIVAL_HOLD, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
             card.remove(); //so the card can go right away
         }
         this.handData = [...this.handData.filter(handCard => !leavingCardIDs.includes(handCard.card_id)), ...arrivingCardsData];
@@ -1812,7 +1813,7 @@ class HandHandler {
             for (let card of this.getCardDivs()) {
                 const oldRect = oldRects.get(parseInt(card.getAttribute('data-card-id')));
                 if (!oldRect)
-                    moves.push(this.game.animateSlide(card, boardRect, null, Game.CARD_SLIDE_DURATION, { keepSize: true }));
+                    moves.push(this.game.animateSlide(card, boardRect, null, Game.CARD_SLIDE_DURATION, { boardEnd: true }));
                 else if (HandHandler.hasMoved(oldRect, card.getBoundingClientRect()))
                     moves.push(this.game.animateSlide(card, oldRect, null, Game.CARD_SLIDE_DURATION));
             }
@@ -3103,8 +3104,9 @@ class Game {
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
-    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from` (a card coming out
-    //of a player board's mini card back or avatar stays a full card).
+    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from`.
+    //With options.boardEnd, `from` is on a player board (a mini card back or an avatar): the copy starts there at
+    //BOARD_CARD_SCALE of element's size and grows to full size on the way.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
     async animateSlide(element, from, to, durationMs, options = {}) {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
@@ -3113,22 +3115,30 @@ class Game {
         if (to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
-        const startRect = options.keepSize ? Game.getCenteredRect(fromRect, toRect.width, toRect.height) : fromRect;
+        let startRect = fromRect;
+        if (options.boardEnd)
+            startRect = Game.getBoardCardRect(fromRect, toRect);
+        else if (options.keepSize)
+            startRect = Game.getCenteredRect(fromRect, toRect.width, toRect.height);
         await this.moveSlidingClone(slidingClone, startRect, toRect, durationMs, options);
         element.style.visibility = null;
     }
     //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
     //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round).
-    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.fadeOutMs, it fades
-    //out once there. The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't
-    //inherit in <body>
+    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.boardEnd, toRect is on
+    //a player board and the copy shrinks to BOARD_CARD_SCALE on the way; with options.fadeOutMs, it fades out once there.
+    //The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't inherit in <body>
     async animateSlideAway(element, toRect, durationMs, options = {}) {
         const fromRect = element.getBoundingClientRect();
         const shownOpacity = Game.getShownOpacity(element);
         const slidingClone = this.createSlidingClone(element);
         if (shownOpacity < 1)
             slidingClone.style.opacity = shownOpacity.toString();
-        const endRect = options.keepSize ? Game.getCenteredRect(toRect, fromRect.width, fromRect.height) : toRect;
+        let endRect = toRect;
+        if (options.boardEnd)
+            endRect = Game.getBoardCardRect(toRect, fromRect, options.stackIndex);
+        else if (options.keepSize)
+            endRect = Game.getCenteredRect(toRect, fromRect.width, fromRect.height);
         await this.moveSlidingClone(slidingClone, fromRect, endRect, durationMs, options);
     }
     //cards leaving the game (a new round, a crash, a card 10 redraw): each card is lifted out as a copy at its place on
@@ -3156,6 +3166,19 @@ class Game {
     //a width x height rect on screen, centered on rect
     static getCenteredRect(rect, width, height) {
         return new DOMRect(rect.left + (rect.width - width) / 2, rect.top + (rect.height - height) / 2, width, height);
+    }
+    //a card's rect at the player board end of a slide: BOARD_CARD_SCALE of its full size (cardRect), centered on boardRect,
+    //wholly inside the viewport. The base is clamped before the stack offset, so a stack against the top or left edge still
+    //fans out; clamping again keeps its last cards in view against the bottom or right edge
+    static getBoardCardRect(boardRect, cardRect, stackIndex = 0) {
+        const centeredRect = Game.getCenteredRect(boardRect, cardRect.width * Game.BOARD_CARD_SCALE, cardRect.height * Game.BOARD_CARD_SCALE);
+        return Game.clampToViewport(Game.getStackedRect(Game.clampToViewport(centeredRect), stackIndex));
+    }
+    //rect moved, not resized, to be wholly on screen. clientWidth leaves out a vertical scrollbar, which innerWidth counts
+    static clampToViewport(rect) {
+        const left = Math.max(0, Math.min(rect.left, document.documentElement.clientWidth - rect.width));
+        const top = Math.max(0, Math.min(rect.top, window.innerHeight - rect.height));
+        return new DOMRect(left, top, rect.width, rect.height);
     }
     //element's own opacity times its ancestors'
     static getShownOpacity(element) {
@@ -3366,9 +3389,10 @@ class Game {
         await this.moveSlidingClone(this.createSlidingClone(cardBack), fromRect, toRect, Game.CARD_SLIDE_DURATION, { holdMs: Game.BOARD_ARRIVAL_HOLD });
     }
     //cards flying onto the same spot of a player board land as a visible stack: the index-th one (0 = the first, at the
-    //back) lands BOARD_STACK_OFFSET px further right and down per index, and later ones come later in <body>, so on top
+    //back) lands BOARD_STACK_OFFSET * BOARD_CARD_SCALE px further right and down per index, and later ones come later in
+    //<body>, so on top
     static getStackedRect(rect, index) {
-        const offset = index * Game.BOARD_STACK_OFFSET;
+        const offset = index * Game.BOARD_STACK_OFFSET * Game.BOARD_CARD_SCALE;
         return new DOMRect(rect.left + offset, rect.top + offset, rect.width, rect.height);
     }
     getMyPlayerID() { return this.myPlayerID; }
@@ -3451,7 +3475,7 @@ class Game {
             if (reveal.player_id === this.myPlayerID && this.handHandler)
                 slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
             else
-                slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement()));
+                slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement(), true));
         }
         await Promise.all(slides);
     }
@@ -3610,7 +3634,8 @@ Game.CARD_SLIDE_DURATION = 600; //ms of a card moving between two places in sigh
 Game.CARD_SLIDE_EASING = 'ease-in-out';
 Game.CHAIN_CARD_STAGGER = 150; //ms between two cards of a card-1 chain leaving for the column
 Game.SWAP_FADE_OUT_DURATION = 300; //ms a card I give in a card 10 swap takes to fade out on the other player's avatar
-Game.BOARD_STACK_OFFSET = 10; //px right and down each card lands from the one before when several fly onto the same board spot at once (a card 10 swap)
+Game.BOARD_CARD_SCALE = 0.75; //share of its full size a card has at the player board end of a slide (the boards sit at the top of the screen on mobile, where a full card went off-screen)
+Game.BOARD_STACK_OFFSET = 10; //px right and down, before BOARD_CARD_SCALE, each card lands from the one before when several fly onto the same board spot at once (a card 10 swap)
 Game.BOARD_ARRIVAL_HOLD = 100; //ms a card that has flown onto a player board (avatar or hand count) stays fully shown before it fades or goes
 Game.CARD_SWEEP_DURATION = 293; //ms each card leaving at a new round (hand and columns) takes to slide off-screen, quicker than the deal so the two read apart
 Game.CARD_SWEEP_STAGGER = 32; //ms between two cards starting their sweep at a new round

@@ -73,16 +73,16 @@ export class PlayedColumnHandler{
         this.updateStarsTotal();
     }
 
-    //a revealed card slides in from fromElement (my hand card, or another player's hand count on their board), at its
-    //full size the whole way, starting centered on fromElement (the top mini card back of a hand count).
+    //a revealed card slides in from fromElement: my hand card, at its full size the whole way, or (fromBoard) another player's
+    //hand count on their board, starting at Game.BOARD_CARD_SCALE centered on its top mini card back and growing to full size.
     //The sliding copy is placed on fromElement before the first await, so the caller can remove fromElement right after calling this
-    public async animateCardIn(cardData: PlayedCard, fromElement: HTMLDivElement): Promise<void>{
+    public async animateCardIn(cardData: PlayedCard, fromElement: HTMLDivElement, fromBoard: boolean = false): Promise<void>{
         this.playedCardsData.push(cardData);
 
         let aCard = this.game.createCardDiv(cardData);
         aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
 
-        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, { keepSize: true });
+        await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, fromBoard ? { boardEnd: true } : { keepSize: true });
         this.updateStarsTotal();
     }
 

@@ -505,3 +505,13 @@ Card 11 row:
 
 
 - [ ] Reveal row, card-1 chain (`debug_POWER1()`, chain a second card): no "+" between the cards; the chain's cards sit right next to each other with the same small gap as the card 10 swap row's, after the one arrow. Names, arrows and cards still line up in their columns. Same after F5 and in a replay.
+
+## After M4: cards at 75% on player boards
+
+On mobile first, then desktop (same size on every screen):
+- [ ] Another player's reveal: their card starts on their board's top mini card back at 75% and grows smoothly to full size as it reaches their column, with no jump when it lands. Fully on screen at the start. A card-1 chain (`debug_POWER1()`) does the same for each card.
+- [ ] My own reveal: my card stays full size from my hand to my column.
+- [ ] Card 10 swap as the owner or the victim (`debug_POWER10()`): the 2 cards I give shrink to 75% on the other player's avatar and land as a stack, 7.5px apart, fully on screen, hold 100ms, then fade out. The 2 cards I get start on that avatar at 75% and grow to full size in my hand. The cards I keep slide as before.
+- [ ] Card 10 swap as an observer: the card backs still fly at mini size between the two hand counts, now landing 7.5px apart (was 10px).
+- [ ] Clamping: on a very small screen, or scrolled down so the boards are out of view, a card at the board end sits against the screen's edge, fully visible, and a stack still fans out against the top edge.
+- [ ] Sweeps, deals and the card 10 redraw look as before.

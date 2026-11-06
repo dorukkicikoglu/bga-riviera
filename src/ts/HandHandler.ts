@@ -264,8 +264,9 @@ export class HandHandler{
 
     //card 10 swap: the cards I give fly from their slots onto the other player's board (boardRect, on screen) and fade out
     //there, the cards I get fly from it into their sorted slots, and the cards I keep slide from their old places to their
-    //new ones, every card at its full size. Every card is measured before the hand changes, the hand is laid out once in its
-    //final order, then every move starts at the same time. Resolves when the last one has landed
+    //new ones. A card is Game.BOARD_CARD_SCALE of its full size on the board and full size in my hand. Every card is measured
+    //before the hand changes, the hand is laid out once in its final order, then every move starts at the same time. Resolves
+    //when the last one has landed
     public async swapCards(leavingCardIDs: number[], arrivingCardsData: RivieraCard[], boardRect: DOMRect): Promise<void>{
         const animate = this.game.bga.gameui.bgaAnimationsActive();
 
@@ -281,7 +282,7 @@ export class HandHandler{
                 continue;
 
             if(animate)
-                moves.push(this.game.animateSlideAway(card, Game.getStackedRect(boardRect, landedCount++), Game.CARD_SLIDE_DURATION, { keepSize: true, holdMs: Game.BOARD_ARRIVAL_HOLD, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
+                moves.push(this.game.animateSlideAway(card, boardRect, Game.CARD_SLIDE_DURATION, { boardEnd: true, stackIndex: landedCount++, holdMs: Game.BOARD_ARRIVAL_HOLD, fadeOutMs: Game.SWAP_FADE_OUT_DURATION })); //places the copy on card before its first await,
             card.remove();                                                                            //so the card can go right away
         }
 
@@ -296,7 +297,7 @@ export class HandHandler{
             for(let card of this.getCardDivs()){
                 const oldRect = oldRects.get(parseInt(card.getAttribute('data-card-id')));
                 if(!oldRect)
-                    moves.push(this.game.animateSlide(card, boardRect, null, Game.CARD_SLIDE_DURATION, { keepSize: true }));
+                    moves.push(this.game.animateSlide(card, boardRect, null, Game.CARD_SLIDE_DURATION, { boardEnd: true }));
                 else if(HandHandler.hasMoved(oldRect, card.getBoundingClientRect()))
                     moves.push(this.game.animateSlide(card, oldRect, null, Game.CARD_SLIDE_DURATION));
             }

@@ -30,6 +30,8 @@ import { BackgroundHandler } from "./BackgroundHandler";
 export type SlideOptions = {
     easing?: string; //CSS timing function, Game.CARD_SLIDE_EASING by default
     keepSize?: boolean; //the copy keeps the element's size, centered on the other end, instead of changing size on the way
+    boardEnd?: boolean; //`from` (animateSlide) or toRect (animateSlideAway) is on a player board: the copy is BOARD_CARD_SCALE of the card's size at that end (see getBoardCardRect) and full size at the other
+    stackIndex?: number; //animateSlideAway with boardEnd: the card's place in a stack landing on the same spot of the board (0 = the first, at the back)
     delayMs?: number; //the copy waits this long at its start before it moves (a sweep's stagger)
     holdMs?: number; //animateSlideAway: the copy stays fully shown this long once it has arrived, before it fades or goes
     fadeOutMs?: number; //animateSlideAway: the copy fades out for this long once it has arrived (and held)
@@ -41,7 +43,8 @@ export class Game {
     public static readonly CARD_SLIDE_EASING = 'ease-in-out';
     public static readonly CHAIN_CARD_STAGGER = 150; //ms between two cards of a card-1 chain leaving for the column
     public static readonly SWAP_FADE_OUT_DURATION = 300; //ms a card I give in a card 10 swap takes to fade out on the other player's avatar
-    public static readonly BOARD_STACK_OFFSET = 10; //px right and down each card lands from the one before when several fly onto the same board spot at once (a card 10 swap)
+    public static readonly BOARD_CARD_SCALE = 0.75; //share of its full size a card has at the player board end of a slide (the boards sit at the top of the screen on mobile, where a full card went off-screen)
+    public static readonly BOARD_STACK_OFFSET = 10; //px right and down, before BOARD_CARD_SCALE, each card lands from the one before when several fly onto the same board spot at once (a card 10 swap)
     public static readonly BOARD_ARRIVAL_HOLD = 100; //ms a card that has flown onto a player board (avatar or hand count) stays fully shown before it fades or goes
     public static readonly CARD_SWEEP_DURATION = 293; //ms each card leaving at a new round (hand and columns) takes to slide off-screen, quicker than the deal so the two read apart
     public static readonly CARD_SWEEP_STAGGER = 32; //ms between two cards starting their sweep at a new round
@@ -296,8 +299,9 @@ export class Game {
     //Everything is measured on screen (getBoundingClientRect), and the copy (in <body>, outside BGA's mobile scaling of the
     //game area) converts screen px into its own px with its measured zoom, so it matches on desktop and mobile alike.
     //`from` can also be a DOMRect on screen, for a start point with no element (the new hand's deal starts off the page).
-    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from` (a card coming out
-    //of a player board's mini card back or avatar stays a full card).
+    //With options.keepSize, the copy keeps element's size the whole way and starts centered on `from`.
+    //With options.boardEnd, `from` is on a player board (a mini card back or an avatar): the copy starts there at
+    //BOARD_CARD_SCALE of element's size and grows to full size on the way.
     //Everything before the first await runs synchronously, so `from` can be removed as soon as this is called
     public async animateSlide(element: HTMLDivElement, from: HTMLDivElement | DOMRect, to: HTMLDivElement | null, durationMs: number, options: SlideOptions = {}): Promise<void> {
         const fromRect = this.getSlideSourceRect(from); //before element moves: from may be element itself
@@ -307,7 +311,11 @@ export class Game {
         if(to)
             to.appendChild(element);
         const toRect = element.getBoundingClientRect();
-        const startRect = options.keepSize ? Game.getCenteredRect(fromRect, toRect.width, toRect.height) : fromRect;
+        let startRect = fromRect;
+        if(options.boardEnd)
+            startRect = Game.getBoardCardRect(fromRect, toRect);
+        else if(options.keepSize)
+            startRect = Game.getCenteredRect(fromRect, toRect.width, toRect.height);
 
         await this.moveSlidingClone(slidingClone, startRect, toRect, durationMs, options);
 
@@ -316,16 +324,20 @@ export class Game {
 
     //the other way round: a copy of element flies from where element is now to toRect on screen, then disappears.
     //Element itself is left alone and can be removed as soon as this is called (the old hand's sweep at a new round).
-    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.fadeOutMs, it fades
-    //out once there. The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't
-    //inherit in <body>
+    //With options.keepSize, the copy keeps element's size and lands centered on toRect; with options.boardEnd, toRect is on
+    //a player board and the copy shrinks to BOARD_CARD_SCALE on the way; with options.fadeOutMs, it fades out once there.
+    //The copy shows at the opacity element shows at (a stopped column's dimmed cards), which it doesn't inherit in <body>
     public async animateSlideAway(element: HTMLDivElement, toRect: DOMRect, durationMs: number, options: SlideOptions = {}): Promise<void> {
         const fromRect = element.getBoundingClientRect();
         const shownOpacity = Game.getShownOpacity(element);
         const slidingClone = this.createSlidingClone(element);
         if(shownOpacity < 1)
             slidingClone.style.opacity = shownOpacity.toString();
-        const endRect = options.keepSize ? Game.getCenteredRect(toRect, fromRect.width, fromRect.height) : toRect;
+        let endRect = toRect;
+        if(options.boardEnd)
+            endRect = Game.getBoardCardRect(toRect, fromRect, options.stackIndex);
+        else if(options.keepSize)
+            endRect = Game.getCenteredRect(toRect, fromRect.width, fromRect.height);
 
         await this.moveSlidingClone(slidingClone, fromRect, endRect, durationMs, options);
     }
@@ -358,6 +370,21 @@ export class Game {
     //a width x height rect on screen, centered on rect
     private static getCenteredRect(rect: DOMRect, width: number, height: number): DOMRect {
         return new DOMRect(rect.left + (rect.width - width) / 2, rect.top + (rect.height - height) / 2, width, height);
+    }
+
+    //a card's rect at the player board end of a slide: BOARD_CARD_SCALE of its full size (cardRect), centered on boardRect,
+    //wholly inside the viewport. The base is clamped before the stack offset, so a stack against the top or left edge still
+    //fans out; clamping again keeps its last cards in view against the bottom or right edge
+    private static getBoardCardRect(boardRect: DOMRect, cardRect: DOMRect, stackIndex: number = 0): DOMRect {
+        const centeredRect = Game.getCenteredRect(boardRect, cardRect.width * Game.BOARD_CARD_SCALE, cardRect.height * Game.BOARD_CARD_SCALE);
+        return Game.clampToViewport(Game.getStackedRect(Game.clampToViewport(centeredRect), stackIndex));
+    }
+
+    //rect moved, not resized, to be wholly on screen. clientWidth leaves out a vertical scrollbar, which innerWidth counts
+    private static clampToViewport(rect: DOMRect): DOMRect {
+        const left = Math.max(0, Math.min(rect.left, document.documentElement.clientWidth - rect.width));
+        const top = Math.max(0, Math.min(rect.top, window.innerHeight - rect.height));
+        return new DOMRect(left, top, rect.width, rect.height);
     }
 
     //element's own opacity times its ancestors'
@@ -599,9 +626,10 @@ export class Game {
     }
 
     //cards flying onto the same spot of a player board land as a visible stack: the index-th one (0 = the first, at the
-    //back) lands BOARD_STACK_OFFSET px further right and down per index, and later ones come later in <body>, so on top
-    public static getStackedRect(rect: DOMRect, index: number): DOMRect {
-        const offset = index * Game.BOARD_STACK_OFFSET;
+    //back) lands BOARD_STACK_OFFSET * BOARD_CARD_SCALE px further right and down per index, and later ones come later in
+    //<body>, so on top
+    private static getStackedRect(rect: DOMRect, index: number): DOMRect {
+        const offset = index * Game.BOARD_STACK_OFFSET * Game.BOARD_CARD_SCALE;
         return new DOMRect(rect.left + offset, rect.top + offset, rect.width, rect.height);
     }
     public getMyPlayerID(): number{ return this.myPlayerID; }
@@ -701,7 +729,7 @@ export class Game {
 
             if(reveal.player_id === this.myPlayerID && this.handHandler)
                 slides.push(this.handHandler.animateCardToColumn(revealedCards[i], player.getPlayedColumn()));
-            else slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement()));
+            else slides.push(player.getPlayedColumn().animateCardIn(revealedCards[i], player.getHandCountElement(), true));
         }
         await Promise.all(slides);
     }
