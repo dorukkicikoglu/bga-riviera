@@ -17,6 +17,8 @@ import { Game } from "../Game";
  */
 export class StopOrMore {
     private pendingChoice: StopOrMoreChoice | null = null;
+    private powerCardNeedingMore: RivieraCard | null = null; //kept: the args only arrive on entering the state, and Undo rebuilds the buttons
+    private powerIconID: string | null = null;
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -26,6 +28,7 @@ export class StopOrMore {
      */
     onEnteringState(args: StopOrMoreArgs, isCurrentPlayerActive: boolean) {
         this.pendingChoice = args?._private?.pendingStopOrMoreChoice ?? null; //restores the choice after F5
+        this.powerCardNeedingMore = args?._private?.powerCardNeedingMore ?? null;
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
     }
 
@@ -33,6 +36,7 @@ export class StopOrMore {
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
      */
     onLeavingState(args: StopOrMoreArgs, isCurrentPlayerActive: boolean) {
+        this.removePowerIconTooltip();
     }
 
     /**
@@ -40,6 +44,7 @@ export class StopOrMore {
      * on MULTIPLE_ACTIVE_PLAYER states, you may want to call this function in onEnteringState using `this.onPlayerActivationChange(args, isCurrentPlayerActive)` at the end of onEnteringState.
      */
     onPlayerActivationChange(args: StopOrMoreArgs, isCurrentPlayerActive: boolean) {
+        this.removePowerIconTooltip();
         this.bga.statusBar.removeActionButtons();
 
         if(isCurrentPlayerActive && this.game.myself){
@@ -51,8 +56,14 @@ export class StopOrMore {
             const stopLabel = this.game.getPiggyBankSVG('button-piggy-bank') + _('Stop and bank ${stars}★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
             this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), {id: 'stop-button'});
             //the logs' More icon, in front of the translated label like the Stop button's piggy bank
-            const moreLabel = '<i class="fa6 fa-forward button-forward-icon" aria-hidden="true"></i>' + _('Keep Going');
-            this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
+            //after the label, the card whose power only resolves if I keep going (nothing when there is none)
+            const moreLabel = '<i class="fa6 fa-forward button-forward-icon" aria-hidden="true"></i>' + _('Keep Going') + this.game.getStatusCardIconHTML(this.powerCardNeedingMore);
+            const moreButton = this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
+            const powerIcon = moreButton.querySelector('.status-card-icon') as HTMLElement | null;
+            if(powerIcon){
+                this.powerIconID = powerIcon.id;
+                this.game.tooltipHandler?.addPowerNeedingMoreTooltip(powerIcon);
+            }
         } else if(this.pendingChoice){
             const pendingChoiceTitles: Record<StopOrMoreChoice, string> = {
                 stop: _('${you} chose to stop. Waiting for other players'),
@@ -63,6 +74,14 @@ export class StopOrMore {
         } else {
             this.bga.statusBar.setTitle(_('Others must choose: Stop or More'));
         }
+    }
+
+    //the icon is inside the button, so the pointer is on it when it is clicked, and no mouseleave comes once the button is
+    //gone: without this, its tooltip would stay on screen
+    private removePowerIconTooltip(): void {
+        if(this.powerIconID !== null)
+            this.bga.gameui.removeTooltip(this.powerIconID);
+        this.powerIconID = null;
     }
 
     //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange

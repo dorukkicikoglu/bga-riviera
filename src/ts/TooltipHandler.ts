@@ -151,6 +151,15 @@ export class TooltipHandler{
         });
     }
 
+    //the card's number badge on the Keep Going button: the status bar's single-power tooltip, plus one line
+    public addPowerNeedingMoreTooltip(icon: HTMLElement){
+        if(this.isSafariMobile())
+            return;
+
+        const noteHTML = `<div class="power-needing-more-note">${_('This power resolves only if you keep going')}</div>`;
+        this.game.bga.gameui.addTooltipHtml(icon.id, this.getPowerTooltipHTML(parseInt(icon.getAttribute('data-value')), 'status-bar-power-tooltip', noteHTML), TooltipHandler.TOOLTIP_DELAY);
+    }
+
     //player boards and played columns: the parts that aren't self-explanatory
     private addTooltipsToBoards(){
         this.game.bga.gameui.addTooltipHtml('start-token', this.getStartTokenTooltipHTML(), TooltipHandler.TOOLTIP_DELAY);
@@ -304,11 +313,12 @@ export class TooltipHandler{
     }
 
     //a single power: the power reference's entry for it, on the same background. For the mini cards in log rows and the
-    //status bar's circular card icons and power icons. modifierClass: status-bar-power-tooltip for the status bar's icons
-    private getPowerTooltipHTML(value: number, modifierClass: string = ''): string {
+    //status bar's circular card icons and power icons. modifierClass: status-bar-power-tooltip for the status bar's icons.
+    //noteHTML: goes under the entry
+    private getPowerTooltipHTML(value: number, modifierClass: string = '', noteHTML: string = ''): string {
         return `
             <div class="tooltip-wrapper power-reference single-power-reference ${modifierClass}">
-                ${this.getPowerEntryHTML(value)}
+                ${this.getPowerEntryHTML(value)}${noteHTML}
             </div>
         `;
     }

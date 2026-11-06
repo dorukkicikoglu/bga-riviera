@@ -16,6 +16,7 @@
   --image-source-riviera-cards: url(img/riviera_cards.webp);
   --image-source-start-token: url(img/start_token.webp);
   --image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
+  --image-source-card-icon-numbers-mask: url(img/card_icon_numbers_mask.webp);
   --image-source-power-icons: url(img/power_icons_sprite.webp);
   --image-source-bg-trees: url(img/bg_trees.webp);
   --die-color-red: #c8322b;
@@ -489,6 +490,81 @@ body .sliding-clone {
   line-height: 0;
   margin: 0px 0.2023255814em 0px -4px;
   vertical-align: -0.145em;
+}
+
+#more-button:has(.status-card-icon) {
+  position: relative;
+  padding-right: 2.6em;
+}
+
+#more-button .status-card-icon {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  right: 2px;
+  width: auto;
+  height: auto;
+  max-height: 2.2em;
+  aspect-ratio: 1;
+  margin: auto 0;
+  border: none;
+  background: #ffffff;
+}
+#more-button .status-card-icon .status-card-icon-number {
+  width: 106%;
+  height: auto;
+  aspect-ratio: 1.2063492063;
+  background: var(--palette-bga-primary, #0b72b5);
+  -webkit-mask: var(--image-source-card-icon-numbers-mask) 0% 0%/1200% 100% no-repeat;
+  mask: var(--image-source-card-icon-numbers-mask) 0% 0%/1200% 100% no-repeat;
+}
+#more-button .status-card-icon[data-value="1"] .status-card-icon-number {
+  -webkit-mask-position: 0% 0%;
+  mask-position: 0% 0%;
+}
+#more-button .status-card-icon[data-value="2"] .status-card-icon-number {
+  -webkit-mask-position: 9.0909090909% 0%;
+  mask-position: 9.0909090909% 0%;
+}
+#more-button .status-card-icon[data-value="3"] .status-card-icon-number {
+  -webkit-mask-position: 18.1818181818% 0%;
+  mask-position: 18.1818181818% 0%;
+}
+#more-button .status-card-icon[data-value="4"] .status-card-icon-number {
+  -webkit-mask-position: 27.2727272727% 0%;
+  mask-position: 27.2727272727% 0%;
+}
+#more-button .status-card-icon[data-value="5"] .status-card-icon-number {
+  -webkit-mask-position: 36.3636363636% 0%;
+  mask-position: 36.3636363636% 0%;
+}
+#more-button .status-card-icon[data-value="6"] .status-card-icon-number {
+  -webkit-mask-position: 45.4545454545% 0%;
+  mask-position: 45.4545454545% 0%;
+}
+#more-button .status-card-icon[data-value="7"] .status-card-icon-number {
+  -webkit-mask-position: 54.5454545455% 0%;
+  mask-position: 54.5454545455% 0%;
+}
+#more-button .status-card-icon[data-value="8"] .status-card-icon-number {
+  -webkit-mask-position: 63.6363636364% 0%;
+  mask-position: 63.6363636364% 0%;
+}
+#more-button .status-card-icon[data-value="9"] .status-card-icon-number {
+  -webkit-mask-position: 72.7272727273% 0%;
+  mask-position: 72.7272727273% 0%;
+}
+#more-button .status-card-icon[data-value="10"] .status-card-icon-number {
+  -webkit-mask-position: 81.8181818182% 0%;
+  mask-position: 81.8181818182% 0%;
+}
+#more-button .status-card-icon[data-value="11"] .status-card-icon-number {
+  -webkit-mask-position: 90.9090909091% 0%;
+  mask-position: 90.9090909091% 0%;
+}
+#more-button .status-card-icon[data-value="12"] .status-card-icon-number {
+  -webkit-mask-position: 100% 0%;
+  mask-position: 100% 0%;
 }
 
 .auto-choice-dots > span {
@@ -2086,6 +2162,11 @@ body .start-token.flying-start-token {
 
 .tundra .dijitTooltip:has(.status-bar-power-tooltip) .dijitTooltipConnector:after {
   background: var(--bg-gradient-tooltip-connector);
+}
+
+.power-needing-more-note {
+  clear: both;
+  margin-top: 6px;
 }
 
 #popin_power_reference_dialog {

@@ -49,7 +49,8 @@ class StopOrMore extends GameState
     }
 
     /**
-     * Pending choices are private: each player only gets their own.
+     * Pending choices are private: each player only gets their own. So is the card shown on their Keep Going button,
+     * though it is public, since only that player's button shows it.
      */
     public function getArgs(): array
     {
@@ -57,7 +58,10 @@ class StopOrMore extends GameState
 
         $privateArgs = [];
         foreach($pendingChoices as $playerID => $pendingChoice)
-            $privateArgs[(int) $playerID] = ['pendingStopOrMoreChoice' => $pendingChoice];
+            $privateArgs[(int) $playerID] = [
+                'pendingStopOrMoreChoice' => $pendingChoice,
+                'powerCardNeedingMore' => $this->game->powerManager->getPowerCardNeedingMore((int) $playerID),
+            ];
 
         return ['_private' => $privateArgs];
     }

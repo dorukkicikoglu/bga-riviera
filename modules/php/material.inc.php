@@ -38,6 +38,7 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("FIRST_ROLL_REROLLS_ON", 1); //default
 
     define("POWER_CARD_VALUES", [2, 9, 10, 11]); //non-1 powers: the last card a player reveals in a turn leaves a pending_POWER<n> marker
+    define("POWER_VALUES_NEEDING_MORE", [2, 9, 11]); //non-1 powers still to resolve in Stop or More, lost on a Stop (card 10 has resolved by then)
     define("CHAIN_CARD_VALUE_POWER1", 1); //a card 1 lets its player add another card to the same choice
     define("CARDS_SWAPPED_BY_POWER10", 2);
 

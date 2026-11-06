@@ -515,3 +515,18 @@ On mobile first, then desktop (same size on every screen):
 - [ ] Card 10 swap as an observer: the card backs still fly at mini size between the two hand counts, now landing 7.5px apart (was 10px).
 - [ ] Clamping: on a very small screen, or scrolled down so the boards are out of view, a card at the board end sits against the screen's edge, fully visible, and a stack still fans out against the top edge.
 - [ ] Sweeps, deals and the card 10 redraw look as before.
+
+## After M4: power icon on Keep Going
+
+- [ ] `debug_POWER9()`, play the 9: Keep Going shows a white disc with the number 9 in the button's blue, after the label, with no card color. Same for `debug_POWER2()` and `debug_POWER11()`. The Stop button and the button order are unchanged.
+- [ ] A chain ending on a power (`debug_POWER1()`, then a 9): only the 9's icon, no 1.
+- [ ] A chain ending on a 1, and a turn with no power card: the button looks exactly as before.
+- [ ] `debug_POWER10()`, play the 10: after the swap, Keep Going has no icon (card 10 has already resolved).
+- [ ] Hover the icon for a second: the usual power tooltip, with "This power resolves only if you keep going" under the entry, on the status bar icons' tooltip background.
+- [ ] Hover the icon until its tooltip shows, then click it: it counts as Keep Going, and the tooltip goes away with the button.
+- [ ] Choose Keep Going, then Undo: the icon is back, with its tooltip. Choose Stop, then Undo: the same.
+- [ ] F5 during StopOrMore: the icon is still there.
+- [ ] Last Chance after an earlier 9 in the same round (play the 9, then `debug_setDice` so nothing is playable, use Last Chance): no icon on that turn's Keep Going.
+- [ ] A replay through StopOrMore: if the Keep Going button shows at all, it has the right icon.
+- [ ] The button is as tall as Stop with and without the icon, at desktop width and on a 360px phone.
+- [ ] The disc fills the button's height with a small even gap, centered, and the number reads clearly on a phone. The number is the button's blue in dark mode too. The same card's icon in the status bar text and the logs keeps its colored ring and gold number.

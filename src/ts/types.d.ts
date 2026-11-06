@@ -131,6 +131,7 @@ interface SwapCardsArgs {
 interface StopOrMoreArgs {
     _private?: {
         pendingStopOrMoreChoice: StopOrMoreChoice | null;
+        powerCardNeedingMore: RivieraCard | null; //the card 2, 9 or 11 I revealed this turn: its power only resolves if I keep going
     };
 }
 

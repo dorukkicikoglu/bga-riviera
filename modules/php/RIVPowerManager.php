@@ -213,6 +213,19 @@ class RIVPowerManager{
         return $this->game->getUniqueValueFromDB("SELECT `pending_POWER$cardValue` FROM `player` WHERE `player_id` = $playerID") === 'yes';
     }
 
+    /**
+     * The card $playerID revealed this turn whose power only resolves if they choose More, or null. A player leaves at most
+     * one non-1 power per turn (a chain only continues on 1s). The pending marker tells it was revealed this turn: after a
+     * Last Chance, the bottom of the column is a card from an earlier turn.
+     */
+    function getPowerCardNeedingMore(int $playerID): ?array{
+        $card = $this->game->tableManager->getLastPlayedCard($playerID);
+        if(!$card || !in_array($card['value'], POWER_VALUES_NEEDING_MORE, true) || !$this->hasPendingPower($playerID, $card['value']))
+            return null;
+
+        return $card;
+    }
+
     function clearPendingPower(int $playerID, int $cardValue): void{
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER$cardValue` = 'no' WHERE `player_id` = $playerID");
     }
