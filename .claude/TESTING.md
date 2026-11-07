@@ -518,7 +518,7 @@ On mobile first, then desktop (same size on every screen):
 
 ## After M4: power icon on Keep Going
 
-- [ ] `debug_POWER9()`, play the 9: Keep Going shows a white disc with the number 9 in the button's blue, after the label, with no card color. Same for `debug_POWER2()` and `debug_POWER11()`. The Stop button and the button order are unchanged.
+- [ ] `debug_POWER9()`, play the 9: Keep Going shows a white disc with the number 9 in the card's color, after the label. Same for `debug_POWER2()` and `debug_POWER11()`. The Stop button and the button order are unchanged.
 - [ ] A chain ending on a power (`debug_POWER1()`, then a 9): only the 9's icon, no 1.
 - [ ] A chain ending on a 1, and a turn with no power card: the button looks exactly as before.
 - [ ] `debug_POWER10()`, play the 10: after the swap, Keep Going has no icon (card 10 has already resolved).
@@ -529,4 +529,4 @@ On mobile first, then desktop (same size on every screen):
 - [ ] Last Chance after an earlier 9 in the same round (play the 9, then `debug_setDice` so nothing is playable, use Last Chance): no icon on that turn's Keep Going.
 - [ ] A replay through StopOrMore: if the Keep Going button shows at all, it has the right icon.
 - [ ] The button is as tall as Stop with and without the icon, at desktop width and on a 360px phone.
-- [ ] The disc fills the button's height with a small even gap, centered, and the number reads clearly on a phone. The number is the button's blue in dark mode too. The same card's icon in the status bar text and the logs keeps its colored ring and gold number.
+- [ ] The disc sits 3.5px inside the button's top and bottom and 5px from its right edge, centered, close to the label without touching it, and the number stays inside the disc and reads clearly on a phone: one solid color, no line through it, in the same font as "Keep Going". Check every card color, orange above all, and dark mode. The same card's icon in the status bar text and the logs keeps its colored ring and gold number.

@@ -25,7 +25,6 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 	--image-source-riviera-cards: url(img/riviera_cards.webp);
 	--image-source-start-token: url(img/start_token.webp);
 	--image-source-card-icon-numbers: url(img/card_icon_numbers.webp);
-	--image-source-card-icon-numbers-mask: url(img/card_icon_numbers_mask.webp);
 	--image-source-power-icons: url(img/power_icons_sprite.webp);
 	--image-source-bg-trees: url(img/bg_trees.webp);
 
@@ -217,18 +216,22 @@ $button-piggy-height: 1.3em;
 //tail reaches its left edge and its body starts about 2px further in, while the glyph starts with a solid edge (measured in
 //Studio). The drop (in the icon's own em) centers the glyph on the capital letters (measured in Studio)
 #more-button .button-forward-icon{ $scale: $button-piggy-height * $forward-icon-to-piggy-height; font-size: $scale; line-height: 0; margin: 0px math.div(0.3em, math.div($scale, 1em)) 0px -4px; vertical-align: -0.145em; }
-//the card whose power only resolves on Keep Going, after the label: a white disc with the number alone, in the button's blue
-//(the same variable as the log's forward icon). Out of the flow and stretched between top and bottom, so it fills the button's
+//the card whose power only resolves on Keep Going, after the label: a white disc with the number alone, in the card's color.
+//Out of the flow and stretched between top and bottom, so it fills the button's
 //height, stays centered whatever the font and can't make the button taller; the padding keeps the label clear of it, and the
-//max-height keeps it within that padding if a long translation wraps the label
-$more-button-badge-inset: 2px;
-#more-button:has(.status-card-icon){ position: relative; padding-right: 2.6em; }
-#more-button .status-card-icon{ position: absolute; top: $more-button-badge-inset; bottom: $more-button-badge-inset; right: $more-button-badge-inset; width: auto; height: auto; max-height: 2.2em; aspect-ratio: 1; margin: auto 0; border: none; background: #ffffff;
-    //the sprite's frame, wider than the disc: its empty sides don't show. As big as the widest number shown (11) fits in the disc
-    .status-card-icon-number{ width: 106%; height: auto; aspect-ratio: math.div($card-icon-number-frame-width, $card-icon-number-frame-height); background: var(--palette-bga-primary, #0b72b5);
-        -webkit-mask: var(--image-source-card-icon-numbers-mask) 0% 0% / #{$card-icon-number-frames * 100%} 100% no-repeat; mask: var(--image-source-card-icon-numbers-mask) 0% 0% / #{$card-icon-number-frames * 100%} 100% no-repeat; }
+//max-height keeps it within that padding if a long translation wraps the label.
+//The number is text in the label's font, not the sprite: the sprite's drawn numbers have dark shapes cut into them, which
+//would need a dark disc behind them. No text shadow, which a button's text can pass down
+$more-button-badge-inset: 3.5px;
+#more-button:has(.status-card-icon){ position: relative; padding-right: calc(2.6em - 6px); }
+#more-button .status-card-icon{ position: absolute; top: $more-button-badge-inset; bottom: $more-button-badge-inset; right: 5px; width: auto; height: auto; max-height: 1.9em; aspect-ratio: 1; margin: auto 0; border: none; background: #ffffff; text-shadow: none; container-type: size;
+    //sized from the disc's height (cqh), so it follows the button's height: 70% of a disc 3px bigger than this one
+    .status-card-icon-number{ width: auto; height: auto; background: none; font-size: 1.1em; font-size: calc(70cqh + 2.1px); }
     @for $value from 1 through $card-icon-number-frames {
-        &[data-value="#{$value}"] .status-card-icon-number{ $position: math.div(($value - 1) * 100%, $card-icon-number-frames - 1) 0%; -webkit-mask-position: $position; mask-position: $position; }
+        &[data-value="#{$value}"] .status-card-icon-number::before{ content: "#{$value}"; }
+    }
+    @each $color in $card-colors {
+        &[data-color="#{$color}"] .status-card-icon-number{ color: var(--die-color-#{$color}); }
     }
 }
 //the looping "..." after an automatic crash or Grand Slam (Game.announceAutoChoice). Hidden dots keep their width, so the
