@@ -142,6 +142,8 @@ class RevealCards extends \Bga\GameFramework\States\GameState
             ]);
         }
 
+        $this->game->powerManager->clearModifiedDicePOWER9(); //from the reveal on, Grand Slam included
+
         $handCounts = $this->game->tableManager->getHandCounts();
         $grandSlamPlayerIDs = array_values(array_filter($cardPlayerIDs, fn(int $playerID) => $handCounts[$playerID] === 0));
         if(count($grandSlamPlayerIDs) > 0){

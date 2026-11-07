@@ -74,6 +74,20 @@ class RIVPowerManager{
     }
 
     /**
+     * [BGA] A die turned by a card 9 keeps its turned value, but loses its "turned this roll" mark (the ± badge and its
+     * tooltip line) at the reveal: those dice are about to be rolled again. Nothing reads the mark after the reveal
+     * (only ModifyDie does, and the next roll resets it), so it is cleared in the DB: F5, replays and spectators match.
+     */
+    function clearModifiedDicePOWER9(): void{
+        $modifiedDieCount = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `dice` WHERE `modified_by_POWER9` = 'yes'");
+        if($modifiedDieCount === 0)
+            return;
+
+        $this->game->DbQuery("UPDATE `dice` SET `modified_by_POWER9` = 'no'");
+        $this->notifyDiceUpdated();
+    }
+
+    /**
      * [BGA] A card-2 reservation and the golden die only last for the turn after the power is used: they are
      * cleared after that turn's reveal, before this turn's cards 2 and 11 (after Stop or More) can set them again.
      */
