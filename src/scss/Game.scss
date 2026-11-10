@@ -182,40 +182,32 @@ $status-card-icon-size: 40px;
     .status-card-icon{ margin: 0px 2px; @include card-icon-size(1.6em); }
 }
 
-//the piggy bank's look (Game.getPiggyBankSVG) in the Stop/More log rows only (the Stop button and the banked column badge
-//keep fill: currentColor): muted rose, outlined in a darker rose, which also draws the coin slot, the eye and the tail, so it
-//holds up on light backgrounds. Its width comes from the viewBox (23 x 20): an svg with no width attribute and width: auto
-//can stretch inside a flex box
-$piggy-bank-color: #d9788f;
-$piggy-bank-detail-color: #a34a62;
-@mixin piggy-bank($height){ display: block; height: $height; width: calc(#{$height} * #{math.div(23, 20)}); fill: $piggy-bank-color;
-    path, rect{ stroke: $piggy-bank-detail-color; stroke-width: 0.8; stroke-linejoin: round; }
-    path[fill="none"]{ stroke-width: 1.2; } //the tail
-}
-//the forward icon (fa-forward) looks as tall as a piggy bank of height h at a font size of h times this: the pig's drawing
-//fills 17.2 of its viewBox's 20 units (ear to feet), fa-forward's glyph about 0.754 of its font size
-$forward-icon-to-piggy-height: math.div(17.2, 20) * math.div(1, 0.754);
+//the bank icon (fa6-coins, Game.getBankIconHtml) is muted rose in the Stop/More log rows, white like the text on the Stop
+//button and the banked column badge
+$log-bank-icon-color: #d9788f;
+//Font Awesome 6's forward glyph fills about 0.754 of its font size, the coins glyph all of it (512 of 512 units): at this
+//many times the coins' font size, the forward icon looks as tall as the coins
+$forward-icon-to-bank-icon-scale: math.div(1, 0.754);
 
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
-//metrics, which grew the button: its span gets line-height 0 so it can't. The piggy bank (Game.getPiggyBankSVG) is white like
-//the text 
-$button-piggy-height: 1.3em;
+//metrics, which grew the button: its span gets line-height 0 so it can't. The bank icon (Game.getBankIconHtml) is white like
+//the text
+$button-bank-icon-size: 1.118em;
 #stop-button{ background: var(--button-color-green); border-color: var(--button-color-green);
     &:hover{ background: #437f24; border-color: #437f24; }
     //pulled toward the number: the translated label's space plus the fallback font's side bearing left too wide a gap,
     //and dropping the space (which translators keep) left too narrow a one
     .button-star{ line-height: 0; margin-left: 0.15em; }
-    //a little taller than the text, centered on the letters. The negative top and bottom margins keep its margin box 1em
-    //tall, inside the line box, so the button keeps its height
-    //not the rose piggy-bank mixin: on the green button it stays white like the text, with no outline
-    .button-piggy-bank{ display: inline-block; height: $button-piggy-height; width: auto; margin: -0.15em 0.3em -0.05em -6px; vertical-align: -0.15em; fill: currentColor; }
+    //a little taller than the text, placed like the Keep Going button's forward icon (same glyph center, same gaps).
+    //line-height 0 so the bigger glyph can't make the button taller
+    //1px further left than the forward icon (-5px, and 1px more on its right), so the label doesn't move
+    .button-bank-icon{ display: inline-block; font-size: $button-bank-icon-size; line-height: 0; margin: 0px calc(#{math.div(0.3em, math.div($button-bank-icon-size, 1em))} + 1px) 0px -5px; vertical-align: -0.145em; }
 }
-//"Keep Going" starts with the logs' forward icon, white like its label, as tall as the Stop button's piggy bank and as far
+//"Keep Going" starts with the logs' forward icon, white like its label, as tall as the Stop button's bank icon and as far
 //from the text. line-height 0 (like .button-star) so the bigger glyph can't make the button taller; the right margin is the
-//piggy bank's, converted to the icon's own font size; the left one is 2px more than the pig's, since only the pig's thin
-//tail reaches its left edge and its body starts about 2px further in, while the glyph starts with a solid edge (measured in
-//Studio). The drop (in the icon's own em) centers the glyph on the capital letters (measured in Studio)
-#more-button .button-forward-icon{ $scale: $button-piggy-height * $forward-icon-to-piggy-height; font-size: $scale; line-height: 0; margin: 0px math.div(0.3em, math.div($scale, 1em)) 0px -4px; vertical-align: -0.145em; }
+//bank icon's, converted to the icon's own font size. The drop (in the icon's own em) centers the glyph on the capital
+//letters (measured in Studio)
+#more-button .button-forward-icon{ $scale: $button-bank-icon-size * $forward-icon-to-bank-icon-scale; font-size: $scale; line-height: 0; margin: 0px math.div(0.3em, math.div($scale, 1em)) 0px -4px; vertical-align: -0.145em; }
 //the card whose power only resolves on Keep Going, after the label: a white disc with the number alone, in the card's color.
 //Out of the flow and stretched between top and bottom, so it fills the button's
 //height, stays centered whatever the font and can't make the button taller; the padding keeps the label clear of it, and the
@@ -442,16 +434,16 @@ body.current_player_is_active:not(.lockedInterface){
         //white, yellow, orange, teal, lime (PlayedColumnHandler.isLightColor): dark star and number on the pill
         &[data-light-owner-color="true"] .played-column-stars{ color: #1d1d1d; }
 
-        //stopped: the stars are banked (in the score), so the badge is a muted grey piggy bank and the cards dim a little.
+        //stopped: the stars are banked (in the score), so the badge is a muted grey bank icon and the cards dim a little.
         //Same 0.4s fade as a crashed column, both ways (the next round's 'in' fades them back)
         .played-column-stars, .cards-column{ transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease; }
-        //white like the badge's text, greyed by the stopped pill's opacity; not the rose piggy-bank mixin, which is for the log
-        .played-column-piggy-bank{ display: block; height: 0.82em; width: auto; fill: currentColor; } //about the number's height
+        //white like the badge's text, greyed by the stopped pill's opacity; not the log's rose
+        .played-column-bank-icon{ display: block; font-size: 0.7052em; line-height: 1; } //about the number's height
         &[data-round-status="stopped"]{
             .played-column-stars{ opacity: 0.6; color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
             .cards-column{ opacity: 0.75; }
         }
-        //crashed: a white bomb as tall as the piggy bank on the same grey pill, with no opacity of its own (the whole column
+        //crashed: a white bomb as tall as the bank icon on the same grey pill, with no opacity of its own (the whole column
         //already fades to 0.45, so the pill ends up about as light as a stopped one's)
         .played-column-bomb{ display: block; font-size: 0.82em; line-height: 1; }
         &[data-round-status="crashed"] .played-column-stars{ color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
@@ -738,22 +730,22 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
     .dice-rolled-row, .die-reserved-row, .die-modified-row{
         .a-die:not([data-reserved-by-power2=""]){ box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0px 0px 2px #000000; }
     }
-    //one "name [icon]" line per player ("name [piggy bank] N ★" for a stopper, "name [bomb]" for a crash this round), lined up
+    //one "name [icon]" line per player ("name [bank icon] N ★" for a stopper, "name [bomb]" for a crash this round), lined up
     //as a table like the reveal row: each .stop-or-more-line hands its 2 children to the row's grid (display: contents). The
     //name column is as wide as the longest name in this row (never cut), so every icon starts at the same x, 6px after it; the
     //block stays at the left of the log row
     .stop-or-more-row{ display: grid; grid-template-columns: max-content auto; justify-content: start; justify-items: start; align-items: center; gap: 4px 6px; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
         .stop-or-more-line{ display: contents; }
         //"[icon] N ★" or "[icon]", centred on the name by the grid. Each icon is centred in a slot of the same width, so the
-        //piggy bank, the play icon and the bomb share one vertical axis whatever their shapes. The slot is wide enough for the
-        //piggy bank, which with a stopper's stars (4px after it) is 20% bigger than the other icons
+        //bank icon, the play icon and the bomb share one vertical axis whatever their shapes. The slot is wide enough for the
+        //bank icon, which with a stopper's stars (4px after it) is 20% bigger than the other icons
         .stop-or-more-choice{ display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
         .stop-or-more-icon-slot{ display: inline-flex; align-items: center; justify-content: center; width: 1.8em; flex-shrink: 0; }
         .stop-or-more-icon{ font-size: 1.36em; } //20% bigger than the names
-        $stop-or-more-piggy-height: 1.5em;
-        .log-piggy-bank{ @include piggy-bank($stop-or-more-piggy-height); }
-        //More's forward icon looks as tall as the piggy bank
-        .stop-or-more-icon.fa-forward{ font-size: $stop-or-more-piggy-height * $forward-icon-to-piggy-height; }
+        $log-bank-icon-size: 1.29em;
+        .log-bank-icon{ display: block; font-size: $log-bank-icon-size; line-height: 1; color: $log-bank-icon-color; }
+        //More's forward icon looks as tall as the bank icon
+        .stop-or-more-icon.fa-forward{ font-size: $log-bank-icon-size * $forward-icon-to-bank-icon-scale; }
         .stop-or-more-stars{ font-size: 1.2em;
             .stop-or-more-amount{ color: #424242; }
             .stop-or-more-star{ color: #f9a11a; }

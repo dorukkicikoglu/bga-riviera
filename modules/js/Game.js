@@ -232,10 +232,10 @@ class StopOrMore {
             this.bga.statusBar.setTitle(_('${you} must choose an action'));
             const starsTotal = this.game.myself.getPlayedColumn().getStarsTotal();
             //the ★ gets its own span so its fallback font can't make this button taller than the others (see #stop-button in Game.scss)
-            //the piggy bank goes in front of the translated label, so translators never see the SVG
-            const stopLabel = this.game.getPiggyBankSVG('button-piggy-bank') + _('Stop and bank ${stars}★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
+            //the bank icon goes in front of the translated label, so translators never see its HTML
+            const stopLabel = this.game.getBankIconHtml('button-bank-icon') + _('Stop and bank ${stars}★').replace('${stars}', starsTotal.toString()).replace('★', '<span class="button-star">★</span>');
             this.bga.statusBar.addActionButton(stopLabel, () => this.bga.actions.performAction('actStop'), { id: 'stop-button' });
-            //the logs' More icon, in front of the translated label like the Stop button's piggy bank
+            //the logs' More icon, in front of the translated label like the Stop button's bank icon
             //after the label, the card whose power only resolves if I keep going (nothing when there is none)
             const moreLabel = '<i class="fa6 fa-forward button-forward-icon" aria-hidden="true"></i>' + _('Keep Going') + this.game.getStatusCardIconHTML(this.powerCardNeedingMore);
             const moreButton = this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
@@ -994,11 +994,11 @@ class PlayedColumnHandler {
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
     //a stopped column's stars are already in the score (banked at the Stop reveal) and can't change: the badge shows the
-    //piggy bank with no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's
+    //bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's
     //badge shows a bomb (the crash log row's icon), also with no number
     updateStarsTotal() {
         if (this.isBanked())
-            this.starsText.innerHTML = this.game.getPiggyBankSVG('played-column-piggy-bank');
+            this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if (this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
         else
@@ -2287,11 +2287,11 @@ class LogMutationObserver {
         return this.addLogClassTag(logHTML, 'start-token-log');
     }
     //one line per player, stoppers, then More, then players who crashed this round, each group clockwise from the Start token
-    //holder (the rows' order): "name [piggy bank] N ★" with the stars banked, "name [forward]", "name [bomb]" (the crash row's
+    //holder (the rows' order): "name [bank icon] N ★" with the stars banked, "name [forward]", "name [bomb]" (the crash row's
     //icon). Each icon sits in a fixed-width slot, so they all share one vertical axis; the play and bomb icons' titles name them
     createLogStopOrMoreRevealed(rows) {
         const iconsHTML = {
-            stop: this.game.getPiggyBankSVG('log-piggy-bank'),
+            stop: this.game.getBankIconHtml('log-bank-icon'),
             more: `<i class="fa6 fa-forward stop-or-more-icon" title="${_('Continues').replace(/"/g, '&quot;')}"></i>`,
             crash: `<i class="fa6 fa-bomb stop-or-more-icon" title="${_('Crashed').replace(/"/g, '&quot;')}"></i>`,
         };
@@ -3314,18 +3314,11 @@ class Game {
         this.localCardIDCounter++;
         return `<span id="${iconID}" class="status-card-icon${powerClass}" data-color="${card.color}" data-value="${card.value}"><span class="status-card-icon-number" aria-hidden="true"></span><span class="status-card-icon-text">${cardText}</span></span>`;
     }
-    //the piggy bank icon, inline (BGA's Font Awesome has none), for the banked column badge and the "Stop and bank" button.
-    //Body, coin slot and eye are one evenodd path, so the slot and the eye are holes showing what is behind. Filled by CSS
-    //(fill: currentColor on its class), the tail stroked in currentColor
-    getPiggyBankSVG(className) {
-        return `<svg class="${className}" viewBox="0 0 23 20" aria-hidden="true" focusable="false">
-            <path fill-rule="evenodd" d="M2.5 10.5a8.5 6.5 0 1 0 17 0a8.5 6.5 0 1 0 -17 0Z M10.2 5.1h4.4v1.2h-4.4Z M14.6 8.3a0.9 0.9 0 1 0 1.8 0a0.9 0.9 0 1 0 -1.8 0Z"/>
-            <path d="M5.5 6L6.8 1.8L9.8 4.4Z"/>
-            <rect x="18.5" y="8.2" width="3.5" height="4.6" rx="1.2"/>
-            <rect x="5.5" y="14.5" width="3" height="4.5" rx="1"/>
-            <rect x="12.5" y="14.5" width="3" height="4.5" rx="1"/>
-            <path d="M2.8 9C1 9 0.8 7 2.2 6.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>`;
+    //the bank icon (Font Awesome 6's coins, BGA's fa6 fa6-<name>) of the "Stop and bank" button, the Stop/More log row and the
+    //banked column badge, the one source for all three. className is the place's class (button-bank-icon, log-bank-icon,
+    //played-column-bank-icon), which Game.scss sizes and colors
+    getBankIconHtml(className) {
+        return `<i class="fa6 fa6-coins ${className}" aria-hidden="true"></i>`;
     }
     //the circular card icon (getStatusCardIconHTML) at text size, to sit inline in a sentence (tooltips), sized by .inline-card-icon
     getInlineCardIconHTML(color, value) {

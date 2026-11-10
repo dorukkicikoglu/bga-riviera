@@ -475,13 +475,12 @@ body .sliding-clone {
   line-height: 0;
   margin-left: 0.15em;
 }
-#stop-button .button-piggy-bank {
+#stop-button .button-bank-icon {
   display: inline-block;
-  height: 1.3em;
-  width: auto;
-  margin: -0.15em 0.3em -0.05em -6px;
-  vertical-align: -0.15em;
-  fill: currentColor;
+  font-size: 1.118em;
+  line-height: 0;
+  margin: 0px calc(0.2683363148em + 1px) 0px -5px;
+  vertical-align: -0.145em;
 }
 
 #more-button .button-forward-icon {
@@ -1109,11 +1108,10 @@ body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-co
 #played-columns-container .a-played-column .played-column-stars, #played-columns-container .a-played-column .cards-column {
   transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease;
 }
-#played-columns-container .a-played-column .played-column-piggy-bank {
+#played-columns-container .a-played-column .played-column-bank-icon {
   display: block;
-  height: 0.82em;
-  width: auto;
-  fill: currentColor;
+  font-size: 0.7052em;
+  line-height: 1;
 }
 #played-columns-container .a-played-column[data-round-status=stopped] .played-column-stars {
   opacity: 0.6;
@@ -1707,19 +1705,11 @@ body .start-token.flying-start-token {
 .log .stop-or-more-row .stop-or-more-icon, .gamelogreview .stop-or-more-row .stop-or-more-icon {
   font-size: 1.36em;
 }
-.log .stop-or-more-row .log-piggy-bank, .gamelogreview .stop-or-more-row .log-piggy-bank {
+.log .stop-or-more-row .log-bank-icon, .gamelogreview .stop-or-more-row .log-bank-icon {
   display: block;
-  height: 1.5em;
-  width: calc(1.5em * 1.15);
-  fill: #d9788f;
-}
-.log .stop-or-more-row .log-piggy-bank path, .log .stop-or-more-row .log-piggy-bank rect, .gamelogreview .stop-or-more-row .log-piggy-bank path, .gamelogreview .stop-or-more-row .log-piggy-bank rect {
-  stroke: #a34a62;
-  stroke-width: 0.8;
-  stroke-linejoin: round;
-}
-.log .stop-or-more-row .log-piggy-bank path[fill=none], .gamelogreview .stop-or-more-row .log-piggy-bank path[fill=none] {
-  stroke-width: 1.2;
+  font-size: 1.29em;
+  line-height: 1;
+  color: #d9788f;
 }
 .log .stop-or-more-row .stop-or-more-icon.fa-forward, .gamelogreview .stop-or-more-row .stop-or-more-icon.fa-forward {
   font-size: 1.7108753316em;
@@ -2451,5 +2441,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */
