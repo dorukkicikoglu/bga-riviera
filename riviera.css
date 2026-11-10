@@ -2238,6 +2238,21 @@ body .start-token.flying-start-token {
   background-position: calc(38px * -4.9206349206) calc(38px * 0);
 }
 
+.card-power-badge {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: linear-gradient(#fff6dc, #f2d68c);
+}
+.card-power-badge .power-icon {
+  float: none;
+  margin: 0px;
+}
+
 .status-card-with-power {
   display: inline-flex;
   align-items: center;
@@ -2246,67 +2261,89 @@ body .start-token.flying-start-token {
 .status-card-with-power .status-card-icon {
   margin-right: 0px;
 }
-.status-card-with-power .power-icon {
-  margin: 0px 3px 0px 2.5px;
-  height: 30px;
+.status-card-with-power .card-power-badge {
+  width: calc(40px * 0.66);
+  height: calc(40px * 0.66);
+  margin-left: calc(calc(40px * 0.66) * -0.16);
+  border-radius: calc(calc(40px * 0.66) * 0.22);
+  box-shadow: 0px calc(calc(40px * 0.66) * 0.06) calc(calc(40px * 0.66) * 0.18) rgba(0, 0, 0, 0.55), 0px 0px 0px 0.5px rgba(0, 0, 0, 0.25);
 }
-.status-card-with-power .power-icon[data-power-value="1"] {
-  width: calc(30px * 0.6984126984);
-  background-size: calc(30px * 6.0317460317) calc(30px * 1);
-  background-position: calc(30px * -0.253968254) calc(30px * 0);
+.status-card-with-power .card-power-badge .power-icon[data-power-value="1"] {
+  width: calc(calc(calc(40px * 0.66) * 0.84) * 0.6984126984);
+  height: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(40px * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(40px * 0.66) * 0.84) * -0.253968254) calc(calc(calc(40px * 0.66) * 0.84) * 0);
 }
-.status-card-with-power .power-icon[data-power-value="2"] {
-  width: calc(30px * 1);
-  background-size: calc(30px * 6.0317460317) calc(30px * 1);
-  background-position: calc(30px * -1.3015873016) calc(30px * 0);
+.status-card-with-power .card-power-badge .power-icon[data-power-value="2"] {
+  width: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(40px * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(40px * 0.66) * 0.84) * -1.3015873016) calc(calc(calc(40px * 0.66) * 0.84) * 0);
 }
-.status-card-with-power .power-icon[data-power-value="9"] {
-  width: calc(30px * 1);
-  background-size: calc(30px * 6.0317460317) calc(30px * 1);
-  background-position: calc(30px * -2.5079365079) calc(30px * 0);
+.status-card-with-power .card-power-badge .power-icon[data-power-value="9"] {
+  width: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(40px * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(40px * 0.66) * 0.84) * -2.5079365079) calc(calc(calc(40px * 0.66) * 0.84) * 0);
 }
-.status-card-with-power .power-icon[data-power-value="10"] {
-  width: calc(30px * 1.5833333333);
-  background-size: calc(30px * 7.9166666667) calc(30px * 1.3125);
-  background-position: calc(30px * -4.75) calc(30px * -0.1458333333);
+.status-card-with-power .card-power-badge .power-icon[data-power-value="10"] {
+  width: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(40px * 0.66) * 0.84) * 0.6315789474);
+  background-size: calc(calc(calc(40px * 0.66) * 0.84) * 5) calc(calc(calc(40px * 0.66) * 0.84) * 0.8289473684);
+  background-position: calc(calc(calc(40px * 0.66) * 0.84) * -3) calc(calc(calc(40px * 0.66) * 0.84) * -0.0921052632);
 }
-.status-card-with-power .power-icon[data-power-value="11"] {
-  width: calc(30px * 1);
-  background-size: calc(30px * 6.0317460317) calc(30px * 1);
-  background-position: calc(30px * -4.9206349206) calc(30px * 0);
+.status-card-with-power .card-power-badge .power-icon[data-power-value="11"] {
+  width: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(40px * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(40px * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(40px * 0.66) * 0.84) * -4.9206349206) calc(calc(calc(40px * 0.66) * 0.84) * 0);
+}
+.status-card-with-power .card-power-badge {
+  margin-right: 3px;
 }
 
 .log .log-card-icons .status-card-with-power .status-card-icon, .gamelogreview .log-card-icons .status-card-with-power .status-card-icon {
   margin-right: 0px;
 }
-.log .log-card-icons .status-card-with-power .power-icon, .gamelogreview .log-card-icons .status-card-with-power .power-icon {
-  margin: 0px 1px 0px 2.5px;
-  height: calc(var(--log-card-icon-size) * 0.75);
+.log .log-card-icons .status-card-with-power .card-power-badge, .gamelogreview .log-card-icons .status-card-with-power .card-power-badge {
+  width: calc(var(--log-card-icon-size) * 0.66);
+  height: calc(var(--log-card-icon-size) * 0.66);
+  margin-left: calc(calc(var(--log-card-icon-size) * 0.66) * -0.16);
+  border-radius: calc(calc(var(--log-card-icon-size) * 0.66) * 0.22);
+  box-shadow: 0px calc(calc(var(--log-card-icon-size) * 0.66) * 0.06) calc(calc(var(--log-card-icon-size) * 0.66) * 0.18) rgba(0, 0, 0, 0.55), 0px 0px 0px 0.5px rgba(0, 0, 0, 0.25);
 }
-.log .log-card-icons .status-card-with-power .power-icon[data-power-value="1"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="1"] {
-  width: calc(calc(var(--log-card-icon-size) * 0.75) * 0.6984126984);
-  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -0.253968254) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+.log .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="1"], .gamelogreview .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="1"] {
+  width: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0.6984126984);
+  height: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -0.253968254) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0);
 }
-.log .log-card-icons .status-card-with-power .power-icon[data-power-value="2"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="2"] {
-  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -1.3015873016) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+.log .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="2"], .gamelogreview .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="2"] {
+  width: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -1.3015873016) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0);
 }
-.log .log-card-icons .status-card-with-power .power-icon[data-power-value="9"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="9"] {
-  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -2.5079365079) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+.log .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="9"], .gamelogreview .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="9"] {
+  width: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -2.5079365079) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0);
 }
-.log .log-card-icons .status-card-with-power .power-icon[data-power-value="10"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="10"] {
-  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1.5833333333);
-  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 7.9166666667) calc(calc(var(--log-card-icon-size) * 0.75) * 1.3125);
-  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -4.75) calc(calc(var(--log-card-icon-size) * 0.75) * -0.1458333333);
+.log .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="10"], .gamelogreview .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="10"] {
+  width: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0.6315789474);
+  background-size: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 5) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0.8289473684);
+  background-position: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -3) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -0.0921052632);
 }
-.log .log-card-icons .status-card-with-power .power-icon[data-power-value="11"], .gamelogreview .log-card-icons .status-card-with-power .power-icon[data-power-value="11"] {
-  width: calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-size: calc(calc(var(--log-card-icon-size) * 0.75) * 6.0317460317) calc(calc(var(--log-card-icon-size) * 0.75) * 1);
-  background-position: calc(calc(var(--log-card-icon-size) * 0.75) * -4.9206349206) calc(calc(var(--log-card-icon-size) * 0.75) * 0);
+.log .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="11"], .gamelogreview .log-card-icons .status-card-with-power .card-power-badge .power-icon[data-power-value="11"] {
+  width: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  height: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-size: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 6.0317460317) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 1);
+  background-position: calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * -4.9206349206) calc(calc(calc(var(--log-card-icon-size) * 0.66) * 0.84) * 0);
+}
+.log .log-card-icons .status-card-with-power .card-power-badge, .gamelogreview .log-card-icons .status-card-with-power .card-power-badge {
+  margin-right: 1px;
 }
 .log .log-card-icons .status-card-with-power:not(:last-child), .gamelogreview .log-card-icons .status-card-with-power:not(:last-child) {
   margin-right: 4px;

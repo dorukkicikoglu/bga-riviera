@@ -856,7 +856,8 @@ class SwapCards {
             this.bga.statusBar.setTitle(title, { card: this.game.getStatusCardWithPowerHTML(this.args.powerCard) });
         }
         else {
-            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+            //each selected card with its power badge, like the other status bar titles
+            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardWithPowerHTML(this.game.handHandler.getCardData(cardID))).join('');
             if (isSwap) {
                 this.bga.statusBar.setTitle(_('Choose an opponent to swap ${cards}'), { cards: cardsIcons });
                 for (let target of this.args.targets) {
@@ -1410,9 +1411,9 @@ class TooltipHandler {
     addTooltipsToCardsIn(container) {
         if (this.isSafariMobile() || !container)
             return;
-        //.power-icon[id]: the power icon next to a circular card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
-        //Both also appear in log rows, where they keep the log mini cards' tooltip look
-        container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card) => {
+        //.card-power-badge[id]: the power badge on a circular card icon (Game.getStatusCardWithPowerHTML). Both also appear in log
+        //rows, where they keep the log mini cards' tooltip look
+        container.querySelectorAll('.a-card[id], .status-card-icon[id], .card-power-badge[id]').forEach((card) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if (card.classList.contains(TooltipHandler.getPowerCardClass(value)))
                 this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.closest('#pagemaintitletext') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);
@@ -2420,7 +2421,7 @@ class LogMutationObserver {
         return this.addLogClassTag(logHTML, 'game-end-log');
     }
     //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons. withPowerIcons:
-    //each power card followed by its power icon, as in the status bar (Game.getStatusCardWithPowerHTML)
+    //each power card with its power badge, as in the status bar (Game.getStatusCardWithPowerHTML)
     getCardIconsHTML(cards, withPowerIcons = false) {
         const iconsHTML = cards.map(card => withPowerIcons ? this.game.getStatusCardWithPowerHTML(card) : this.game.getStatusCardIconHTML(card)).join('');
         return `<span class="log-card-icons">${iconsHTML}</span>`;
@@ -3330,21 +3331,21 @@ class Game {
     getInlineCardIconHTML(color, value) {
         return `<span class="inline-card-icon">${this.getStatusCardIconHTML({ card_id: null, color: color, value: value })}</span>`;
     }
-    //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
-    //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
-    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. The two are wrapped in one .status-card-with-power,
-    //which holds them closer than separate cards and on the same line. Cards without a power get the card icon alone
+    //the circular card icon with, for a card with a power (1, 2, 9, 10, 11), that power's badge attached to its right edge
+    //(getPowerBadgeHTML), so the two read as one icon. Both sit in one .status-card-with-power, which keeps them on the same
+    //line; Game.scss sizes the badge from the card icon wherever the pair sits (card-power-badge mixin). Cards without a power
+    //get the card icon alone
     getStatusCardWithPowerHTML(card) {
         if (!card || !POWER_CARD_VALUES.includes(card.value))
             return this.getStatusCardIconHTML(card);
-        return `<span class="status-card-with-power">${this.getStatusCardIconHTML(card)}${this.getPowerIconHTML(card.value)}</span>`;
+        return `<span class="status-card-with-power">${this.getStatusCardIconHTML(card)}${this.getPowerBadgeHTML(card.value)}</span>`;
     }
-    //a power's icon (the power reference's .power-icon) with its own id and the power-card-POWER<n> class, so
-    //addTooltipsToCardsIn gives it that power's tooltip. Sized by where it sits (status bar title, reveal log row)
-    getPowerIconHTML(value) {
-        const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+    //a power's icon (the power reference's .power-icon) in a small square cream badge. The badge gets its own id and the
+    //power-card-POWER<n> class, so addTooltipsToCardsIn gives the whole badge that power's tooltip
+    getPowerBadgeHTML(value) {
+        const badgeID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
-        return `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(value)}" data-power-value="${value}" aria-hidden="true"></span>`;
+        return `<span id="${badgeID}" class="card-power-badge ${TooltipHandler.getPowerCardClass(value)}" data-power-value="${value}" aria-hidden="true"><span class="power-icon" data-power-value="${value}"></span></span>`;
     }
     getGameStateName() { return this.gamedatas.gamestate.name; }
     getColorIndex(color) {

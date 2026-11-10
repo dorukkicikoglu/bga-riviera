@@ -367,7 +367,7 @@ export class LogMutationObserver{
     }
 
     //the status bar's circular card icons (Game.getStatusCardIconHTML), sized for the log by .log-card-icons. withPowerIcons:
-    //each power card followed by its power icon, as in the status bar (Game.getStatusCardWithPowerHTML)
+    //each power card with its power badge, as in the status bar (Game.getStatusCardWithPowerHTML)
     private getCardIconsHTML(cards: RivieraCard[], withPowerIcons: boolean = false): string {
         const iconsHTML = cards.map(card => withPowerIcons ? this.game.getStatusCardWithPowerHTML(card) : this.game.getStatusCardIconHTML(card)).join('');
         return `<span class="log-card-icons">${iconsHTML}</span>`;

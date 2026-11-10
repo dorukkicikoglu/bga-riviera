@@ -140,9 +140,9 @@ export class TooltipHandler{
         if(this.isSafariMobile() || !container)
             return;
 
-        //.power-icon[id]: the power icon next to a circular card icon (Game.getStatusCardWithPowerHTML); the power reference's icons have no id.
-        //Both also appear in log rows, where they keep the log mini cards' tooltip look
-        container.querySelectorAll('.a-card[id], .status-card-icon[id], .power-icon[id]').forEach((card: HTMLElement) => {
+        //.card-power-badge[id]: the power badge on a circular card icon (Game.getStatusCardWithPowerHTML). Both also appear in log
+        //rows, where they keep the log mini cards' tooltip look
+        container.querySelectorAll('.a-card[id], .status-card-icon[id], .card-power-badge[id]').forEach((card: HTMLElement) => {
             const value = parseInt(card.getAttribute('data-value') ?? card.getAttribute('data-power-value'));
             if(card.classList.contains(TooltipHandler.getPowerCardClass(value)))
                 this.game.bga.gameui.addTooltipHtml(card.id, this.getPowerTooltipHTML(value, card.closest('#pagemaintitletext') ? 'status-bar-power-tooltip' : ''), TooltipHandler.TOOLTIP_DELAY);

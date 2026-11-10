@@ -529,23 +529,23 @@ export class Game {
         return `<span class="inline-card-icon">${this.getStatusCardIconHTML({ card_id: null, color: color, value: value })}</span>`;
     }
 
-    //the circular card icon followed, for a card with a power (1, 2, 9, 10, 11), by that power's icon (the power reference's
-    //.power-icon, sized to the card icon in the status bar). The power icon gets its own id and the power-card-POWER<n> class,
-    //so addTooltipsToCardsIn gives it the same power tooltip as the card icon. The two are wrapped in one .status-card-with-power,
-    //which holds them closer than separate cards and on the same line. Cards without a power get the card icon alone
+    //the circular card icon with, for a card with a power (1, 2, 9, 10, 11), that power's badge attached to its right edge
+    //(getPowerBadgeHTML), so the two read as one icon. Both sit in one .status-card-with-power, which keeps them on the same
+    //line; Game.scss sizes the badge from the card icon wherever the pair sits (card-power-badge mixin). Cards without a power
+    //get the card icon alone
     public getStatusCardWithPowerHTML(card: RivieraCard | null): string {
         if(!card || !POWER_CARD_VALUES.includes(card.value))
             return this.getStatusCardIconHTML(card);
 
-        return `<span class="status-card-with-power">${this.getStatusCardIconHTML(card)}${this.getPowerIconHTML(card.value)}</span>`;
+        return `<span class="status-card-with-power">${this.getStatusCardIconHTML(card)}${this.getPowerBadgeHTML(card.value)}</span>`;
     }
 
-    //a power's icon (the power reference's .power-icon) with its own id and the power-card-POWER<n> class, so
-    //addTooltipsToCardsIn gives it that power's tooltip. Sized by where it sits (status bar title, reveal log row)
-    public getPowerIconHTML(value: number): string {
-        const powerIconID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
+    //a power's icon (the power reference's .power-icon) in a small square cream badge. The badge gets its own id and the
+    //power-card-POWER<n> class, so addTooltipsToCardsIn gives the whole badge that power's tooltip
+    public getPowerBadgeHTML(value: number): string {
+        const badgeID = 'an-id-required-for-tooltips-' + this.localCardIDCounter;
         this.localCardIDCounter++;
-        return `<span id="${powerIconID}" class="power-icon ${TooltipHandler.getPowerCardClass(value)}" data-power-value="${value}" aria-hidden="true"></span>`;
+        return `<span id="${badgeID}" class="card-power-badge ${TooltipHandler.getPowerCardClass(value)}" data-power-value="${value}" aria-hidden="true"><span class="power-icon" data-power-value="${value}"></span></span>`;
     }
     public getGameStateName(): string { return this.gamedatas.gamestate.name; }
 

@@ -69,7 +69,8 @@ export class SwapCards {
                 title = (this.args.maxCards === 1) ? _('${you} may choose 1 card to discard ${card}') : _('${you} may choose 2 cards to discard ${card}');
             this.bga.statusBar.setTitle(title, { card: this.game.getStatusCardWithPowerHTML(this.args.powerCard) });
         } else {
-            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardIconHTML(this.game.handHandler.getCardData(cardID))).join('');
+            //each selected card with its power badge, like the other status bar titles
+            const cardsIcons = selectedCardIDs.map(cardID => this.game.getStatusCardWithPowerHTML(this.game.handHandler.getCardData(cardID))).join('');
 
             if(isSwap){
                 this.bga.statusBar.setTitle(_('Choose an opponent to swap ${cards}'), { cards: cardsIcons });

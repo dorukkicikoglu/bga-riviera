@@ -956,22 +956,51 @@ $power-icons: (
     }
 }
 .power-icon{ float: left; margin: 2px 8px 0px 0px; background-image: var(--image-source-power-icons); background-repeat: no-repeat; @include power-icon-size($power-icon-height); }
-//a power icon's height next to its card icon, as a share of the card icon's, in status bar titles and log rows alike
-$card-power-icon-scale: 0.75;
-//status bar titles (Game.getStatusCardWithPowerHTML): the power icon right after the circular card icon, a little smaller than
-//it and centered on it, so both are centered on the text. Half the 5px it used to be from its card, so it reads as that card's;
-//the outer margins are the card icon's and the power icon's own, so the 6px to a neighbouring card doesn't change
+//each power icon fitted whole inside a $box square, keeping its proportions: the taller ones fill its height, card 10 (wider
+//than tall) its width. $box can be a CSS variable or calc()
+@mixin power-icon-fit($box){
+    @each $value, $icon in $power-icons {
+        $scale: math.div(1, math.max(map.get($icon, width), map.get($icon, height)));
+        &[data-power-value="#{$value}"]{ width: calc(#{$box} * #{$scale * map.get($icon, width)}); height: calc(#{$box} * #{$scale * map.get($icon, height)}); background-size: calc(#{$box} * #{$scale * $power-icon-sprite-width}) calc(#{$box} * #{$scale * $power-icon-sprite-height}); background-position: calc(#{$box} * #{-$scale * map.get($icon, x)}) calc(#{$box} * #{-$scale * map.get($icon, y)}); }
+    }
+}
+//the power badge on a circular card icon (Game.getPowerBadgeHTML): a cream square holding the power icon, attached to the
+//circle's right edge, vertically centered and over it, so the card and its power read as one icon. Every size is a share of
+//the card icon's diameter (card-power-badge mixin), so it scales with it. A soft shadow and a faint hairline ring, not a
+//border, set it off from the circle and from light log backgrounds.
+//The overlap covers the ring and the edge of the circle's inside: on "10" and "11", the widest numbers, it reaches about 2px
+//(at 40px) into the right edge of the glyph's outline.
+//The badge's right margin sits outside it (the status bar's 3px, the logs' 1px + 4px), so the gap to the next card stays 6px
+//whatever its size
+$card-power-badge-scale: 0.66; //the badge's side, as a share of the card icon's diameter (0.55 made 20% larger)
+$card-power-badge-overlap: 0.16; //the share of the badge's width over the circle
+$card-power-badge-icon-fill: 0.84; //the power icon's box, as a share of the badge's side
+$card-power-badge-background: linear-gradient(#fff6dc, #f2d68c); //the power cards' cream glow down to a soft gold
+.card-power-badge{ position: relative; z-index: 1; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; box-sizing: border-box; background: $card-power-badge-background;
+    .power-icon{ float: none; margin: 0px; }
+}
+@mixin card-power-badge($card-icon-size){
+    $badge-size: calc(#{$card-icon-size} * #{$card-power-badge-scale});
+    .card-power-badge{ width: $badge-size; height: $badge-size; margin-left: calc(#{$badge-size} * #{-$card-power-badge-overlap}); border-radius: calc(#{$badge-size} * 0.22);
+        box-shadow: 0px calc(#{$badge-size} * 0.06) calc(#{$badge-size} * 0.18) rgba(0, 0, 0, 0.55), 0px 0px 0px 0.5px rgba(0, 0, 0, 0.25);
+        .power-icon{ @include power-icon-fit(calc(#{$badge-size} * #{$card-power-badge-icon-fill})); }
+    }
+}
+//status bar titles (Game.getStatusCardWithPowerHTML): the badge sized from the 40px card icon. Its right margin is the card
+//icon's, so the 6px to a neighbouring card doesn't change
 .status-card-with-power{ display: inline-flex; align-items: center; vertical-align: middle;
     .status-card-icon{ margin-right: 0px; }
-    .power-icon{ margin: 0px 3px 0px 2.5px; @include power-icon-size($status-card-icon-size * $card-power-icon-scale); }
+    @include card-power-badge($status-card-icon-size);
+    .card-power-badge{ margin-right: 3px; }
 }
 //the same group in a log row (the reveal row's cards), sized from the log's card icons. Log cards sit only 2px apart, closer
-//than a card to its power icon, so the wrapper's margin makes the gap after a power icon the status bar's 6px, with the power
-//icon's 1px and the next card's 1px. A card-1 chain only continues after a 1, so every card gap in this row follows a power icon
+//than the status bar's, so the wrapper's margin makes the gap after a badge the status bar's 6px, with the badge's 1px and the
+//next card's 1px. A card-1 chain only continues after a 1, so every card gap in this row follows a badge
 .log, .gamelogreview{
     .log-card-icons .status-card-with-power{
         .status-card-icon{ margin-right: 0px; }
-        .power-icon{ margin: 0px 1px 0px 2.5px; @include power-icon-size(calc(var(--log-card-icon-size) * #{$card-power-icon-scale})); }
+        @include card-power-badge(var(--log-card-icon-size));
+        .card-power-badge{ margin-right: 1px; }
         &:not(:last-child){ margin-right: 4px; }
     }
 }
