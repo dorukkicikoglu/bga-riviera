@@ -1605,6 +1605,10 @@ body .start-token.flying-start-token {
   align-self: start;
   line-height: var(--log-card-icon-size);
 }
+.log.cards-revealed-log .log-arrow, .gamelogreview.cards-revealed-log .log-arrow {
+  display: inline-block;
+  transform: rotate(90deg);
+}
 .log .die-reserved-row, .log .golden-die-row, .log .die-modified-row, .log .cards-swapped-row, .log .cards-redrawn-row, .log .power-skipped-row, .gamelogreview .die-reserved-row, .gamelogreview .golden-die-row, .gamelogreview .die-modified-row, .gamelogreview .cards-swapped-row, .gamelogreview .cards-redrawn-row, .gamelogreview .power-skipped-row {
   display: flex;
   justify-content: center;

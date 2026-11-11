@@ -685,6 +685,9 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
             .playername, .log-arrow{ align-self: start; line-height: var(--log-card-icon-size); }
         }
     }
+    //the reveal row's curved arrow (fa-share) turned a quarter clockwise, so it curves down into the cards. A transform
+    //moves no layout, and it turns around the box's center, where the glyph sits, so it stays centered between name and cards
+    &.cards-revealed-log .log-arrow{ display: inline-block; transform: rotate(90deg); }
     //power rows: text with mini dice or mini cards inline
     .die-reserved-row, .golden-die-row, .die-modified-row, .cards-swapped-row, .cards-redrawn-row, .power-skipped-row{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 14px;
         .a-die{ display: inline-block; --die-size: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 1px 1px 2px #000000; }
