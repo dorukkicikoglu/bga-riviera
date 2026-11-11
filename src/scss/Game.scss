@@ -511,7 +511,12 @@ $hand-back-step-ratio: 0.2; //every 2nd back sits this share of the width lower
 //none of these classes. PlayerHandler.applyScoreHighlight swaps one class for the other, so they never run together. scale
 //never moves the layout: the grown score paints over its neighbours (the star) without pushing them
 $end-game-score-peak-scale: 1.8; //the score's size at the top of every intro beat and every loop pulse
-.player-score-counter{ display: inline-block; transform-origin: 50% 50%; }
+//Layering: the grown score must paint over the "/40" after it. The "/40"'s opacity and the score's scale each make a
+//stacking context, painted in DOM order, so the "/40" (later) used to cover the score. The score gets z-index 1, kept local
+//by isolating their shared parent (BGA's score row), so it only outranks its own row and stays under the Start token (10),
+//tooltips and everything of BGA's above the boards
+.player-score-counter{ display: inline-block; transform-origin: 50% 50%; position: relative; z-index: 1; }
+:has(> .player-score-counter){ isolation: isolate; }
 .end-game-score-player-board .player-score-counter{ color: var(--end-game-score-color); font-weight: bold; }
 .player-score-counter.end-game-score-intro{ font-weight: bold; animation: end-game-score-beats 1.2s ease-in-out forwards; }
 .player-score-counter.end-game-score-loop{ animation: end-game-score-pulse 2s ease-in-out infinite; }

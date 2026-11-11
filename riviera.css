@@ -1264,6 +1264,12 @@ body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-co
 .player-score-counter {
   display: inline-block;
   transform-origin: 50% 50%;
+  position: relative;
+  z-index: 1;
+}
+
+:has(> .player-score-counter) {
+  isolation: isolate;
 }
 
 .end-game-score-player-board .player-score-counter {
