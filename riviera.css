@@ -1052,6 +1052,10 @@ body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-co
   animation: none;
 }
 
+body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-card.undoable-chosen-card {
+  cursor: pointer;
+}
+
 #played-columns-container {
   display: flex;
   flex-wrap: wrap;
@@ -2080,7 +2084,8 @@ body .start-token.flying-start-token {
 
 .tooltip-wrapper.power-reference {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 0px 18px;
   box-sizing: border-box;
   width: min(640px, 92vw);
   max-width: 100%;
@@ -2107,6 +2112,15 @@ body .start-token.flying-start-token {
 }
 .tooltip-wrapper.power-reference .power-reference-heading:first-child {
   margin-top: 0px;
+}
+.tooltip-wrapper.power-reference .power-reference-hint {
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+  font-weight: bold;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(5, 17, 33, 0.35);
 }
 .tooltip-wrapper.power-reference .power-reference-entry {
   display: flow-root;
@@ -2516,5 +2530,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

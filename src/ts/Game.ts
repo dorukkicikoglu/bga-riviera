@@ -585,6 +585,12 @@ export class Game {
             this.swapCards.selectionChanged();
     }
 
+    //a set-aside card that can still be taken back was clicked (HandHandler only marks them in PlayCard)
+    public undoableChosenCardClicked(): void {
+        if(this.getGameStateName() === 'PlayCard')
+            this.playCard.chosenCardClicked();
+    }
+
     //card 10, seen by everyone but the two players involved: N card backs fly each way between their boards, all at once.
     //Both start points are measured before any back is added to a board, so one direction never starts from the other's back
     private async animateCardBacksSwap(firstPlayerID: number, secondPlayerID: number, count: number): Promise<void> {

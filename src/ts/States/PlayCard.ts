@@ -64,6 +64,7 @@ export class PlayCard {
      */
     onLeavingState(args: PlayCardArgs, isCurrentPlayerActive: boolean) {
         this.game.handHandler?.clearSelectableCards();
+        this.game.handHandler?.setChosenCardsUndoable(false); //the choices are locked in
         this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
     }
@@ -86,9 +87,14 @@ export class PlayCard {
 
         //spectator, or a player who isn't choosing and has nothing pending
         if(!handHandler || (!isCurrentPlayerActive && !this.pendingChoice)){
+            handHandler?.setChosenCardsUndoable(false);
             this.bga.statusBar.setTitle(_('Others must choose a card'));
             return;
         }
+
+        //clicking a set-aside card is the Undo button only while waiting for the others (set once per rebuild, so the cards' tooltips aren't redone)
+        const isWaiting = !isCurrentPlayerActive || !this.chainOpen;
+        handHandler.setChosenCardsUndoable(isWaiting && !!this.pendingChoice && !this.autoGrandSlam && !this.game.isReplay());
 
         //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if(isCurrentPlayerActive && this.pendingChoice && this.chainOpen){
@@ -136,6 +142,14 @@ export class PlayCard {
             if(!this.autoGrandSlam)
                 this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
+    }
+
+    //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
+    public chosenCardClicked(): void {
+        if(this.game.isReplay() || !this.pendingChoice || this.autoGrandSlam)
+            return;
+
+        this.game.undoHandler.undo('actUndoPlayCard');
     }
 
     //called through Game.handSelectionChanged when a card is selected or unselected

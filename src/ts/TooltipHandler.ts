@@ -69,9 +69,23 @@ export class TooltipHandler{
         else this.addTooltipsToCards();
     }
 
+    //a set-aside card that can still be taken back (PlayCard, waiting for the others) gets the undo hint on top of the reference,
+    //as the wrapper's first child (after the first '>', the end of the wrapper's opening tag)
     private getCardPowerReferenceHTML(card: HTMLElement): string {
         const value = parseInt(card.getAttribute('data-value'));
-        return this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+        const referenceHTML = this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+        if(!this.game.handHandler?.isUndoableChosenCard(card))
+            return referenceHTML;
+
+        return referenceHTML.replace('>', `><div class="power-reference-hint">${_('Click to undo your choice')}</div>`);
+    }
+
+    //one game-area card's tooltip again (HandHandler: a set-aside card became undoable or stopped being so)
+    public updateCardTooltip(card: HTMLElement){
+        if(this.cardPowersInDialog || this.isSafariMobile() || !card.id)
+            return;
+
+        this.game.bga.gameui.addTooltipHtml(card.id, this.getCardPowerReferenceHTML(card), TooltipHandler.TOOLTIP_DELAY);
     }
 
     //a tap stays the card's selection, so only a long press on a game-area card opens the dialog. On the document, since cards come and go.

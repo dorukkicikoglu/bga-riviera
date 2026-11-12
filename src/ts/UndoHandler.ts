@@ -20,13 +20,14 @@ export class UndoHandler{
     }
 
     public addUndoButton(actionName: string): HTMLButtonElement {
-        return this.game.bga.statusBar.addActionButton(_('Undo'), () => this.undoClicked(actionName), {
+        return this.game.bga.statusBar.addActionButton(_('Undo'), () => this.undo(actionName), {
             id: 'undo-button',
             color: 'alert',
         });
     }
 
-    private undoClicked(actionName: string): void {
+    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card)
+    public undo(actionName: string): void {
         if(!this.game.bga.actions.checkPossibleActions(actionName))
             return;
 

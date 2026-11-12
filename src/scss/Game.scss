@@ -419,6 +419,10 @@ body.current_player_is_active:not(.lockedInterface){
     #my-hand-container .cards-container .a-card.selectable-card.selected-hand-card{ animation: none; }
 }
 
+//PlayCard, waiting for the others: a set-aside card is the Undo button (HandHandler.setChosenCardsUndoable). Only the cursor
+//changes: no hover effect, and nothing that touches the card's transform or transition (its glow already shows it is chosen)
+body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-card.undoable-chosen-card{ cursor: pointer; }
+
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
     .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
         //name docked top-left (shrinks with an ellipsis), stars docked top-right (never shrink)
@@ -893,13 +897,15 @@ $tooltip-border-radius: 8px;
 //Colors are explicit (teal and dark text sampled from the rulebook), so BGA's dark mode doesn't change them
 $power-reference-background: #13a6ba;
 $power-reference-text: #051121;
-.tooltip-wrapper.power-reference{ display: flex; gap: 18px; box-sizing: border-box; width: min(640px, 92vw); max-width: 100%; min-width: 0; padding: 12px 14px; background: $power-reference-background; color: $power-reference-text; outline: none; font-size: 14px; line-height: 1.35; text-align: left;
+.tooltip-wrapper.power-reference{ display: flex; flex-wrap: wrap; gap: 0px 18px; box-sizing: border-box; width: min(640px, 92vw); max-width: 100%; min-width: 0; padding: 12px 14px; background: $power-reference-background; color: $power-reference-text; outline: none; font-size: 14px; line-height: 1.35; text-align: left;
     .power-reference-column{ flex: 1 1 0; min-width: 0;
         & + .power-reference-column{ padding-left: 18px; border-left: 1px solid rgba(5, 17, 33, 0.35); } //separator between the two columns
     }
     .power-reference-heading{ font-weight: bold; margin: 10px 0px 6px 0px;
         &:first-child{ margin-top: 0px; }
     }
+    //a set-aside card that can still be taken back (TooltipHandler.getCardPowerReferenceHTML): one line above the reference, its own row
+    .power-reference-hint{ flex: none; width: 100%; box-sizing: border-box; font-weight: bold; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid rgba(5, 17, 33, 0.35); }
     //the icon floats left and the text wraps around it; flow-root keeps each float inside its entry.
     //Entries are separated by spacing only, like the rulebook page (box styles reset explicitly, so no tooltip style can add one).
     //Only the hovered card's power gets a box; the padding is on every entry so highlighting one doesn't move the text

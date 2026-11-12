@@ -16,6 +16,7 @@ import { POWER_CARD_VALUES } from "./TooltipHandler";
 export class HandHandler{
     private static readonly SELECTED_CARD_CLASS = 'selected-hand-card';
     private static readonly CHOSEN_CARD_CLASS = 'chosen-card';
+    private static readonly UNDOABLE_CHOSEN_CARD_CLASS = 'undoable-chosen-card'; //a set-aside card whose choice Undo can still take back: clicking it is the Undo button
     private static readonly SELECTABLE_CARD_CLASS = 'selectable-card';
     private static readonly PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
     private static readonly CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
@@ -131,13 +132,20 @@ export class HandHandler{
     }
 
     private cardsContainerClicked(event: Event){
+        if(this.game.isInterfaceLocked())
+            return;
+
+        //a set-aside card while its choice can still be undone (the player is inactive by then): the same as the Undo button
+        const clickedCard = (event.target as HTMLElement).closest('.a-card');
+        if(clickedCard?.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS)){
+            this.game.undoableChosenCardClicked();
+            return;
+        }
+
         if(!this.game.bga.players.isCurrentPlayerActive())
             return;
 
         if(!HandHandler.SELECTION_STATES.includes(this.game.getGameStateName()))
-            return;
-
-        if(this.game.isInterfaceLocked())
             return;
 
         if(!(event.target as HTMLElement).classList.contains(HandHandler.SELECTABLE_CARD_CLASS))
@@ -242,6 +250,22 @@ export class HandHandler{
         for(let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
+
+    //PlayCard, waiting for the others: every set-aside card (a first card and its card-1 chain, one choice) undoes the
+    //choice when clicked. Only the cards whose state changes get their tooltip again, with or without the undo hint
+    public setChosenCardsUndoable(isUndoable: boolean): void{
+        for(let card of this.getCardDivs()){
+            const wasUndoable = card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS);
+            const undoable = isUndoable && card.classList.contains(HandHandler.CHOSEN_CARD_CLASS);
+            if(undoable === wasUndoable)
+                continue;
+
+            card.classList.toggle(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS, undoable);
+            this.game.tooltipHandler?.updateCardTooltip(card);
+        }
+    }
+
+    public isUndoableChosenCard(card: HTMLElement): boolean{ return card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS); }
 
     //card 10 redraw: the discarded cards sweep off-screen up-left, then the drawn cards come in from off-screen up-left into
     //their sorted slots, dealt like a new hand. The hand is laid out once, in its final order, as the sweep starts, with the

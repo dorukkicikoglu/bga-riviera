@@ -49,6 +49,7 @@ class PlayCard {
      */
     onLeavingState(args, isCurrentPlayerActive) {
         this.game.handHandler?.clearSelectableCards();
+        this.game.handHandler?.setChosenCardsUndoable(false); //the choices are locked in
         this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
     }
@@ -67,9 +68,13 @@ class PlayCard {
         this.confirmButton = null;
         //spectator, or a player who isn't choosing and has nothing pending
         if (!handHandler || (!isCurrentPlayerActive && !this.pendingChoice)) {
+            handHandler?.setChosenCardsUndoable(false);
             this.bga.statusBar.setTitle(_('Others must choose a card'));
             return;
         }
+        //clicking a set-aside card is the Undo button only while waiting for the others (set once per rebuild, so the cards' tooltips aren't redone)
+        const isWaiting = !isCurrentPlayerActive || !this.chainOpen;
+        handHandler.setChosenCardsUndoable(isWaiting && !!this.pendingChoice && !this.autoGrandSlam && !this.game.isReplay());
         //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if (isCurrentPlayerActive && this.pendingChoice && this.chainOpen) {
             handHandler.setSelectableCards(this.playableCardIDs, 1, true);
@@ -115,6 +120,12 @@ class PlayCard {
             if (!this.autoGrandSlam)
                 this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
+    }
+    //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
+    chosenCardClicked() {
+        if (this.game.isReplay() || !this.pendingChoice || this.autoGrandSlam)
+            return;
+        this.game.undoHandler.undo('actUndoPlayCard');
     }
     //called through Game.handSelectionChanged when a card is selected or unselected
     selectionChanged() {
@@ -1392,9 +1403,20 @@ class TooltipHandler {
         else
             this.addTooltipsToCards();
     }
+    //a set-aside card that can still be taken back (PlayCard, waiting for the others) gets the undo hint on top of the reference,
+    //as the wrapper's first child (after the first '>', the end of the wrapper's opening tag)
     getCardPowerReferenceHTML(card) {
         const value = parseInt(card.getAttribute('data-value'));
-        return this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+        const referenceHTML = this.getPowerReferenceHTML(POWER_CARD_VALUES.includes(value) ? value : 0);
+        if (!this.game.handHandler?.isUndoableChosenCard(card))
+            return referenceHTML;
+        return referenceHTML.replace('>', `><div class="power-reference-hint">${_('Click to undo your choice')}</div>`);
+    }
+    //one game-area card's tooltip again (HandHandler: a set-aside card became undoable or stopped being so)
+    updateCardTooltip(card) {
+        if (this.cardPowersInDialog || this.isSafariMobile() || !card.id)
+            return;
+        this.game.bga.gameui.addTooltipHtml(card.id, this.getCardPowerReferenceHTML(card), TooltipHandler.TOOLTIP_DELAY);
     }
     //a tap stays the card's selection, so only a long press on a game-area card opens the dialog. On the document, since cards come and go.
     //Any pointer type: a narrow desktop window has BGA's mobile layout and a mouse
@@ -1748,11 +1770,17 @@ class HandHandler {
         this.cardsContainer.appendChild(aCard);
     }
     cardsContainerClicked(event) {
+        if (this.game.isInterfaceLocked())
+            return;
+        //a set-aside card while its choice can still be undone (the player is inactive by then): the same as the Undo button
+        const clickedCard = event.target.closest('.a-card');
+        if (clickedCard?.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS)) {
+            this.game.undoableChosenCardClicked();
+            return;
+        }
         if (!this.game.bga.players.isCurrentPlayerActive())
             return;
         if (!HandHandler.SELECTION_STATES.includes(this.game.getGameStateName()))
-            return;
-        if (this.game.isInterfaceLocked())
             return;
         if (!event.target.classList.contains(HandHandler.SELECTABLE_CARD_CLASS))
             return;
@@ -1840,6 +1868,19 @@ class HandHandler {
         for (let card of this.getCardDivs())
             card.classList.toggle(HandHandler.CHOSEN_CARD_CLASS, cardIDs.includes(parseInt(card.getAttribute('data-card-id'))));
     }
+    //PlayCard, waiting for the others: every set-aside card (a first card and its card-1 chain, one choice) undoes the
+    //choice when clicked. Only the cards whose state changes get their tooltip again, with or without the undo hint
+    setChosenCardsUndoable(isUndoable) {
+        for (let card of this.getCardDivs()) {
+            const wasUndoable = card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS);
+            const undoable = isUndoable && card.classList.contains(HandHandler.CHOSEN_CARD_CLASS);
+            if (undoable === wasUndoable)
+                continue;
+            card.classList.toggle(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS, undoable);
+            this.game.tooltipHandler?.updateCardTooltip(card);
+        }
+    }
+    isUndoableChosenCard(card) { return card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS); }
     //card 10 redraw: the discarded cards sweep off-screen up-left, then the drawn cards come in from off-screen up-left into
     //their sorted slots, dealt like a new hand. The hand is laid out once, in its final order, as the sweep starts, with the
     //drawn cards hidden in their slots. Resolves when the last drawn card has landed
@@ -1955,6 +1996,7 @@ class HandHandler {
 }
 HandHandler.SELECTED_CARD_CLASS = 'selected-hand-card';
 HandHandler.CHOSEN_CARD_CLASS = 'chosen-card';
+HandHandler.UNDOABLE_CHOSEN_CARD_CLASS = 'undoable-chosen-card'; //a set-aside card whose choice Undo can still take back: clicking it is the Undo button
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
 HandHandler.CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
@@ -2524,12 +2566,13 @@ class UndoHandler {
         this.game = game;
     }
     addUndoButton(actionName) {
-        return this.game.bga.statusBar.addActionButton(_('Undo'), () => this.undoClicked(actionName), {
+        return this.game.bga.statusBar.addActionButton(_('Undo'), () => this.undo(actionName), {
             id: 'undo-button',
             color: 'alert',
         });
     }
-    undoClicked(actionName) {
+    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card)
+    undo(actionName) {
         if (!this.game.bga.actions.checkPossibleActions(actionName))
             return;
         this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
@@ -3442,6 +3485,11 @@ class Game {
             this.playCard.selectionChanged();
         else if (stateName === 'SwapCards')
             this.swapCards.selectionChanged();
+    }
+    //a set-aside card that can still be taken back was clicked (HandHandler only marks them in PlayCard)
+    undoableChosenCardClicked() {
+        if (this.getGameStateName() === 'PlayCard')
+            this.playCard.chosenCardClicked();
     }
     //card 10, seen by everyone but the two players involved: N card backs fly each way between their boards, all at once.
     //Both start points are measured before any back is added to a board, so one direction never starts from the other's back
