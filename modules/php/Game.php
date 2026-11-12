@@ -366,6 +366,14 @@ class Game extends \Bga\GameFramework\Table
         $this->bga->playerScore->setAll($score, null); //null: no notif, the page reloads
     }
 
+    // sets my score and every other player's score (the finishing Stop button)
+    #[Debug(reload: true)]
+    public function debug_setScoresVsOthers(int $myScore = 39, int $othersScore = 39) {
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+        $this->bga->playerScore->setAll($othersScore, null); //null: no notif, the page reloads
+        $this->bga->playerScore->set($currentPlayerID, $myScore, null);
+    }
+
     // each player keeps $count random hand cards, the rest are discarded (to test Grand Slam)
     #[Debug(reload: true)]
     public function debug_trimHands(int $count = 1) {

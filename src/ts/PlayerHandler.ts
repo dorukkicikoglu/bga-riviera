@@ -314,6 +314,8 @@ export class PlayerHandler{
     public getPlayerName(): string { return this.playerName; }
     public getPlayerColor(): string { return this.playerColor; }
     public getHandCount(): number { return this.handCount; }
+    public getScore(): number { return this.score; } //as tracked by setScore()
+    public getRoundStatus(): RoundStatus { return this.roundStatus; } //as tracked by setRoundStatus()
     public getPlayedColumn(): PlayedColumnHandler { return this.playedColumn; }
     public getStartTokenAnchor(): HTMLElement { return this.startTokenAnchor; }
     public getHandCountElement(): HTMLDivElement { return this.handCountBacks; }
