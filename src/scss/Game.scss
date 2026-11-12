@@ -80,11 +80,11 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
 .mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; --column-avatar-size: 39px; }
 
-//img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
-//tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
-body{ background: url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #032a2e; }
+//img/bg_riviera.webp is a seamless 1291x726 tile, shown at 40% of the page width (it tiles sideways and vertically, never stretched) and
+//scrolls with the page. The color is the tile's base teal while the image loads
+body{ background: url(img/bg_riviera.webp) top center / 15% auto repeat scroll; background-color: #032a2e; }
 //desktop: the same tile a little lighter, under a 10% white layer (mobile keeps the plain tile)
-body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center / min(100%, 700px) auto repeat scroll; background-color: #ffffff; }
+body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center / 15% auto repeat scroll; background-color: #ffffff; }
 
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
 

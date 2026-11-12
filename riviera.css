@@ -65,12 +65,12 @@
 }
 
 body {
-  background: url(img/bg_riviera.webp) top center/min(100%, 700px) auto repeat scroll;
+  background: url(img/bg_riviera.webp) top center/15% auto repeat scroll;
   background-color: #032a2e;
 }
 
 body.desktop_version {
-  background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center/min(100%, 700px) auto repeat scroll;
+  background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center/15% auto repeat scroll;
   background-color: #ffffff;
 }
 
@@ -2516,3 +2516,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */

@@ -2874,32 +2874,25 @@ class BackgroundHandler {
         });
         this.container.replaceChildren(...treeElements);
     }
-    //sizes and places a new forest, sorted left to right so neighbours in the array are neighbours on screen
+    //sizes and places a new forest in the bottom left corner, left to right, heights descending
     getTreePlacements() {
-        let placements = this.walkAcrossScreen(1);
-        for (let retry = 1; placements.length < BackgroundHandler.minNumOfTrees && retry <= BackgroundHandler.maxWalkRetries; retry++)
-            placements = this.walkAcrossScreen(BackgroundHandler.retryStepScale ** retry);
-        return placements.sort((a, b) => (a.left + a.width / 2) - (b.left + b.width / 2));
-    }
-    //places trees from just off the left edge to just past the right edge, so the whole width is covered at any screen size
-    walkAcrossScreen(stepScale) {
         const { minHeight, maxHeight } = this.getHeightRange();
-        const placements = [];
-        let x = null; //the next tree's left edge
-        while (placements.length < BackgroundHandler.maxNumOfTrees) {
-            const rawHeight = BackgroundHandler.randomBetween(minHeight, maxHeight);
-            //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
-            const height = Math.round(rawHeight);
-            const width = Math.round(rawHeight * this.treeAspect);
-            const bleed = width * BackgroundHandler.edgeBleed;
-            x ?? (x = -bleed);
-            if (x > this.builtWidth + bleed)
-                break;
-            placements.push({ left: x, width, height });
-            const spacing = BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter);
-            x += width * spacing * stepScale;
-        }
-        return placements;
+        const treeCount = BackgroundHandler.minNumOfTrees + Math.floor(Math.random() * (BackgroundHandler.maxNumOfTrees - BackgroundHandler.minNumOfTrees + 1));
+        const rawHeights = Array.from({ length: treeCount }, () => BackgroundHandler.randomBetween(minHeight, maxHeight)).sort((a, b) => b - a);
+        //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
+        const sizes = rawHeights.map(rawHeight => ({ height: Math.round(rawHeight), width: Math.round(rawHeight * this.treeAspect) }));
+        const steps = sizes.slice(0, -1).map(size => size.width * (BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter)));
+        //squeezed so the last tree's right edge stays within maxSpanOfWidth
+        const firstLeft = -sizes[0].width * BackgroundHandler.edgeBleed;
+        const room = this.builtWidth * BackgroundHandler.maxSpanOfWidth - sizes[sizes.length - 1].width - firstLeft;
+        const totalSteps = steps.reduce((total, step) => total + step, 0);
+        const stepScale = totalSteps > room ? Math.max(room, 0) / totalSteps : 1;
+        let left = firstLeft;
+        return sizes.map((size, index) => {
+            if (index > 0)
+                left += steps[index - 1] * stepScale;
+            return { left, ...size };
+        });
     }
     getHeightRange() {
         const maxHeight = Math.min(this.builtAsMobile ? BackgroundHandler.maxTreeHeightMobile : BackgroundHandler.maxTreeHeight, window.innerHeight * BackgroundHandler.maxTreeHeightOfViewport);
@@ -2945,24 +2938,23 @@ class BackgroundHandler {
         return pickFrom[Math.floor(Math.random() * pickFrom.length)];
     }
 }
-//tree count follows from the screen's width (the walk in getTreePlacements): these are only safety bounds
-BackgroundHandler.minNumOfTrees = 2; //under it the walk is retried with a shorter step
-BackgroundHandler.maxNumOfTrees = 40; //the walk stops adding here: covers about 6000px at the default sizes and spacing
+//tree count, picked at random on every build
+BackgroundHandler.minNumOfTrees = 4;
+BackgroundHandler.maxNumOfTrees = 7;
 //tree height in px, picked per tree; the width follows from the sprite's cell
 BackgroundHandler.minTreeHeight = 50;
-BackgroundHandler.maxTreeHeight = 120;
+BackgroundHandler.maxTreeHeight = 156;
 BackgroundHandler.minTreeHeightMobile = 40;
-BackgroundHandler.maxTreeHeightMobile = 80;
-BackgroundHandler.maxHeightRatio = 1.5; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
+BackgroundHandler.maxTreeHeightMobile = 104;
+BackgroundHandler.maxHeightRatio = 1.95; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
 BackgroundHandler.treeSinkRatio = 0.06; //share of a tree's height below the screen's bottom edge, so no gap shows under the trunk as it rotates
 BackgroundHandler.mobileBreakpoint = 700; //px of window width, at or under it the mobile heights apply (same as the 700px media query in Game.scss)
 BackgroundHandler.maxTreeHeightOfViewport = 0.85; //no tree is taller than this share of the window, so a landscape phone doesn't cut the canopies off
-//horizontal spacing: a walk across the screen, each step measured in the width of the tree just placed
-BackgroundHandler.treeSpacing = 0.9; //step to the next tree; under 1 neighbours overlap, over 1 there is a gap between them
+//horizontal spacing: the trees stand in the bottom left corner, tallest on the left, each step measured in the width of the tree just placed
+BackgroundHandler.maxSpanOfWidth = 0.2; //the trees never reach past this share of the screen's width: the steps are squeezed to fit
+BackgroundHandler.treeSpacing = 0.9; //step to the next tree when there is room; under 1 neighbours overlap, over 1 there is a gap between them
 BackgroundHandler.spacingJitter = 0.15; //random change to each step, added to or taken from treeSpacing
-BackgroundHandler.edgeBleed = 0.3; //share of a tree's width the walk starts off the left edge, and goes on past the right edge
-BackgroundHandler.retryStepScale = 0.85; //each retry's step, relative to the last, when a walk places under minNumOfTrees
-BackgroundHandler.maxWalkRetries = 10;
+BackgroundHandler.edgeBleed = 0.3; //share of the first tree's width off the left edge of the screen
 //wind
 BackgroundHandler.minWindStrength = 0.75; //degrees of rotation at peak sway
 BackgroundHandler.maxWindStrength = 2.5;

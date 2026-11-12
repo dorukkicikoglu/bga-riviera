@@ -14,26 +14,25 @@ import { Game } from "./Game";
 type SwayKeyframe = [percent: number, lean: number]; //lean: a multiple of the tree's --sway
 
 export class BackgroundHandler{
-    //tree count follows from the screen's width (the walk in getTreePlacements): these are only safety bounds
-    private static readonly minNumOfTrees = 2; //under it the walk is retried with a shorter step
-    private static readonly maxNumOfTrees = 40; //the walk stops adding here: covers about 6000px at the default sizes and spacing
+    //tree count, picked at random on every build
+    private static readonly minNumOfTrees = 4;
+    private static readonly maxNumOfTrees = 7;
 
     //tree height in px, picked per tree; the width follows from the sprite's cell
     private static readonly minTreeHeight = 50;
-    private static readonly maxTreeHeight = 120;
+    private static readonly maxTreeHeight = 156;
     private static readonly minTreeHeightMobile = 40;
-    private static readonly maxTreeHeightMobile = 80;
-    private static readonly maxHeightRatio = 1.5; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
+    private static readonly maxTreeHeightMobile = 104;
+    private static readonly maxHeightRatio = 1.95; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
     private static readonly treeSinkRatio = 0.06; //share of a tree's height below the screen's bottom edge, so no gap shows under the trunk as it rotates
     private static readonly mobileBreakpoint = 700; //px of window width, at or under it the mobile heights apply (same as the 700px media query in Game.scss)
     private static readonly maxTreeHeightOfViewport = 0.85; //no tree is taller than this share of the window, so a landscape phone doesn't cut the canopies off
 
-    //horizontal spacing: a walk across the screen, each step measured in the width of the tree just placed
-    private static readonly treeSpacing = 0.9; //step to the next tree; under 1 neighbours overlap, over 1 there is a gap between them
+    //horizontal spacing: the trees stand in the bottom left corner, tallest on the left, each step measured in the width of the tree just placed
+    private static readonly maxSpanOfWidth = 0.2; //the trees never reach past this share of the screen's width: the steps are squeezed to fit
+    private static readonly treeSpacing = 0.9; //step to the next tree when there is room; under 1 neighbours overlap, over 1 there is a gap between them
     private static readonly spacingJitter = 0.15; //random change to each step, added to or taken from treeSpacing
-    private static readonly edgeBleed = 0.3; //share of a tree's width the walk starts off the left edge, and goes on past the right edge
-    private static readonly retryStepScale = 0.85; //each retry's step, relative to the last, when a walk places under minNumOfTrees
-    private static readonly maxWalkRetries = 10;
+    private static readonly edgeBleed = 0.3; //share of the first tree's width off the left edge of the screen
 
     //wind
     private static readonly minWindStrength = 0.75; //degrees of rotation at peak sway
@@ -182,38 +181,28 @@ export class BackgroundHandler{
         this.container.replaceChildren(...treeElements);
     }
 
-    //sizes and places a new forest, sorted left to right so neighbours in the array are neighbours on screen
+    //sizes and places a new forest in the bottom left corner, left to right, heights descending
     private getTreePlacements(): { left: number, width: number, height: number }[] {
-        let placements = this.walkAcrossScreen(1);
-        for(let retry = 1; placements.length < BackgroundHandler.minNumOfTrees && retry <= BackgroundHandler.maxWalkRetries; retry++)
-            placements = this.walkAcrossScreen(BackgroundHandler.retryStepScale ** retry);
-
-        return placements.sort((a, b) => (a.left + a.width / 2) - (b.left + b.width / 2));
-    }
-
-    //places trees from just off the left edge to just past the right edge, so the whole width is covered at any screen size
-    private walkAcrossScreen(stepScale: number): { left: number, width: number, height: number }[] {
         const { minHeight, maxHeight } = this.getHeightRange();
-        const placements: { left: number, width: number, height: number }[] = [];
+        const treeCount = BackgroundHandler.minNumOfTrees + Math.floor(Math.random() * (BackgroundHandler.maxNumOfTrees - BackgroundHandler.minNumOfTrees + 1));
+        const rawHeights = Array.from({ length: treeCount }, () => BackgroundHandler.randomBetween(minHeight, maxHeight)).sort((a, b) => b - a);
 
-        let x: number | null = null; //the next tree's left edge
-        while(placements.length < BackgroundHandler.maxNumOfTrees){
-            const rawHeight = BackgroundHandler.randomBetween(minHeight, maxHeight);
-            //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
-            const height = Math.round(rawHeight);
-            const width = Math.round(rawHeight * this.treeAspect);
+        //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
+        const sizes = rawHeights.map(rawHeight => ({ height: Math.round(rawHeight), width: Math.round(rawHeight * this.treeAspect) }));
+        const steps = sizes.slice(0, -1).map(size => size.width * (BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter)));
 
-            const bleed = width * BackgroundHandler.edgeBleed;
-            x ??= -bleed;
-            if(x > this.builtWidth + bleed)
-                break;
+        //squeezed so the last tree's right edge stays within maxSpanOfWidth
+        const firstLeft = -sizes[0].width * BackgroundHandler.edgeBleed;
+        const room = this.builtWidth * BackgroundHandler.maxSpanOfWidth - sizes[sizes.length - 1].width - firstLeft;
+        const totalSteps = steps.reduce((total, step) => total + step, 0);
+        const stepScale = totalSteps > room ? Math.max(room, 0) / totalSteps : 1;
 
-            placements.push({ left: x, width, height });
-
-            const spacing = BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter);
-            x += width * spacing * stepScale;
-        }
-        return placements;
+        let left = firstLeft;
+        return sizes.map((size, index) => {
+            if(index > 0)
+                left += steps[index - 1] * stepScale;
+            return { left, ...size };
+        });
     }
 
     private getHeightRange(): { minHeight: number, maxHeight: number } {
