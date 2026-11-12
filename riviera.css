@@ -71,8 +71,8 @@ body {
 body::before {
   content: "";
   position: fixed;
-  top: -8.4353214562vw;
-  left: -15vw;
+  top: -1.8745158792vw;
+  left: -3.3333333333vw;
   right: 0px;
   bottom: 0px;
   z-index: -1;
@@ -82,7 +82,7 @@ body::before {
   background-size: 15vw 8.4353214562vw;
   background-repeat: repeat;
   will-change: transform;
-  animation: background-drift 60s linear infinite;
+  animation: background-drift 20s ease-in-out infinite alternate;
 }
 
 body.desktop_version {
@@ -98,7 +98,7 @@ body.desktop_version::before {
     transform: translate(0, 0);
   }
   to {
-    transform: translate(15vw, 8.4353214562vw);
+    transform: translate(3.3333333333vw, 1.8745158792vw);
   }
 }
 html.no-background-drift body::before {
