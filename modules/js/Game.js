@@ -2889,6 +2889,26 @@ class BackgroundHandler {
         };
         this.spriteImage.src = game.bga.images.getImgUrl(BackgroundHandler.SPRITE_FILE);
         window.addEventListener('resize', this.onResize);
+        this.randomizeDrift();
+    }
+    //once per page load, so the background doesn't always start the same way: a random point in the drift's there-and-back cycle
+    //(a negative delay of up to two legs, so it may start on either leg) and a random pattern offset of up to a tile each way.
+    //Set whatever the preference says, so a still pattern is offset too; replays get their own random start like any page load
+    randomizeDrift() {
+        const root = document.documentElement;
+        const legDurationMs = BackgroundHandler.parseCSSTime(getComputedStyle(root).getPropertyValue(BackgroundHandler.DRIFT_LEG_DURATION_PROPERTY));
+        if (legDurationMs !== null)
+            root.style.setProperty(BackgroundHandler.DRIFT_DELAY_PROPERTY, `${-Math.round(Math.random() * 2 * legDurationMs)}ms`);
+        root.style.setProperty(BackgroundHandler.DRIFT_OFFSET_X_PROPERTY, Math.random().toFixed(4));
+        root.style.setProperty(BackgroundHandler.DRIFT_OFFSET_Y_PROPERTY, Math.random().toFixed(4));
+    }
+    //a CSS <time> ("20s", "500ms") in ms; null if it can't be read (the stylesheet not loaded), and the drift then starts at 0s
+    static parseCSSTime(value) {
+        const match = value.trim().match(/^(-?[\d.]+)(m?s)$/);
+        if (!match)
+            return null;
+        const amount = parseFloat(match[1]);
+        return isNaN(amount) ? null : (match[2] == 's' ? amount * 1000 : amount);
     }
     //from PrefHandler, on setup and whenever the player changes it. No wind is a class in Game.scss, the same rule as prefers-reduced-motion, which applies whatever this says
     applyTreePreference(value) {
@@ -3065,6 +3085,11 @@ BackgroundHandler.TREES_PREF_NO_WIND = 2;
 BackgroundHandler.TREES_PREF_NO_TREES = 3;
 //the "Background animation" preference: the pattern on body::before drifts (Game.scss) unless this is set; any other value is On
 BackgroundHandler.DRIFT_PREF_OFF = 2;
+//custom properties on <html> that Game.scss reads for the drifting pattern: the leg's duration (set there) and the random start (set here)
+BackgroundHandler.DRIFT_LEG_DURATION_PROPERTY = '--bg-drift-leg-duration';
+BackgroundHandler.DRIFT_DELAY_PROPERTY = '--bg-drift-delay';
+BackgroundHandler.DRIFT_OFFSET_X_PROPERTY = '--bg-drift-offset-x';
+BackgroundHandler.DRIFT_OFFSET_Y_PROPERTY = '--bg-drift-offset-y';
 BackgroundHandler.instance = null; //guards against a second background if the game sets its UI up again
 
 /**

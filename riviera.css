@@ -64,6 +64,10 @@
   --column-avatar-size: 39px;
 }
 
+html {
+  --bg-drift-leg-duration: 20s;
+}
+
 body {
   background: #032a2e;
   isolation: isolate;
@@ -71,18 +75,18 @@ body {
 body::before {
   content: "";
   position: fixed;
-  top: -1.8745158792vw;
+  top: -3.3333333333vw;
   left: -3.3333333333vw;
   right: 0px;
   bottom: 0px;
   z-index: -1;
   pointer-events: none;
   background-image: url(img/bg_riviera.webp);
-  background-position: 0 0;
+  background-position: calc(var(--bg-drift-offset-x, 0) * 15vw) calc(var(--bg-drift-offset-y, 0) * 8.4353214562vw);
   background-size: 15vw 8.4353214562vw;
   background-repeat: repeat;
   will-change: transform;
-  animation: background-drift 20s ease-in-out infinite alternate;
+  animation: background-drift var(--bg-drift-leg-duration) ease-in-out var(--bg-drift-delay, 0s) infinite alternate;
 }
 
 body.desktop_version {
@@ -98,7 +102,7 @@ body.desktop_version::before {
     transform: translate(0, 0);
   }
   to {
-    transform: translate(3.3333333333vw, 1.8745158792vw);
+    transform: translate(3.3333333333vw, 3.3333333333vw);
   }
 }
 html.no-background-drift body::before {
@@ -2611,5 +2615,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

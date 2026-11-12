@@ -81,22 +81,28 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 .mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; --column-avatar-size: 39px; }
 
 //img/bg_riviera.webp is a seamless 1291x726 tile, shown at 15% of the window's width (it tiles sideways and vertically, never
-//stretched). It drifts back and forth on body::before: toward the bottom right for one leg, back to the top left for the next,
-//easing in and out at each end. A fixed layer bigger than the window on the top and left by exactly one leg's distance, so it
-//always covers the window. Moved with transform (composited), never background-position.
+//stretched). It drifts back and forth on body::before at exactly 45 degrees: toward the bottom right for one leg, back to the top
+//left for the next, easing in and out at each end. A fixed layer bigger than the window on the top and left by exactly one leg's
+//distance, so it always covers the window. Moved with transform (composited), never background-position.
+//Random on every page load (BackgroundHandler.randomizeDrift, custom properties on <html>, 0 without them): the point in the
+//there-and-back cycle it starts at (--bg-drift-delay, a negative delay) and the pattern's offset inside the layer
+//(--bg-drift-offset-x / -y, a share of a tile, 0 to 1). The offset needs no more overhang: the pattern repeats over the whole
+//layer, so shifting it never opens a gap; only the transform moves the layer's edges.
 //body only keeps the fallback color, shown while the image loads: the tile's base teal (white on desktop, as before)
 $bg-tile-width: 15vw;
 $bg-tile-height: math.div($bg-tile-width * 726, 1291); //the image's aspect ratio
 $bg-drift-leg-duration: 20s; //one way, bottom right or top left
 $bg-drift-tile-duration: 90s; //the speed: the time one tile's distance would take (on average, with the easing)
-$bg-drift-x: math.div($bg-tile-width * $bg-drift-leg-duration, $bg-drift-tile-duration); //one leg's distance
-$bg-drift-y: math.div($bg-tile-height * $bg-drift-leg-duration, $bg-drift-tile-duration);
+//one leg's distance, the same on both axes so the drift is at 45 degrees (a share of the tile on each axis would follow the
+//tile's 1291x726 diagonal, about 29 degrees). Based on the tile's width, so the sideways speed is the one the durations give
+$bg-drift-distance: math.div($bg-tile-width * $bg-drift-leg-duration, $bg-drift-tile-duration);
+html{ --bg-drift-leg-duration: #{$bg-drift-leg-duration}; } //read by BackgroundHandler.randomizeDrift, so the duration lives here only
 //isolation: body is its own stacking context, so the z-index -1 layer paints over body's own background (whether or not BGA's
 //html background keeps body's from being propagated to the canvas) and under all of the page. It sets no containing block, so
 //position: fixed elements are unaffected
 body{ background: #032a2e; isolation: isolate;
-    &::before{ content: ""; position: fixed; top: -$bg-drift-y; left: -$bg-drift-x; right: 0px; bottom: 0px; z-index: -1; pointer-events: none;
-        background-image: url(img/bg_riviera.webp); background-position: 0 0; background-size: $bg-tile-width $bg-tile-height; background-repeat: repeat; will-change: transform; animation: background-drift $bg-drift-leg-duration ease-in-out infinite alternate; }
+    &::before{ content: ""; position: fixed; top: -$bg-drift-distance; left: -$bg-drift-distance; right: 0px; bottom: 0px; z-index: -1; pointer-events: none;
+        background-image: url(img/bg_riviera.webp); background-position: calc(var(--bg-drift-offset-x, 0) * #{$bg-tile-width}) calc(var(--bg-drift-offset-y, 0) * #{$bg-tile-height}); background-size: $bg-tile-width $bg-tile-height; background-repeat: repeat; will-change: transform; animation: background-drift var(--bg-drift-leg-duration) ease-in-out var(--bg-drift-delay, 0s) infinite alternate; }
 }
 //desktop: the same tile a little lighter, under a 5% white layer (mobile keeps the plain tile)
 body.desktop_version{ background: #ffffff;
@@ -104,7 +110,7 @@ body.desktop_version{ background: #ffffff;
 }
 @keyframes background-drift{
     from{ transform: translate(0, 0); }
-    to{ transform: translate($bg-drift-x, $bg-drift-y); }
+    to{ transform: translate($bg-drift-distance, $bg-drift-distance); }
 }
 //the "Background animation" preference (BackgroundHandler.applyDriftPreference, a class on <html>) and reduced motion: a still pattern
 html.no-background-drift body::before{ animation: none; will-change: auto; }
