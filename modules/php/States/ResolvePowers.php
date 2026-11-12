@@ -26,7 +26,7 @@ use Bga\Games\Riviera\Game;
  * the golden die to the next roll, for everyone. Card 2 needs no choice ([BGA] its reservation is automatic) and
  * card 10 has SwapCards (before the pass), so this state only asks card-11 owners.
  * RIVPowerManager::goToNextPreRollPower() walks the owners and picks the next state; [BGA] it skips a second 11 when
- * the golden die is already added.
+ * the golden die is already added, and adds it without a prompt when the owner is the only player still in the round.
  */
 class ResolvePowers extends GameState
 {
@@ -51,18 +51,7 @@ class ResolvePowers extends GameState
         if(!$this->game->powerManager->hasPendingPower($activePlayerId, 11))
             throw new UserException(clienttranslate('You have no card 11 to use'));
 
-        //blank until the next roll; the dice expire it again after the reveal of that turn
-        $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'yes', `die_value` = NULL WHERE `die_color` = 'gold'");
-        $this->game->powerManager->clearPendingPower($activePlayerId, 11);
-        $this->game->bga->playerStats->inc('powerUsed_POWER11', 1, $activePlayerId);
-
-        //log row only, no dice: the golden die has no value until the next roll, which shows it with the colored dice
-        $goldenDieLogStr = $this->game->getPlayerNameById($activePlayerId).' adds the golden die to the next roll';
-        $this->bga->notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [
-            'preserve' => ['player_id'],
-            'player_id' => $activePlayerId,
-            'GOLDEN_DIE_POWER11_LOG_STR' => $goldenDieLogStr,
-        ]);
+        $this->game->powerManager->addGoldenDiePOWER11($activePlayerId);
 
         return $this->game->powerManager->goToNextPreRollPower();
     }

@@ -165,13 +165,14 @@ class RIVPowerManager{
 
     /**
      * Cards 2 and 11, after the Start token pass, for owners who chose More (still 'in'), clockwise from the new holder.
-     * Card 2 is applied on the spot; a card-11 owner becomes the active player of ResolvePowers, whose every action
-     * returns this again, so the walk goes on until nobody has a pending card 2 or 11, then the next roll.
+     * Card 2 is applied on the spot; a card-11 owner becomes the active player of ResolvePowers (unless they are the
+     * only player still in, whose golden die is added on the spot), whose every action returns this again, so the walk goes on until nobody has a pending card 2 or 11, then the next roll.
      * Card 10 has already resolved, before Stop or More (goToNextPOWER10Owner()).
      */
     function goToNextPreRollPower(): string{
         $startPlayerID = (int) $this->game->bga->globals->get('startPlayerId');
         $pendingPowersDB = $this->game->getCollectionFromDB("SELECT `player_id`, `round_status`, `pending_POWER2`, `pending_POWER11` FROM `player`");
+        $inRoundCount = count(array_filter($pendingPowersDB, fn(array $player) => $player['round_status'] === 'in'));
 
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             $pendingPowers = $pendingPowersDB[$playerID];
@@ -186,6 +187,13 @@ class RIVPowerManager{
             if($pendingPowers['pending_POWER11'] === 'yes'){
                 if($this->isGoldenDieInUsePOWER11()){ //[BGA] a second 11 this turn adds nothing: skipped without a prompt or log row
                     $this->clearPendingPower($playerID, 11);
+                    continue;
+                }
+
+                //[BGA] the only player still in the round (everyone else stopped or crashed) can only gain from the golden
+                //die, so it is added for them, with no prompt: the same notification and log row as the button
+                if($inRoundCount === 1){
+                    $this->addGoldenDiePOWER11($playerID);
                     continue;
                 }
 
@@ -274,6 +282,25 @@ class RIVPowerManager{
                 $targets[] = ['player_id' => $playerID, 'hand_count' => $handCounts[$playerID]];
         }
         return $targets;
+    }
+
+    /**
+     * Card 11: the golden die joins the next roll, for everyone. From ResolvePowers' button (and its zombie), or from
+     * goToNextPreRollPower() when the owner is the only player still in the round.
+     */
+    function addGoldenDiePOWER11(int $playerID): void{
+        //blank until the next roll; the dice expire it again after the reveal of that turn
+        $this->game->DbQuery("UPDATE `dice` SET `in_use_by_POWER11` = 'yes', `die_value` = NULL WHERE `die_color` = 'gold'");
+        $this->clearPendingPower($playerID, 11);
+        $this->game->bga->playerStats->inc('powerUsed_POWER11', 1, $playerID);
+
+        //log row only, no dice: the golden die has no value until the next roll, which shows it with the colored dice
+        $goldenDieLogStr = $this->game->getPlayerNameById($playerID).' adds the golden die to the next roll';
+        $this->game->bga->notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [
+            'preserve' => ['player_id'],
+            'player_id' => $playerID,
+            'GOLDEN_DIE_POWER11_LOG_STR' => $goldenDieLogStr,
+        ]);
     }
 
     function isGoldenDieInUsePOWER11(): bool{
