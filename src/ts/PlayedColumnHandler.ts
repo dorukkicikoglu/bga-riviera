@@ -14,6 +14,7 @@ import { PlayerHandler } from "./PlayerHandler";
 
 export class PlayedColumnHandler{
     private static readonly LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
+    private static readonly AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in the header circle
 
     private columnContainer: HTMLDivElement;
     private cardsColumn: HTMLDivElement;
@@ -30,15 +31,29 @@ export class PlayedColumnHandler{
             this.columnContainer.style.setProperty('--column-owner-color', '#' + this.owner.getPlayerColor());
             this.columnContainer.setAttribute('data-light-owner-color', PlayedColumnHandler.isLightColor(this.owner.getPlayerColor()) ? 'true' : 'false');
 
+            //the avatar or the name, whichever the "Show players as" preference picks (PrefHandler, an attribute on
+            //#played-columns-container), is one button: a click switches every column's header
             this.columnContainer.innerHTML = `
                 <div class="played-column-title">
-                    <span class="played-column-name"></span>
+                    <span class="played-column-player" id="column-player-${this.owner.getPlayerID()}" role="button" tabindex="0">
+                        <span class="played-column-avatar"></span>
+                        <span class="played-column-name"></span>
+                    </span>
                     <span class="played-column-stars"></span>
                 </div>
                 <div class="cards-column"></div>
             `;
-            this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName();
-            this.columnContainer.querySelector('.played-column-name').setAttribute('title', this.owner.getPlayerName()); //full name on hover when it's cut
+            this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName(); //full name in the tooltip (TooltipHandler)
+            this.fillAvatar(this.columnContainer.querySelector('.played-column-avatar') as HTMLSpanElement);
+
+            const playerButton = this.columnContainer.querySelector('.played-column-player') as HTMLSpanElement;
+            playerButton.addEventListener('click', () => this.game.prefHandler?.togglePlayersDisplay());
+            playerButton.addEventListener('keydown', (event: KeyboardEvent) => {
+                if(event.key !== 'Enter' && event.key !== ' ')
+                    return;
+                event.preventDefault(); //no page scroll on Space
+                this.game.prefHandler?.togglePlayersDisplay();
+            });
 
             parent.appendChild(this.columnContainer);
         }
@@ -48,6 +63,38 @@ export class PlayedColumnHandler{
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
 
         this.displayColumn();
+    }
+
+    //the avatar on the owner's BGA player board (#avatar_<id>, there on setup for players, spectators and replays alike), at a
+    //bigger size so it stays sharp. If the bigger one fails, the board's own; with no avatar at all, the name's initial on the
+    //owner's color, so every header can still show a circle
+    private fillAvatar(avatarContainer: HTMLSpanElement): void{
+        const boardAvatar = document.getElementById('avatar_' + this.owner.getPlayerID());
+        const boardSource = boardAvatar instanceof HTMLImageElement ? boardAvatar.getAttribute('src') : null;
+        if(!boardSource){
+            this.showAvatarInitial(avatarContainer);
+            return;
+        }
+
+        const image = document.createElement('img');
+        image.className = 'played-column-avatar-image';
+        image.alt = this.owner.getPlayerName();
+        image.draggable = false;
+        image.addEventListener('error', () => {
+            if(image.getAttribute('src') !== boardSource)
+                image.setAttribute('src', boardSource);
+            else{
+                image.remove();
+                this.showAvatarInitial(avatarContainer);
+            }
+        });
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, PlayedColumnHandler.AVATAR_SIZE_SUFFIX + '$2'));
+        avatarContainer.appendChild(image);
+    }
+
+    private showAvatarInitial(avatarContainer: HTMLSpanElement): void{
+        avatarContainer.classList.add('played-column-avatar-initial');
+        avatarContainer.textContent = Array.from(this.owner.getPlayerName())[0]?.toUpperCase() ?? '';
     }
 
     private displayColumn(): void{

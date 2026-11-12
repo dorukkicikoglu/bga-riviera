@@ -34,6 +34,7 @@ class Game extends \Bga\GameFramework\Table
     public array $userPrefs = array(
         'one_click_play' => 101,
         'background_trees' => 102,
+        'players_display' => 103,
     );
 
     /**

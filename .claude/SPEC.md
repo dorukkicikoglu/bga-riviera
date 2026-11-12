@@ -181,6 +181,7 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 
 - "One-click card play" (off by default): clicking a playable card plays it at once, with no Confirm step, card-1 chain cards included. It also skips the card 9 Confirm: clicking a die's arrow (or half) turns it at once.
 - "Background trees" (On by default, pref 102): On (trees sway), No wind (trees at rest, upright; reduced motion forces this too) or No trees. Applies at once, with no reload.
+- "Show players as" (Profile picture by default, pref 103): each played column's header shows its owner's avatar (a circle ringed in their color, the full name in a tooltip; the column's star badge stays top-right) or their name. Clicking any header's avatar or name switches every column at once and saves the preference; changing it in BGA's preferences menu does the same.
 
 ## Hidden information
 

@@ -19,6 +19,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 :root{
     //capped so cards stop growing past a comfortable size on very large/ultra-wide screens
     --card-width: min(6vw, 110px);
+    --column-avatar-size: 31px; //a played column header's avatar circle ("Show players as" Profile picture)
     --die-size: #{$die-size};
     --log-card-icon-size: 32px; //the circular card icons in every log row (.log-card-icons)
     --end-game-score-color: #c62828; //a player board score at WINNING_SCORE or more (PlayerHandler.setScore)
@@ -77,7 +78,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 
 //mobile, like Fugu: BGA lays the game out at least 740px wide (gameinfos game_interface_width) and scales it down to the
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
-.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; }
+.mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; --column-avatar-size: 39px; }
 
 //img/bg_riviera.webp is a seamless 2048x1180 tile: it fills the page width up to 700px (wider looked blurry), then tiles sideways; it always
 //tiles vertically and scrolls with the page. The color is the tile's base teal while the image loads
@@ -422,12 +423,21 @@ body.current_player_is_active:not(.lockedInterface){
     .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
         //name docked top-left (shrinks with an ellipsis), stars docked top-right (never shrink)
         .played-column-title{ left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--column-owner-color); font-size: 16px;
-            .played-column-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px; margin: -2px; } //padding keeps the text shade from being clipped
+            //the avatar or the name (the "Show players as" preference): one button, a click switches every column's header.
+            //Its click area is 20% bigger than what shows, both ways (an invisible layer 10% past each edge, percentages of the
+            //button's own width and height), so nothing moves; the stars badge paints over it, keeping its own tooltip
+            .played-column-player{ position: relative; display: flex; align-items: center; min-width: 0; cursor: pointer; border-radius: 999px; -webkit-tap-highlight-color: transparent;
+                &::before{ content: ""; position: absolute; inset: -10%; }
+                &:focus{ outline: none; }
+                &:focus-visible{ outline: 2px solid #ffd700; outline-offset: 2px; }
+                .played-column-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px; margin: -2px; } //padding keeps the text shade from being clipped
+                .played-column-avatar{ display: none; }
+            }
             //bigger than the name (16px) for readability; line-height 1 keeps the star's taller fallback-font metrics from growing the title.
             //A pill in the player's color, no outline: its border and padding sit in negative margins, so the score stays where it was
             //without it (the pill reaches into the title's inset after it). On the left, only 4px of the 8px go into the 6px gap,
             //so the pill stays 2px clear of the name: the other 4px come out of the name's room (a long name gets its ellipsis sooner)
-            .played-column-stars{ flex-shrink: 0; display: flex; align-items: center; gap: 2px; color: #ffffff; font-size: 22px; line-height: 1; text-shadow: none; background-color: var(--column-owner-color); border: 1px solid color-mix(in srgb, var(--column-owner-color) 75%, #000000); border-radius: 999px; padding: 3px 7px 2px 7px; margin: -3px -15px -3px -4px;
+            .played-column-stars{ position: relative; z-index: 1; flex-shrink: 0; display: flex; align-items: center; gap: 2px; color: #ffffff; font-size: 22px; line-height: 1; text-shadow: none; background-color: var(--column-owner-color); border: 1px solid color-mix(in srgb, var(--column-owner-color) 75%, #000000); border-radius: 999px; padding: 3px 7px 2px 7px; margin: -3px -15px -3px -4px;
                 .played-column-star{ font-size: 0.55em; } //about the height of the number's lowercase letters
             }
         }
@@ -456,6 +466,26 @@ body.current_player_is_active:not(.lockedInterface){
         &[data-is-myself="true"]{ border-width: 2px; box-shadow: 0 0 8px var(--column-owner-color); }
         &[data-round-status="crashed"]{ opacity: 0.45; transition: opacity 0.4s ease; }
         &.grand-slam-column{ box-shadow: 0 0 14px 4px #e9c45a; border-color: #e0b228; }
+    }
+
+    //"Show players as" Profile picture (PrefHandler): the name gives way to the owner's avatar, a circle ringed in their color and
+    //centered on the column's top border; the stars badge stays docked top-right. The avatar fits the column's usual top padding
+    //and gaps, so switching moves nothing else
+    &[data-players-display="avatar"]{
+        .a-played-column{
+            .played-column-title{
+                .played-column-player{
+                    .played-column-name{ display: none; }
+                    .played-column-avatar{ display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: var(--column-avatar-size); height: var(--column-avatar-size); border-radius: 50%; overflow: hidden; background-color: #ffffff; box-shadow: 0 0 0 3px var(--column-owner-color), 1px 2px 5px rgba(0, 0, 0, 0.6); transition: box-shadow 0.15s ease;
+                        .played-column-avatar-image{ display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+                        //no avatar on the board: the name's initial on the owner's color
+                        &.played-column-avatar-initial{ background-color: var(--column-owner-color); color: #ffffff; font-size: calc(var(--column-avatar-size) * 0.5); font-weight: bold; line-height: 1; text-shadow: none; }
+                    }
+                    &:hover .played-column-avatar{ box-shadow: 0 0 0 3px var(--column-owner-color), 0 0 10px 2px var(--column-owner-color); }
+                }
+            }
+            &[data-light-owner-color="true"] .played-column-avatar-initial{ color: #1d1d1d; }
+        }
     }
 }
 

@@ -933,21 +933,63 @@ class PlayedColumnHandler {
             this.columnContainer.setAttribute('data-is-myself', 'false');
             this.columnContainer.style.setProperty('--column-owner-color', '#' + this.owner.getPlayerColor());
             this.columnContainer.setAttribute('data-light-owner-color', PlayedColumnHandler.isLightColor(this.owner.getPlayerColor()) ? 'true' : 'false');
+            //the avatar or the name, whichever the "Show players as" preference picks (PrefHandler, an attribute on
+            //#played-columns-container), is one button: a click switches every column's header
             this.columnContainer.innerHTML = `
                 <div class="played-column-title">
-                    <span class="played-column-name"></span>
+                    <span class="played-column-player" id="column-player-${this.owner.getPlayerID()}" role="button" tabindex="0">
+                        <span class="played-column-avatar"></span>
+                        <span class="played-column-name"></span>
+                    </span>
                     <span class="played-column-stars"></span>
                 </div>
                 <div class="cards-column"></div>
             `;
-            this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName();
-            this.columnContainer.querySelector('.played-column-name').setAttribute('title', this.owner.getPlayerName()); //full name on hover when it's cut
+            this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName(); //full name in the tooltip (TooltipHandler)
+            this.fillAvatar(this.columnContainer.querySelector('.played-column-avatar'));
+            const playerButton = this.columnContainer.querySelector('.played-column-player');
+            playerButton.addEventListener('click', () => this.game.prefHandler?.togglePlayersDisplay());
+            playerButton.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ')
+                    return;
+                event.preventDefault(); //no page scroll on Space
+                this.game.prefHandler?.togglePlayersDisplay();
+            });
             parent.appendChild(this.columnContainer);
         }
         this.cardsColumn = this.columnContainer.querySelector('.cards-column');
         this.starsText = this.columnContainer.querySelector('.played-column-stars');
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
         this.displayColumn();
+    }
+    //the avatar on the owner's BGA player board (#avatar_<id>, there on setup for players, spectators and replays alike), at a
+    //bigger size so it stays sharp. If the bigger one fails, the board's own; with no avatar at all, the name's initial on the
+    //owner's color, so every header can still show a circle
+    fillAvatar(avatarContainer) {
+        const boardAvatar = document.getElementById('avatar_' + this.owner.getPlayerID());
+        const boardSource = boardAvatar instanceof HTMLImageElement ? boardAvatar.getAttribute('src') : null;
+        if (!boardSource) {
+            this.showAvatarInitial(avatarContainer);
+            return;
+        }
+        const image = document.createElement('img');
+        image.className = 'played-column-avatar-image';
+        image.alt = this.owner.getPlayerName();
+        image.draggable = false;
+        image.addEventListener('error', () => {
+            if (image.getAttribute('src') !== boardSource)
+                image.setAttribute('src', boardSource);
+            else {
+                image.remove();
+                this.showAvatarInitial(avatarContainer);
+            }
+        });
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, PlayedColumnHandler.AVATAR_SIZE_SUFFIX + '$2'));
+        avatarContainer.appendChild(image);
+    }
+    showAvatarInitial(avatarContainer) {
+        avatarContainer.classList.add('played-column-avatar-initial');
+        avatarContainer.textContent = Array.from(this.owner.getPlayerName())[0]?.toUpperCase() ?? '';
     }
     displayColumn() {
         this.cardsColumn.innerHTML = ''; // Clear existing cards
@@ -1027,6 +1069,7 @@ class PlayedColumnHandler {
     getColumnContainer() { return this.columnContainer; }
 }
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
+PlayedColumnHandler.AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in the header circle
 
 class PlayerHandler {
     constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData, score) {
@@ -1435,6 +1478,8 @@ class TooltipHandler {
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltip('score-target-' + player_id, _('First to ${points} ★ wins').replace('${points}', `${this.game.getWinningScore()}`), '', TooltipHandler.TOOLTIP_DELAY);
             this.updateColumnStarsTooltip(parseInt(player_id));
+            //the column header's avatar or name: the full name (the avatar has none, and a long name is cut)
+            this.game.bga.gameui.addTooltip('column-player-' + player_id, this.game.players[player_id].getPlayerName(), '', TooltipHandler.TOOLTIP_DELAY);
         }
     }
     //the column badge: the stars at stake while in, the banked amount once stopped, nothing to bank once crashed
@@ -2697,6 +2742,7 @@ class PrefHandler {
         this.game = game;
         this.prefNameToIndex = prefNameToIndex;
         this.oneClickPlay = false;
+        this.playersDisplay = PrefHandler.PLAYERS_DISPLAY_AVATAR;
         this.game.bga.userPreferences.onChange = (prefIndex, prefValue) => this.onGameUserPreferenceChanged(prefIndex, prefValue);
         for (const prefName in this.prefNameToIndex) {
             const prefIndex = this.prefNameToIndex[prefName];
@@ -2714,12 +2760,37 @@ class PrefHandler {
             case this.prefNameToIndex.background_trees:
                 this.game.backgroundHandler.applyTreePreference(prefValue);
                 break;
+            case this.prefNameToIndex.players_display:
+                this.applyPlayersDisplay(prefValue);
+                break;
         }
     }
     //game specific functions
     //clicking a playable card plays it at once, with no Confirm step
     isOneClickPlay() { return this.oneClickPlay; }
+    //every column header follows one attribute on #played-columns-container, so all of them switch together. Any value other
+    //than Player name is Profile picture (the default; also a missing value, as for a spectator with no saved preference)
+    applyPlayersDisplay(prefValue) {
+        this.playersDisplay = prefValue == PrefHandler.PLAYERS_DISPLAY_NAME ? PrefHandler.PLAYERS_DISPLAY_NAME : PrefHandler.PLAYERS_DISPLAY_AVATAR;
+        document.getElementById('played-columns-container')?.setAttribute('data-players-display', this.playersDisplay == PrefHandler.PLAYERS_DISPLAY_NAME ? 'name' : 'avatar');
+    }
+    //a click on any column header's avatar or name: switches every header at once and saves the choice as the preference, so
+    //BGA's preferences menu shows it too. Applied here first, since saving may not be possible (a spectator who isn't logged
+    //in); the onChange that follows a successful save applies the same value again, which changes nothing
+    togglePlayersDisplay() {
+        const newValue = this.playersDisplay == PrefHandler.PLAYERS_DISPLAY_NAME ? PrefHandler.PLAYERS_DISPLAY_AVATAR : PrefHandler.PLAYERS_DISPLAY_NAME;
+        this.applyPlayersDisplay(newValue);
+        try {
+            this.game.bga.userPreferences.set(this.prefNameToIndex.players_display, newValue);
+        }
+        catch (e) {
+            console.error('Could not save the "Show players as" preference', e);
+        }
+    }
 }
+//"Show players as" (gamepreferences.jsonc, pref 103): the played columns' headers show each player's avatar or name
+PrefHandler.PLAYERS_DISPLAY_AVATAR = 1;
+PrefHandler.PLAYERS_DISPLAY_NAME = 2;
 
 class BackgroundHandler {
     static getInstance(game) {

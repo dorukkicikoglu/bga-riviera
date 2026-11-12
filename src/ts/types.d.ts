@@ -36,6 +36,7 @@ interface RivieraGamedatas extends Gamedatas<RivieraPlayer> {
 interface GamePrefs{
     one_click_play: number;
     background_trees: number;
+    players_display: number;
 }
 
 type RoundResult = 'stopped' | 'crashed' | 'grand_slam' | 'unfinished';

@@ -51,5 +51,18 @@
       }
     },
     "default": 1
+  },
+
+  "103": {
+    "name": "Show players as",
+    "values": {
+      "1": {
+        "name": "Profile picture"
+      },
+      "2": {
+        "name": "Player name"
+      }
+    },
+    "default": 1
   }
 }
