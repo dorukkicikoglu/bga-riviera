@@ -35,6 +35,7 @@ class Game extends \Bga\GameFramework\Table
         'one_click_play' => 101,
         'background_trees' => 102,
         'players_display' => 103,
+        'background_drift' => 104,
     );
 
     /**

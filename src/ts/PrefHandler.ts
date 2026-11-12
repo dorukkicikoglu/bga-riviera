@@ -39,6 +39,9 @@ export class PrefHandler{
             case this.prefNameToIndex.background_trees:
                 this.game.backgroundHandler.applyTreePreference(prefValue);
             break;
+            case this.prefNameToIndex.background_drift:
+                this.game.backgroundHandler.applyDriftPreference(prefValue);
+            break;
             case this.prefNameToIndex.players_display:
                 this.applyPlayersDisplay(prefValue);
             break;

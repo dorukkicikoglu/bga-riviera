@@ -80,11 +80,33 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 //phone, so cards need a large logical size to stay readable once scaled. Dice keep their desktop proportion to the cards
 .mobile_version{ --card-width: min(28.5vw, 150px); --die-size: #{$mobile-die-size}; --still-glow-size: 8px; --chosen-glow-size: 4px; --column-avatar-size: 39px; }
 
-//img/bg_riviera.webp is a seamless 1291x726 tile, shown at 40% of the page width (it tiles sideways and vertically, never stretched) and
-//scrolls with the page. The color is the tile's base teal while the image loads
-body{ background: url(img/bg_riviera.webp) top center / 15% auto repeat scroll; background-color: #032a2e; }
-//desktop: the same tile a little lighter, under a 10% white layer (mobile keeps the plain tile)
-body.desktop_version{ background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center / 15% auto repeat scroll; background-color: #ffffff; }
+//img/bg_riviera.webp is a seamless 1291x726 tile, shown at 15% of the window's width (it tiles sideways and vertically, never
+//stretched). It drifts toward the bottom right on body::before: a fixed layer one tile bigger than the window on the top and
+//left, moved by exactly one tile per cycle, so the loop is seamless. Moved with transform (composited), never background-position.
+//body only keeps the fallback color, shown while the image loads: the tile's base teal (white on desktop, as before)
+$bg-tile-width: 15vw;
+$bg-tile-height: math.div($bg-tile-width * 726, 1291); //the image's aspect ratio
+$bg-drift-duration: 60s;
+//isolation: body is its own stacking context, so the z-index -1 layer paints over body's own background (whether or not BGA's
+//html background keeps body's from being propagated to the canvas) and under all of the page. It sets no containing block, so
+//position: fixed elements are unaffected
+body{ background: #032a2e; isolation: isolate;
+    &::before{ content: ""; position: fixed; top: -$bg-tile-height; left: -$bg-tile-width; right: 0px; bottom: 0px; z-index: -1; pointer-events: none;
+        background-image: url(img/bg_riviera.webp); background-position: 0 0; background-size: $bg-tile-width $bg-tile-height; background-repeat: repeat; will-change: transform; animation: background-drift $bg-drift-duration linear infinite; }
+}
+//desktop: the same tile a little lighter, under a 5% white layer (mobile keeps the plain tile)
+body.desktop_version{ background: #ffffff;
+    &::before{ background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp); background-size: 100% 100%, $bg-tile-width $bg-tile-height; }
+}
+@keyframes background-drift{
+    from{ transform: translate(0, 0); }
+    to{ transform: translate($bg-tile-width, $bg-tile-height); }
+}
+//the "Background animation" preference (BackgroundHandler.applyDriftPreference, a class on <html>) and reduced motion: a still pattern
+html.no-background-drift body::before{ animation: none; will-change: auto; }
+@media (prefers-reduced-motion: reduce){
+    body::before{ animation: none; will-change: auto; }
+}
 
 #game_play_area{ min-height: calc(100dvh / var(--bga-game-zoom, 1)); } //everything below the game area only shows after scrolling
 

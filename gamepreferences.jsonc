@@ -64,5 +64,18 @@
       }
     },
     "default": 1
+  },
+
+  "104": {
+    "name": "Background animation",
+    "values": {
+      "1": {
+        "name": "On"
+      },
+      "2": {
+        "name": "Off"
+      }
+    },
+    "default": 1
   }
 }

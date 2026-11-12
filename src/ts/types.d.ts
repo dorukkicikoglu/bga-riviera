@@ -37,6 +37,7 @@ interface GamePrefs{
     one_click_play: number;
     background_trees: number;
     players_display: number;
+    background_drift: number;
 }
 
 type RoundResult = 'stopped' | 'crashed' | 'grand_slam' | 'unfinished';

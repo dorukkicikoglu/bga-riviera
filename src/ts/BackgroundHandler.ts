@@ -73,6 +73,8 @@ export class BackgroundHandler{
     //the "Background trees" preference (gamepreferences.jsonc): any other value is On
     private static readonly TREES_PREF_NO_WIND = 2;
     private static readonly TREES_PREF_NO_TREES = 3;
+    //the "Background animation" preference: the pattern on body::before drifts (Game.scss) unless this is set; any other value is On
+    private static readonly DRIFT_PREF_OFF = 2;
 
     private static instance: BackgroundHandler | null = null; //guards against a second background if the game sets its UI up again
 
@@ -124,6 +126,12 @@ export class BackgroundHandler{
             this.container.replaceChildren();
         else if(this.treeAspect !== null && !this.container.hasChildNodes()) //not loaded yet: the sprite's onload builds them
             this.buildTrees();
+    }
+
+    //from PrefHandler, on setup and whenever the player changes it. Off is a class on <html> in Game.scss, the same rule as
+    //prefers-reduced-motion, which stops the drift whatever this says
+    public applyDriftPreference(value: number): void {
+        document.documentElement.classList.toggle('no-background-drift', value == BackgroundHandler.DRIFT_PREF_OFF);
     }
 
     public destroy(): void {

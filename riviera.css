@@ -65,15 +65,53 @@
 }
 
 body {
-  background: url(img/bg_riviera.webp) top center/15% auto repeat scroll;
-  background-color: #032a2e;
+  background: #032a2e;
+  isolation: isolate;
+}
+body::before {
+  content: "";
+  position: fixed;
+  top: -8.4353214562vw;
+  left: -15vw;
+  right: 0px;
+  bottom: 0px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url(img/bg_riviera.webp);
+  background-position: 0 0;
+  background-size: 15vw 8.4353214562vw;
+  background-repeat: repeat;
+  will-change: transform;
+  animation: background-drift 60s linear infinite;
 }
 
 body.desktop_version {
-  background: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp) top center/15% auto repeat scroll;
-  background-color: #ffffff;
+  background: #ffffff;
+}
+body.desktop_version::before {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp);
+  background-size: 100% 100%, 15vw 8.4353214562vw;
 }
 
+@keyframes background-drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(15vw, 8.4353214562vw);
+  }
+}
+html.no-background-drift body::before {
+  animation: none;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+    will-change: auto;
+  }
+}
 #game_play_area {
   min-height: calc(100dvh / var(--bga-game-zoom, 1));
 }
@@ -2573,3 +2611,5 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
+
+/*# sourceMappingURL=riviera.css.map */
