@@ -40,6 +40,7 @@ export class DiceHandler{
     private static readonly ROLL_DURATION = 500; //ms of a die's travel on average. With ROLL_DURATION_VARIATION and ROLL_MAX_DELAY, the last die of a roll lands about 625ms in
     private static readonly ROLL_DURATION_VARIATION = 0.15; //each die's travel is ROLL_DURATION up to this share longer or shorter, at random, so no two rolls look alike
     private static readonly ROLL_MAX_DELAY = 120; //ms, each die starts after a random delay up to this, so the dice don't move as one block
+    private static readonly ROLL_SOUND_DELAY = 100; //ms after the roll starts at which its sound plays
     private static readonly ROLL_EASING_POINTS = [0.25, 0.8, 0.35, 1]; //x1, y1, x2, y2 of the roll's cubic-bezier: ease-out with no overshoot, the dice decelerate into place
     private static readonly ROLL_EASING = `cubic-bezier(${DiceHandler.ROLL_EASING_POINTS.join(', ')})`; //the faces follow the rotation through this same curve (getRollProgress)
     private static readonly ROLL_DISTANCE = 3; //die sizes (on screen) the die starts right of its slot, and as many above: D in translate(+D, -D). The dice container is about 1.6 die sizes tall, so every die starts above it
@@ -311,6 +312,9 @@ export class DiceHandler{
             if(rollsIn)
                 rolledDice.push({ aDie: aDie, dieData: dieData });
         }
+
+        if(rolledDice.length > 0 && !this.game.isReplay()) //once per roll, as the dice start rolling in
+            setTimeout(() => this.game.bga.sounds.play('dice_roll'), DiceHandler.ROLL_SOUND_DELAY);
 
         await Promise.all(rolledDice.map(rolledDie => this.rollIn(rolledDie.aDie, rolledDie.dieData)));
 
