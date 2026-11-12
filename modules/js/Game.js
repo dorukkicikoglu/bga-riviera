@@ -689,12 +689,15 @@ DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the
 DiceHandler.RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
 //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
 //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
-//lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). One viewBox,
-//centered on the body both share, so only the shackle differs: the open one's is raised and swung out to the right
-DiceHandler.LOCK_ICON_VIEWBOX_POWER2 = '-64 0 576 512';
+//lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). Both are 576 x
+//512 viewBoxes at the same scale with the same body (x 0 to 448): the closed one's is centered on the body, the open
+//one's covers its whole drawing (the shackle swings out to x 576, which the closed viewBox clipped), and Game.scss
+//shifts it so the two bodies overlap exactly
+DiceHandler.LOCK_CLOSED_ICON_VIEWBOX_POWER2 = '-64 0 576 512';
+DiceHandler.LOCK_OPEN_ICON_VIEWBOX_POWER2 = '0 0 576 512';
 DiceHandler.LOCK_BADGE_HTML_POWER2 = '<span class="die-lock-badge-power2" aria-hidden="true">'
-    + `<svg class="die-lock-open-icon" viewBox="${DiceHandler.LOCK_ICON_VIEWBOX_POWER2}"><path d="M352 144c0-44.2 35.8-80 80-80s80 35.8 80 80v48c0 17.7 14.3 32 32 32s32-14.3 32-32V144C576 64.5 511.5 0 432 0S288 64.5 288 144v48H64c-35.3 0-64 28.7-64 64V448c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V256c0-35.3-28.7-64-64-64H352V144z"/></svg>`
-    + `<svg class="die-lock-closed-icon" viewBox="${DiceHandler.LOCK_ICON_VIEWBOX_POWER2}"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>`
+    + `<svg class="die-lock-open-icon" viewBox="${DiceHandler.LOCK_OPEN_ICON_VIEWBOX_POWER2}"><path d="M352 144c0-44.2 35.8-80 80-80s80 35.8 80 80v48c0 17.7 14.3 32 32 32s32-14.3 32-32V144C576 64.5 511.5 0 432 0S288 64.5 288 144v48H64c-35.3 0-64 28.7-64 64V448c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V256c0-35.3-28.7-64-64-64H352V144z"/></svg>`
+    + `<svg class="die-lock-closed-icon" viewBox="${DiceHandler.LOCK_CLOSED_ICON_VIEWBOX_POWER2}"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>`
     + '</span>';
 DiceHandler.LOCK_ICON_WHITE_MAX_LUMINANCE_POWER2 = 0.3; //a white padlock keeps at least WCAG's 3:1 contrast for graphics on a player color up to this relative luminance; lighter colors get a black one
 DiceHandler.LOCK_CLOSE_DURATION_POWER2 = 180; //ms of the padlock closing, once a pending reservation's roll has landed

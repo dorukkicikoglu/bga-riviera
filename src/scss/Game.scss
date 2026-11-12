@@ -373,9 +373,15 @@ $more-button-badge-inset: 3.5px;
     //the face's fade (--die-face-opacity) leaves it alone. Absolutely placed and pointer-events none: no layout shift, no
     //blocked clicks. It inherits the die's visibility, so it hides with a die waiting for its rolling copy
     .die-lock-badge-power2{ display: none; position: absolute; z-index: 1; width: var(--lock-badge-size); height: var(--lock-badge-size); left: calc(50% - var(--lock-badge-size) / 2); bottom: calc(-1 * var(--lock-badge-below)); box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff); pointer-events: none;
-        //both share the viewBox (576 x 512), centered on the lock's body, so the closed and open padlocks overlap exactly
+        //both viewBoxes are 576 x 512 at the same scale: the closed one's is centered on the lock's body, the open one's
+        //starts 64 units further right (so its shackle isn't clipped), so it moves right by 64/576 of its width and the
+        //two bodies overlap exactly. The open padlock is then centered on its body, its shackle reaching out to the right
+        //(about a third of the disc's diameter from the center, well inside it)
         .die-lock-open-icon, .die-lock-closed-icon{ position: absolute; left: 47%; top: 50%; translate: -50% -50%; height: calc(var(--lock-badge-size) * 0.5); width: calc(var(--lock-badge-size) * 0.5 * 576 / 512); fill: currentColor; }
-        .die-lock-open-icon{ opacity: 0; }
+        .die-lock-open-icon{ opacity: 0; translate: calc(-50% + 100% * 64 / 576) -50%; }
+        //the closed padlock alone sits 0.5px further right to look centered in the disc. A margin, not translate, which
+        //DiceHandler.playLockClosingPOWER2() animates to -50% -50% (a translate nudge would jump at the animation's end)
+        .die-lock-closed-icon{ margin-left: 0.5px; }
     }
     .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2{ display: block; }
     .a-die.die-reservation-pending-power2 .die-lock-badge-power2{ display: block;

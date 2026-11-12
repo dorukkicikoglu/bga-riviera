@@ -947,6 +947,10 @@ body .sliding-clone {
 }
 #dice-container .die-lock-badge-power2 .die-lock-open-icon {
   opacity: 0;
+  translate: -38.8888888889% -50%;
+}
+#dice-container .die-lock-badge-power2 .die-lock-closed-icon {
+  margin-left: 0.5px;
 }
 #dice-container .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2 {
   display: block;
