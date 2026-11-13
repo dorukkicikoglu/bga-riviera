@@ -53,23 +53,26 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --die-combo-glow-peak-color: var(--card-glow-peak-color);
     --die-combo-transition-duration: 150ms;
 
-    //one background per log type, each a pale take on a card color or the coast, light enough for the default dark log text
+    //one background per log type, translucent so the page background shows through, light enough for the default dark log
+    //text. "Round N" is the only dark row (its own light text and border, .new-round-log). The reveal and Stop/More rows go
+    //from white to teal, left to right. Every card power row shares one background (--bg-log-power)
     --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
-    --bg-log-new-round: linear-gradient(135deg, #e3f2ea, #c6e3d2);
-    --bg-log-dice-rolled: linear-gradient(135deg, #fbf4e4, #efdfbd);
-    --bg-log-cards-revealed: linear-gradient(135deg, #e8f3fa, #c9e1ef);
-    --bg-log-last-chance: linear-gradient(135deg, #fbe4dc, #f3c6ba); //a soft peach: warmer than the neutral rows, lighter than a crash
-    --bg-log-crash: linear-gradient(135deg, #ffd1c9, #e9a297); //the reddest row: player names get a light outline on it (crash-log)
-    --bg-log-grand-slam: linear-gradient(135deg, #fff1b8, #e9c45a);
-    --bg-log-start-token: linear-gradient(135deg, #f2f0ee, #dcd8d4);
-    --bg-log-stop-or-more: linear-gradient(135deg, #f1ecf8, #dacfec);
-    --bg-log-die-reserved-power2: linear-gradient(135deg, #e9ebf8, #c9cfee);
-    --bg-log-golden-die-power11: linear-gradient(135deg, #fbf6e6, #eedfb0);
-    --bg-log-die-modified-power9: linear-gradient(135deg, #e2f4f3, #b9e0dd);
-    --bg-log-cards-swapped-power10: linear-gradient(135deg, #fae8f0, #eec4d6);
-    --bg-log-cards-redrawn-power10: linear-gradient(135deg, #f1f6e1, #d6e6b0);
-    --bg-log-power-skipped: linear-gradient(135deg, #eef1f4, #d3d9e1);
-    --bg-log-game-end: linear-gradient(135deg, #fff7d6, #f0d98a);
+    --bg-log-new-round: linear-gradient(135deg, rgba(18, 98, 100, 0.95), rgba(6, 52, 56, 0.75));
+    --bg-log-dice-rolled: linear-gradient(135deg, rgba(252, 246, 232, 0.94), rgba(236, 220, 184, 0.78));
+    --bg-log-cards-revealed: linear-gradient(90deg, rgba(226, 236, 235, 0.94) 0%, rgba(178, 208, 205, 0.9) 45%, rgba(66, 128, 130, 0.88) 100%);
+    --bg-log-last-chance: linear-gradient(135deg, rgba(255, 226, 222, 0.94), rgba(236, 160, 148, 0.8)); //lighter than a crash
+    --bg-log-crash: linear-gradient(135deg, rgba(255, 214, 204, 0.95), rgba(226, 140, 124, 0.82)); //the reddest row: player names get a light outline on it (crash-log)
+    --bg-log-grand-slam: linear-gradient(135deg, rgba(255, 244, 200, 0.96), rgba(232, 192, 90, 0.85));
+    --bg-log-start-token: linear-gradient(135deg, rgba(246, 242, 234, 0.94), rgba(222, 214, 200, 0.78));
+    --bg-log-stop-or-more: linear-gradient(90deg, rgba(226, 235, 238, 0.94) 0%, rgba(176, 204, 212, 0.9) 45%, rgba(60, 118, 132, 0.88) 100%);
+    --bg-log-power: linear-gradient(135deg, rgba(240, 236, 250, 0.94), rgba(204, 192, 236, 0.78));
+    --bg-log-die-reserved-power2: var(--bg-log-power);
+    --bg-log-golden-die-power11: var(--bg-log-power);
+    --bg-log-die-modified-power9: var(--bg-log-power);
+    --bg-log-cards-swapped-power10: var(--bg-log-power);
+    --bg-log-cards-redrawn-power10: var(--bg-log-power);
+    --bg-log-power-skipped: var(--bg-log-power);
+    --bg-log-game-end: linear-gradient(135deg, rgba(255, 247, 214, 0.95), rgba(236, 206, 120, 0.8));
 
     //power tooltips: a pale take on the sea
     --bg-gradient-tooltip: linear-gradient(120deg, #e8f4fb, #bfe0ef);
@@ -215,9 +218,9 @@ $status-card-icon-size: 40px;
     .status-card-icon{ margin: 0px 2px; @include card-icon-size(1.6em); }
 }
 
-//the bank icon (fa6-coins, Game.getBankIconHtml) is muted rose in the Stop/More log rows, white like the text on the Stop
-//button and the banked column badge
-$log-bank-icon-color: #d9788f;
+//the bank icon (fa6-coins, Game.getBankIconHtml) is the Stop button's green in the Stop/More log rows, white like the text on
+//the Stop button and the banked column badge
+$log-bank-icon-color: var(--button-color-green);
 //Font Awesome 6's forward glyph fills about 0.754 of its font size, the coins glyph all of it (512 of 512 units): at this
 //many times the coins' font size, the forward icon looks as tall as the coins
 $forward-icon-to-bank-icon-scale: math.div(1, 0.754);
@@ -512,7 +515,7 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
         //stopped: the stars are banked (in the score), so the badge is a muted grey bank icon and the cards dim a little.
         //Same 0.4s fade as a crashed column, both ways (the next round's 'in' fades them back)
         .played-column-stars, .cards-column{ transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease; }
-        //white like the badge's text, greyed by the stopped pill's opacity; not the log's rose
+        //white like the badge's text, greyed by the stopped pill's opacity; not the log's green
         .played-column-bank-icon{ display: block; font-size: 0.7052em; line-height: 1; } //about the number's height
         &[data-round-status="stopped"]{
             .played-column-stars{ opacity: 0.6; color: #ffffff; background-color: #7a7f85; border-color: #5c6066; }
@@ -724,6 +727,7 @@ $log-round-group-gap: 80px;
 $log-reserved-die-size: 22px; //the card 2 row's die, ring included, is laid out as a die this big: its ring then reaches about 28.8px, the Start token row's height
 $log-reserved-die-face-shrink: 0.08; //its face is this much smaller inside the ring
 $reveal-name-max-width: 110px; //reveal rows: longer names are cut with an ellipsis (full name on hover)
+$log-new-round-text-color: #ffff89;
 $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash", "grand-slam", "start-token", "stop-or-more",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
@@ -733,6 +737,9 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
     @each $log-type in $log-types {
         &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
     }
+    //the dark "Round N" header: white text and a thin light gold border
+    &.new-round-log .roundedbox, &.gamelogreview.new-round-log{ color: $log-new-round-text-color; border: 1px solid rgba(242, 214, 140, 0.45); }
+    &.grand-slam-log .roundedbox, &.gamelogreview.grand-slam-log{ border: 1px solid rgba(184, 134, 11, 0.7); }
 
     //"name → [Last Chance]": the reveal row's arrow and mini card, the name cut like the reveal rows' (full name in its title),
     //at the left of the log row like the reveal row
@@ -749,11 +756,18 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
         .mini-start-token{ flex-shrink: 0; --mini-start-token-size: calc(var(--log-card-icon-size) * 0.9); }
     }
     .new-round-row, .player-crashed-row, .grand-slam-row, .start-token-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px; }
-    .new-round-row{ font-weight: bold; font-size: 16px; }
+    //the dark header: bigger white text with a hard dark shadow, a little more room above and below than the other rows
+    .new-round-row{ font-weight: bold; font-size: 24px; letter-spacing: 0.06em; color: $log-new-round-text-color; @include text-shade(#2d4f4a, 3px); padding: 1px 0px; }
     .game-end-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
         .fa-trophy{ color: #b8860b; }
     }
-    .grand-slam-row{ font-weight: bold; }
+    //a big moment: bigger, uppercase, gold-brown with a light glow, a ★ on each side (pseudo-elements, so the translated
+    //string is untouched) and a little more room above and below than the other rows
+    .grand-slam-row{ font-weight: bold; font-size: 18px; text-transform: uppercase; letter-spacing: 0.12em; color: #7a4e00; text-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 196, 60, 0.85), 0 1px 0 #fff6d0; padding: 3px 0px;
+        &::before, &::after{ content: "★"; color: #f9a11a; text-shadow: 0 1px 0 #8a6a00; letter-spacing: 0; }
+        &::before{ margin-right: 0.4em; }
+        &::after{ margin-left: 0.4em; }
+    }
     //"[bomb] name [bomb]", centred; the name is cut like the reveal rows' (full name in its title)
     .player-crashed-row{ display: flex; justify-content: center; align-items: center; gap: 6px; white-space: nowrap;
         .playername{ display: block; min-width: 0; max-width: $reveal-name-max-width; overflow: hidden; text-overflow: ellipsis; font-size: 16px; }
@@ -885,6 +899,11 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
 //the log backgrounds are pale, so light player colors get a dark outline to stay readable
 @each $light-player-color in "ffa500", "72c3b1", "bdd002", "ffffff" {
     .a-game-log .playername[player-color="#{$light-player-color}"]{ @include text-shade(#27271cBF, 1px); }
+}
+//the mobile table log (in the chat bar): BGA overrides the log background there, so the "Round N" header is plain black text
+[id^="chatwindowlogs_zone_tablelog_"] .log.new-round-log{
+    .roundedbox, .new-round-row{ color: #000000; }
+    .new-round-row{ text-shadow: none; }
 }
 //end logs
 
