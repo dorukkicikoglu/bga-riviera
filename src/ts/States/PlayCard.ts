@@ -23,6 +23,8 @@ import { Game } from "../Game";
  * [BGA] Card 9: when I am the only player still in and just turned a die, "Undo" takes me back to the card 9 prompt
  * until I confirm a card (then Undo takes the card back, as usual).
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
+ * [BGA] Expert mode ("Highlight playable cards" Off): every card in hand looks and behaves the same (no glow, no dice
+ * highlight), and a click on an unplayable card is rejected here before it is selected. The server checks stay as a backstop.
  */
 export class PlayCard {
     private confirmButton: HTMLButtonElement | null = null;
@@ -98,7 +100,7 @@ export class PlayCard {
 
         //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if(isCurrentPlayerActive && this.pendingChoice && this.chainOpen){
-            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            this.setSelectableCards();
 
             //hidden until a card is selected, like Fugu's swap button
             this.confirmActionName = 'actAddChainCard_POWER1';
@@ -108,7 +110,7 @@ export class PlayCard {
             this.selectionChanged();
         } else if(isCurrentPlayerActive && !this.pendingChoice){
             if(!this.hasNoPlayableCard){
-                handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+                this.setSelectableCards();
 
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
@@ -144,6 +146,24 @@ export class PlayCard {
         }
     }
 
+    //the playable cards glow (power cards cream); in Expert mode every card not chosen yet is selectable, none glows, and
+    //canSelectCard() rejects the unplayable ones on click
+    private setSelectableCards(): void {
+        const handHandler = this.game.handHandler;
+        if(!this.game.isExpertMode()){
+            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            return;
+        }
+
+        const chosenCardIDs = this.getChosenCardIDs();
+        handHandler.setSelectableCards(handHandler.getHandCardIDs().filter(cardID => !chosenCardIDs.includes(cardID)), 1, false, false);
+    }
+
+    //HandHandler, through Game.canSelectHandCard, before selecting a card: only Expert mode lets an unplayable card be clicked
+    public canSelectCard(cardID: number): boolean {
+        return !this.game.isExpertMode() || this.playableCardIDs.includes(cardID);
+    }
+
     //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
     public chosenCardClicked(): void {
         if(this.game.isReplay() || !this.pendingChoice || this.autoGrandSlam)
@@ -167,8 +187,8 @@ export class PlayCard {
             return;
         }
 
-        //the dice that make the selected card playable, so it is clear why it glows
-        this.game.diceHandler.setComboHighlight(selectedCard ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
+        //the dice that make the selected card playable, so it is clear why it glows. Not in Expert mode, where players find their own plays
+        this.game.diceHandler.setComboHighlight((selectedCard && !this.game.isExpertMode()) ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
 
         const isAddingToChain = this.pendingChoice !== null;
         if(selectedCard){

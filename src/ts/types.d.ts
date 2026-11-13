@@ -30,6 +30,7 @@ interface RivieraGamedatas extends Gamedatas<RivieraPlayer> {
     winningScore: number;
     pref_names: GamePrefs;
     grandSlamPlayerIds: number[];
+    expertMode: boolean; //[BGA] the "Highlight playable cards" table option is Off: no playable glow, unplayable clicks rejected
     endGameScoring?: EndGameScoreData;
 }
 

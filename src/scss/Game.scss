@@ -469,7 +469,16 @@ body.current_player_is_active:not(.lockedInterface){
     &.mobile_version #my-hand-container .cards-container .a-card.selectable-card{ animation-name: mobile-selectable-card-glow-pulse; }
     //the selected card holds its still glow; the other playable cards keep pulsing until the play is confirmed
     #my-hand-container .cards-container .a-card.selectable-card.selected-hand-card{ animation: none; }
+    //[BGA] Expert mode's PlayCard (HandHandler.setSelectableCards, withGlow false): every card not chosen yet is selectable, with the
+    //same pointer cursor and no glow, so playable and unplayable cards look alike. An unplayable card that was clicked shakes sideways
+    //once (HandHandler.rejectCard, the class removed once played). After the mobile rule above, which it must beat
+    #my-hand-container .cards-container.selectable-without-glow .a-card.selectable-card{ animation: none;
+        &.rejected-hand-card{ animation: rejected-hand-card-shake var(--card-reject-shake-duration, 400ms) ease-in-out; }
+    }
 }
+
+//[BGA] Expert mode: a set-aside power card keeps the gold still glow, like every other card (no cream power glow anywhere in the hand)
+html.riviera-expert-mode #my-hand-container .cards-container .a-card.chosen-card{ --still-glow-color: var(--card-glow-peak-color); --still-glow-reach: 1; }
 
 //PlayCard, waiting for the others: a set-aside card is the Undo button (HandHandler.setChosenCardsUndoable). Only the cursor
 //changes: no hover effect, and nothing that touches the card's transform or transition (its glow already shows it is chosen)
@@ -1009,6 +1018,26 @@ $power-reference-text: #051121;
     .power-reference-entry.highlighted-power-entry{ background: linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)), $power-reference-background; color: $power-reference-text; }
 }
 .tundra .dijitTooltip:has(.status-bar-power-tooltip) .dijitTooltipConnector:after{ background: var(--bg-gradient-tooltip-connector); }
+
+//[BGA] Expert mode: "Can't play [card]" over an unplayable card that was clicked (HandHandler.showRejectedCardPopup), in the power
+//tooltips' look. Fixed in <body> (placed and kept inside the window in TS), over BGA's fixed status bar by coming later in <body>,
+//never catching the pointer, removed once faded
+.rejected-card-popup{ position: fixed; z-index: 948; pointer-events: none; display: inline-flex; align-items: center; gap: 2px; box-sizing: border-box; width: max-content; max-width: calc(100vw - 16px);
+    padding: 5px 10px; border-radius: $tooltip-border-radius; background: var(--bg-gradient-tooltip); outline: 0.5px solid #ffffff; outline-offset: -0.5px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    color: #27271c; font-family: "Roboto", sans-serif; font-size: 15px; font-weight: bold; line-height: 1.2;
+    animation: rejected-card-popup-fade var(--rejected-card-popup-duration, 2s) ease forwards;
+    .status-card-icon{ margin: 0px 0px 0px 4px; @include card-icon-size(28px); }
+}
+//end tooltip-like popups
+
+//[BGA] Expert mode indicator (Game.addExpertModeIndicator): a pill in the game area's top-left corner, for players, spectators and
+//replays. The dice are centred in #dice-container, the game area's first row, so that corner stays empty: the widest row, 6 dice at
+//their largest (82.5px on mobile, in BGA's 740px logical layout), leaves 102px on each side, and the pill's right edge stops at 100px
+//(left + max-width). Long translations wrap instead of widening it. On mobile it also fits above the dice, in the card 9 arrows' band.
+//z-index 1 in the root stacking context: under the rejected card popup (948) and BGA's tooltips (2000)
+.expert-mode-indicator-anchor{ position: relative; } //only if BGA left the game area static
+.expert-mode-indicator{ position: absolute; top: 6px; left: 8px; z-index: 1; box-sizing: border-box; max-width: 92px; padding: 2px 9px; border: 1px solid #FFD700; border-radius: 999px; background: #05141a; color: #ffd483;
+    font-family: "Roboto", sans-serif; font-size: 11px; font-weight: bold; line-height: 16px; text-align: center; white-space: normal; overflow-wrap: break-word; cursor: default; @include non-selectable(); }
 //the extra line of the Keep Going button's card icon tooltip (TooltipHandler.addPowerNeedingMoreTooltip), clear of the entry's floated icon
 .power-needing-more-note{ clear: both; margin-top: 6px; }
 
@@ -1110,6 +1139,23 @@ $card-power-badge-background: linear-gradient(#fff6dc, #f2d68c); //the power car
   0% { box-shadow: 0 0 calc(4px * var(--glow-reach)) calc(4px * var(--glow-reach)) var(--glow-color); }
   50% { box-shadow: 0 0 calc(8px * var(--glow-reach)) calc(8px * var(--glow-reach)) var(--glow-peak-color); }
   100% { box-shadow: 0 0 calc(4px * var(--glow-reach)) calc(4px * var(--glow-reach)) var(--glow-color); }
+}
+
+//Expert mode: an unplayable card that was clicked (HandHandler.rejectCard). On translate, so the selected and set-aside lifts (transform) are untouched
+@keyframes rejected-hand-card-shake {
+  0%, 100% { translate: 0px 0px; }
+  15% { translate: -7px 0px; }
+  35% { translate: 6px 0px; }
+  55% { translate: -4px 0px; }
+  75% { translate: 2px 0px; }
+}
+
+//Expert mode's "Can't play [card]" popup: in quickly, held, then faded out by the end of Game.REJECTED_CARD_POPUP_DURATION
+@keyframes rejected-card-popup-fade {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @keyframes bouncing-player-board {

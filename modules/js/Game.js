@@ -10,6 +10,8 @@
  * [BGA] Card 9: when I am the only player still in and just turned a die, "Undo" takes me back to the card 9 prompt
  * until I confirm a card (then Undo takes the card back, as usual).
  * The args only arrive on entering the state, so the private notifications keep a local copy of what I see next.
+ * [BGA] Expert mode ("Highlight playable cards" Off): every card in hand looks and behaves the same (no glow, no dice
+ * highlight), and a click on an unplayable card is rejected here before it is selected. The server checks stay as a backstop.
  */
 class PlayCard {
     constructor(game, bga) {
@@ -77,7 +79,7 @@ class PlayCard {
         handHandler.setChosenCardsUndoable(isWaiting && !!this.pendingChoice && !this.autoGrandSlam && !this.game.isReplay());
         //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if (isCurrentPlayerActive && this.pendingChoice && this.chainOpen) {
-            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            this.setSelectableCards();
             //hidden until a card is selected, like Fugu's swap button
             this.confirmActionName = 'actAddChainCard_POWER1';
             this.confirmButton = this.bga.statusBar.addActionButton(_('Add card'), () => this.confirmClicked(this.confirmActionName), { id: 'add-chain-card-button' });
@@ -87,7 +89,7 @@ class PlayCard {
         }
         else if (isCurrentPlayerActive && !this.pendingChoice) {
             if (!this.hasNoPlayableCard) {
-                handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+                this.setSelectableCards();
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
                 this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), { id: 'confirm-selected-card-button' });
@@ -121,6 +123,21 @@ class PlayCard {
                 this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
     }
+    //the playable cards glow (power cards cream); in Expert mode every card not chosen yet is selectable, none glows, and
+    //canSelectCard() rejects the unplayable ones on click
+    setSelectableCards() {
+        const handHandler = this.game.handHandler;
+        if (!this.game.isExpertMode()) {
+            handHandler.setSelectableCards(this.playableCardIDs, 1, true);
+            return;
+        }
+        const chosenCardIDs = this.getChosenCardIDs();
+        handHandler.setSelectableCards(handHandler.getHandCardIDs().filter(cardID => !chosenCardIDs.includes(cardID)), 1, false, false);
+    }
+    //HandHandler, through Game.canSelectHandCard, before selecting a card: only Expert mode lets an unplayable card be clicked
+    canSelectCard(cardID) {
+        return !this.game.isExpertMode() || this.playableCardIDs.includes(cardID);
+    }
     //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
     chosenCardClicked() {
         if (this.game.isReplay() || !this.pendingChoice || this.autoGrandSlam)
@@ -139,8 +156,8 @@ class PlayCard {
             this.confirmClicked(this.confirmActionName);
             return;
         }
-        //the dice that make the selected card playable, so it is clear why it glows
-        this.game.diceHandler.setComboHighlight(selectedCard ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
+        //the dice that make the selected card playable, so it is clear why it glows. Not in Expert mode, where players find their own plays
+        this.game.diceHandler.setComboHighlight((selectedCard && !this.game.isExpertMode()) ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
         const isAddingToChain = this.pendingChoice !== null;
         if (selectedCard) {
             this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
@@ -1724,6 +1741,7 @@ class HandHandler {
         this.maxSelectedCards = 1;
         this.selectionCounter = 0; //stamps data-selection-order on each selected card, so selections read back in the order they were made
         this.resizeDebounceTimeout = null;
+        this.rejectedCardPopupTimeout = null;
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
         this.handContainer = document.querySelector('#my-hand-container');
         this.handContainer.classList.add('a-hand-container');
@@ -1819,6 +1837,11 @@ class HandHandler {
     //replaces the oldest selected one (first in, first out). Clicking a selected card unselects it
     handCardClicked(cardDiv) {
         const cardWasAlreadySelected = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
+        //Expert mode: an unplayable card is rejected before anything is selected (or played, with "One-click card play")
+        if (!cardWasAlreadySelected && !this.game.canSelectHandCard(parseInt(cardDiv.getAttribute('data-card-id')))) {
+            this.rejectCard(cardDiv);
+            return;
+        }
         if (cardWasAlreadySelected) {
             cardDiv.classList.remove(HandHandler.SELECTED_CARD_CLASS);
         }
@@ -1862,10 +1885,12 @@ class HandHandler {
     getCardData(cardID) {
         return this.handData.find(card => card.card_id === cardID) ?? null;
     }
-    //selectable cards glow, the others keep their normal look. isPlay: the cards are playable cards, so power cards get their own glow
-    setSelectableCards(selectableCardIDs, maxSelectedCards = 1, isPlay = false) {
+    //selectable cards glow, the others keep their normal look. isPlay: the cards are playable cards, so power cards get their own glow.
+    //withGlow false (Expert mode's PlayCard): the cards get the selectable cursor but no glow, so every card looks the same
+    setSelectableCards(selectableCardIDs, maxSelectedCards = 1, isPlay = false, withGlow = true) {
         this.clearSelection();
         this.maxSelectedCards = maxSelectedCards;
+        this.cardsContainer.classList.toggle(HandHandler.SELECTABLE_WITHOUT_GLOW_CLASS, !withGlow);
         for (let card of this.getCardDivs()) {
             const isSelectable = selectableCardIDs.includes(parseInt(card.getAttribute('data-card-id')));
             card.classList.toggle(HandHandler.SELECTABLE_CARD_CLASS, isSelectable);
@@ -1888,6 +1913,7 @@ class HandHandler {
     }
     clearSelectableCards() {
         this.clearSelection();
+        this.cardsContainer.classList.remove(HandHandler.SELECTABLE_WITHOUT_GLOW_CLASS);
         for (let card of this.getCardDivs())
             card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS, HandHandler.PLAYABLE_POWER_CARD_CLASS);
     }
@@ -1909,6 +1935,65 @@ class HandHandler {
         }
     }
     isUndoableChosenCard(card) { return card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS); }
+    //Expert mode: an unplayable card was clicked. It shakes sideways (not with reduced motion) and "Can't play [card]" pops up on it
+    rejectCard(cardDiv) {
+        const cardData = this.getCardData(parseInt(cardDiv.getAttribute('data-card-id')));
+        if (!cardData)
+            return;
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            //restarted on a second click mid-shake. One-shot: removed once played, or once the rule stops applying (the interface locks)
+            cardDiv.classList.remove(HandHandler.REJECTED_CARD_CLASS);
+            void cardDiv.offsetWidth;
+            cardDiv.style.setProperty('--card-reject-shake-duration', Game.CARD_REJECT_SHAKE_DURATION + 'ms');
+            cardDiv.classList.add(HandHandler.REJECTED_CARD_CLASS);
+            //a timeout too, in case the shake never starts (then neither event comes)
+            const removeShake = () => {
+                cardDiv.classList.remove(HandHandler.REJECTED_CARD_CLASS);
+                cardDiv.removeEventListener('animationend', onShakeEvent);
+                cardDiv.removeEventListener('animationcancel', onShakeEvent);
+                clearTimeout(shakeTimeout);
+            };
+            const onShakeEvent = (event) => {
+                if (event.target === cardDiv && event.animationName === 'rejected-hand-card-shake')
+                    removeShake();
+            };
+            const shakeTimeout = setTimeout(removeShake, Game.CARD_REJECT_SHAKE_DURATION + 100);
+            cardDiv.addEventListener('animationend', onShakeEvent);
+            cardDiv.addEventListener('animationcancel', onShakeEvent);
+        }
+        this.showRejectedCardPopup(cardDiv, cardData);
+    }
+    //one popup at a time (a new rejection replaces it), fixed in <body> above the card (below it when there is no room above),
+    //kept inside the window. It ignores the pointer, fades out in Game.REJECTED_CARD_POPUP_DURATION and is removed
+    showRejectedCardPopup(cardDiv, cardData) {
+        this.removeRejectedCardPopup();
+        const popup = document.createElement('div');
+        popup.id = HandHandler.REJECTED_CARD_POPUP_ID;
+        popup.className = 'rejected-card-popup';
+        popup.style.setProperty('--rejected-card-popup-duration', Game.REJECTED_CARD_POPUP_DURATION + 'ms');
+        popup.innerHTML = _("Can't play ${card}").replace('${card}', this.game.getStatusCardIconHTML(cardData));
+        document.body.appendChild(popup);
+        const gap = HandHandler.REJECTED_CARD_POPUP_GAP;
+        const cardRect = cardDiv.getBoundingClientRect();
+        const popupRect = popup.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = document.documentElement.clientHeight;
+        let left = cardRect.left + (cardRect.width - popupRect.width) / 2;
+        left = Math.max(gap, Math.min(left, viewportWidth - popupRect.width - gap));
+        let top = cardRect.top - popupRect.height - gap;
+        if (top < gap)
+            top = cardRect.bottom + gap;
+        top = Math.max(gap, Math.min(top, viewportHeight - popupRect.height - gap));
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+        this.rejectedCardPopupTimeout = setTimeout(() => this.removeRejectedCardPopup(), Game.REJECTED_CARD_POPUP_DURATION);
+    }
+    removeRejectedCardPopup() {
+        if (this.rejectedCardPopupTimeout !== null)
+            clearTimeout(this.rejectedCardPopupTimeout);
+        this.rejectedCardPopupTimeout = null;
+        document.getElementById(HandHandler.REJECTED_CARD_POPUP_ID)?.remove();
+    }
     //card 10 redraw: the discarded cards sweep off-screen up-left, then the drawn cards come in from off-screen up-left into
     //their sorted slots, dealt like a new hand. The hand is laid out once, in its final order, as the sweep starts, with the
     //drawn cards hidden in their slots. Resolves when the last drawn card has landed
@@ -2028,6 +2113,10 @@ HandHandler.UNDOABLE_CHOSEN_CARD_CLASS = 'undoable-chosen-card'; //a set-aside c
 HandHandler.SELECTABLE_CARD_CLASS = 'selectable-card';
 HandHandler.PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
 HandHandler.CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
+HandHandler.SELECTABLE_WITHOUT_GLOW_CLASS = 'selectable-without-glow'; //on the cards container: Expert mode's PlayCard, every card selectable and none glowing
+HandHandler.REJECTED_CARD_CLASS = 'rejected-hand-card'; //Expert mode: the one-shot shake of an unplayable card that was clicked
+HandHandler.REJECTED_CARD_POPUP_ID = 'rejected-card-popup';
+HandHandler.REJECTED_CARD_POPUP_GAP = 8; //px between the popup and the card, and the least between the popup and the window's edges
 //new hand (setHand): the previous round's leftover cards sweep out up-left (Game.sweepCardsOffScreen) while the new hand
 //is dealt right to left, every new card travelling the same path, shifted to its own slot, in from the top-left along
 //Game.CARD_SWEEP_ANGLE. A card 10 redraw deals its drawn cards the same way. Durations, staggers, easings and the
@@ -3178,6 +3267,7 @@ class Game {
         this.undoHandler = new UndoHandler(this);
         this.tooltipHandler = new TooltipHandler(this);
         this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
+        this.addExpertModeIndicator();
         this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();
         if (gamedatas.hasOwnProperty('endGameScoring'))
             this.endGameScoringHandler.displayEndGameScore(gamedatas.endGameScoring);
@@ -3524,6 +3614,19 @@ class Game {
     }
     getPlayerColor(playerID) { return this.gamedatas.players[playerID]?.color; }
     getWinningScore() { return this.gamedatas.winningScore; }
+    isExpertMode() { return !!this.gamedatas.expertMode; } //[BGA] "Highlight playable cards" Off: no playable glow, unplayable clicks rejected (PlayCard)
+    //[BGA] Expert mode only, players, spectators and replays alike: a pill in the game area's top-left corner, beside the dice
+    //row's empty left side (the dice are centred, so even 6 dice at their largest leave that corner free, see Game.scss)
+    addExpertModeIndicator() {
+        if (!this.isExpertMode())
+            return;
+        document.documentElement.classList.add('riviera-expert-mode');
+        const gameArea = this.bga.gameArea.getElement();
+        if (getComputedStyle(gameArea).position === 'static')
+            gameArea.classList.add('expert-mode-indicator-anchor');
+        gameArea.insertAdjacentHTML('afterbegin', `<div id="expert-mode-indicator" class="expert-mode-indicator">${_('Expert mode')}</div>`);
+        this.bga.gameui.addTooltip('expert-mode-indicator', _('Playable cards are not highlighted at this table.'), '');
+    }
     //BGA's final state, or the end-game table already shown (it arrives in EndScore, just before gameEnd)
     isGameOver() { return this.getGameStateName() === 'gameEnd' || !!this.endGameScoringHandler?.isDisplayed(); }
     updateEndGameScoreHighlights() {
@@ -3548,6 +3651,12 @@ class Game {
             this.playCard.selectionChanged();
         else if (stateName === 'SwapCards')
             this.swapCards.selectionChanged();
+    }
+    //a hand card that isn't selected yet was clicked: whether it may be selected (PlayCard in Expert mode rejects unplayable cards)
+    canSelectHandCard(cardID) {
+        if (this.getGameStateName() === 'PlayCard')
+            return this.playCard.canSelectCard(cardID);
+        return true;
     }
     //a set-aside card that can still be taken back was clicked (HandHandler only marks them in PlayCard)
     undoableChosenCardClicked() {
@@ -3843,6 +3952,8 @@ Game.REDRAW_SWEEP_DURATION = 550; //card 10 redraw: the discarded cards' sweep, 
 Game.REDRAW_SWEEP_STAGGER = 60;
 Game.REDRAW_DEAL_DURATION = 550; //card 10 redraw: the drawn cards' deal (same easing as a new hand's)
 Game.REDRAW_DEAL_STAGGER = 100;
+Game.CARD_REJECT_SHAKE_DURATION = 400; //ms of the short horizontal shake of an unplayable card clicked in Expert mode (none with reduced motion)
+Game.REJECTED_CARD_POPUP_DURATION = 2000; //ms the "Can't play [card]" popup stays before it has faded out
 Game.CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
 Game.OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
 Game.AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long

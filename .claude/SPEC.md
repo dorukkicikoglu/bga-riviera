@@ -176,6 +176,9 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 - "Reroll busting first-time rolls" (`OPTION_FIRST_ROLL_REROLLS`, id 100), on by default:
   - On (lobby label "Up to 2 rerolls on first-roll bust"): on the first roll of each round, the dice are rerolled (up to 2 times) if a player has no playable card (see Turn sequence, step 1).
   - Off: physical game rules, the first roll is never rerolled.
+- "Highlight playable cards" (`OPTION_HIGHLIGHT_PLAYABLE_CARDS`, id 101, `HIGHLIGHT_PLAYABLE_CARDS_ON` 1 by default, `HIGHLIGHT_PLAYABLE_CARDS_OFF` 0, sent as `gamedatas.expertMode`):
+  - On: playable cards glow as usual.
+  - Off (Expert mode): in Play a card (card-1 chain included), every card in hand looks and behaves the same: no gold or cream glow, the same pointer cursor on every card not chosen yet, no glow on the dice behind the selected card, and set-aside power cards keep the gold glow. Clicking an unplayable card is rejected on the client before it is selected (with or without "One-click card play"): the card shakes sideways (400ms, none with reduced motion) and a "Can't play [card]" popup (the circular card icon) shows over it for 2 seconds, one at a time. The server checks stay as a backstop. Unchanged: "cannot play any card" with Last Chance / Crash, the automatic crash and Grand Slam, card 10's swap selection (every card glows gold, no hint). An "Expert mode" pill sits in the game area's top-left corner, left of the centred dice row (long translations wrap), for everyone (spectators and replays too), with the tooltip "Playable cards are not highlighted at this table."
 
 ## Preferences [BGA]
 

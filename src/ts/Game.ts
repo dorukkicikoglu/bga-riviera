@@ -58,6 +58,8 @@ export class Game {
     public static readonly REDRAW_SWEEP_STAGGER = 60;
     public static readonly REDRAW_DEAL_DURATION = 550; //card 10 redraw: the drawn cards' deal (same easing as a new hand's)
     public static readonly REDRAW_DEAL_STAGGER = 100;
+    public static readonly CARD_REJECT_SHAKE_DURATION = 400; //ms of the short horizontal shake of an unplayable card clicked in Expert mode (none with reduced motion)
+    public static readonly REJECTED_CARD_POPUP_DURATION = 2000; //ms the "Can't play [card]" popup stays before it has faded out
     public static readonly CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
     private static readonly OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
     private static readonly AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
@@ -166,6 +168,7 @@ export class Game {
         this.undoHandler = new UndoHandler(this);
         this.tooltipHandler = new TooltipHandler(this);
         this.prefHandler = new PrefHandler(this, gamedatas.pref_names);
+        this.addExpertModeIndicator();
         this.bga.gameui.onScreenWidthChange = () => this.onScreenWidthChange();
 
         if(gamedatas.hasOwnProperty('endGameScoring'))
@@ -556,6 +559,22 @@ export class Game {
     }
     public getPlayerColor(playerID: number): string { return this.gamedatas.players[playerID]?.color; }
     public getWinningScore(): number { return this.gamedatas.winningScore; }
+    public isExpertMode(): boolean { return !!this.gamedatas.expertMode; } //[BGA] "Highlight playable cards" Off: no playable glow, unplayable clicks rejected (PlayCard)
+
+    //[BGA] Expert mode only, players, spectators and replays alike: a pill in the game area's top-left corner, beside the dice
+    //row's empty left side (the dice are centred, so even 6 dice at their largest leave that corner free, see Game.scss)
+    private addExpertModeIndicator(): void {
+        if(!this.isExpertMode())
+            return;
+
+        document.documentElement.classList.add('riviera-expert-mode');
+        const gameArea = this.bga.gameArea.getElement();
+        if(getComputedStyle(gameArea).position === 'static')
+            gameArea.classList.add('expert-mode-indicator-anchor');
+
+        gameArea.insertAdjacentHTML('afterbegin', `<div id="expert-mode-indicator" class="expert-mode-indicator">${_('Expert mode')}</div>`);
+        this.bga.gameui.addTooltip('expert-mode-indicator', _('Playable cards are not highlighted at this table.'), '');
+    }
     //BGA's final state, or the end-game table already shown (it arrives in EndScore, just before gameEnd)
     public isGameOver(): boolean { return this.getGameStateName() === 'gameEnd' || !!this.endGameScoringHandler?.isDisplayed(); }
     public updateEndGameScoreHighlights(): void {
@@ -583,6 +602,13 @@ export class Game {
             this.playCard.selectionChanged();
         else if(stateName === 'SwapCards')
             this.swapCards.selectionChanged();
+    }
+
+    //a hand card that isn't selected yet was clicked: whether it may be selected (PlayCard in Expert mode rejects unplayable cards)
+    public canSelectHandCard(cardID: number): boolean {
+        if(this.getGameStateName() === 'PlayCard')
+            return this.playCard.canSelectCard(cardID);
+        return true;
     }
 
     //a set-aside card that can still be taken back was clicked (HandHandler only marks them in PlayCard)

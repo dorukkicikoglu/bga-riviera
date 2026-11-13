@@ -37,6 +37,10 @@ if (!defined('CARD_COLORS')) { // guard since this included multiple times
     define("FIRST_ROLL_REROLLS_OFF", 0); //physical game rules, the first roll is never re-rolled
     define("FIRST_ROLL_REROLLS_ON", 1); //default
 
+    define("OPTION_HIGHLIGHT_PLAYABLE_CARDS", 101); //gameoptions.jsonc: "Highlight playable cards"
+    define("HIGHLIGHT_PLAYABLE_CARDS_OFF", 0); //Expert mode: playable cards aren't highlighted, a click on an unplayable card is rejected
+    define("HIGHLIGHT_PLAYABLE_CARDS_ON", 1); //default
+
     define("POWER_CARD_VALUES", [2, 9, 10, 11]); //non-1 powers: the last card a player reveals in a turn leaves a pending_POWER<n> marker
     define("POWER_VALUES_NEEDING_MORE", [2, 9, 11]); //non-1 powers still to resolve in Stop or More, lost on a Stop (card 10 has resolved by then)
     define("CHAIN_CARD_VALUE_POWER1", 1); //a card 1 lets its player add another card to the same choice

@@ -119,6 +119,15 @@ class Game extends \Bga\GameFramework\Table
 //       }
     }
 
+    /**
+     * [BGA] The "Highlight playable cards" option set to Off: the client shows no playable glow and rejects a click on an
+     * unplayable card itself (PlayCard's server checks stay as they are). null on a table created before the option existed: the default (on)
+     */
+    public function isExpertMode(): bool
+    {
+        return $this->bga->tableOptions->get(OPTION_HIGHLIGHT_PLAYABLE_CARDS) === HIGHLIGHT_PLAYABLE_CARDS_OFF;
+    }
+
     /*
      * Gather all information about current game situation (visible by the current player).
      *
@@ -154,6 +163,7 @@ class Game extends \Bga\GameFramework\Table
         $result['winningScore'] = WINNING_SCORE;
         $result['pref_names'] = $this->userPrefs;
         $result['grandSlamPlayerIds'] = $this->tableManager->getGrandSlamPlayerIDs();
+        $result['expertMode'] = $this->isExpertMode();
 
         $state = $this->gamestate->getCurrentMainState();
         if($state->name == 'gameEnd')

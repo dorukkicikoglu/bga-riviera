@@ -20,6 +20,10 @@ export class HandHandler{
     private static readonly SELECTABLE_CARD_CLASS = 'selectable-card';
     private static readonly PLAYABLE_POWER_CARD_CLASS = 'playable-power-card'; //a playable power card glows cream instead of gold
     private static readonly CARD_GLOW_ANIMATIONS = ['selectable-card-glow-pulse', 'mobile-selectable-card-glow-pulse']; //Game.scss keyframes
+    private static readonly SELECTABLE_WITHOUT_GLOW_CLASS = 'selectable-without-glow'; //on the cards container: Expert mode's PlayCard, every card selectable and none glowing
+    private static readonly REJECTED_CARD_CLASS = 'rejected-hand-card'; //Expert mode: the one-shot shake of an unplayable card that was clicked
+    private static readonly REJECTED_CARD_POPUP_ID = 'rejected-card-popup';
+    private static readonly REJECTED_CARD_POPUP_GAP = 8; //px between the popup and the card, and the least between the popup and the window's edges
     //new hand (setHand): the previous round's leftover cards sweep out up-left (Game.sweepCardsOffScreen) while the new hand
     //is dealt right to left, every new card travelling the same path, shifted to its own slot, in from the top-left along
     //Game.CARD_SWEEP_ANGLE. A card 10 redraw deals its drawn cards the same way. Durations, staggers, easings and the
@@ -38,6 +42,7 @@ export class HandHandler{
     private maxSelectedCards: number = 1;
     private selectionCounter: number = 0; //stamps data-selection-order on each selected card, so selections read back in the order they were made
     private resizeDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+    private rejectedCardPopupTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(private game: Game, private handData: RivieraCard[]) {
         // my hand only: spectators never get one, other players' hands are only counts on their player boards
@@ -160,6 +165,12 @@ export class HandHandler{
     private handCardClicked(cardDiv: HTMLDivElement){
         const cardWasAlreadySelected: boolean = cardDiv.classList.contains(HandHandler.SELECTED_CARD_CLASS);
 
+        //Expert mode: an unplayable card is rejected before anything is selected (or played, with "One-click card play")
+        if(!cardWasAlreadySelected && !this.game.canSelectHandCard(parseInt(cardDiv.getAttribute('data-card-id')))){
+            this.rejectCard(cardDiv);
+            return;
+        }
+
         if(cardWasAlreadySelected){
             cardDiv.classList.remove(HandHandler.SELECTED_CARD_CLASS);
         } else if(this.maxSelectedCards === 1){
@@ -210,10 +221,12 @@ export class HandHandler{
         return this.handData.find(card => card.card_id === cardID) ?? null;
     }
 
-    //selectable cards glow, the others keep their normal look. isPlay: the cards are playable cards, so power cards get their own glow
-    public setSelectableCards(selectableCardIDs: number[], maxSelectedCards: number = 1, isPlay: boolean = false): void{
+    //selectable cards glow, the others keep their normal look. isPlay: the cards are playable cards, so power cards get their own glow.
+    //withGlow false (Expert mode's PlayCard): the cards get the selectable cursor but no glow, so every card looks the same
+    public setSelectableCards(selectableCardIDs: number[], maxSelectedCards: number = 1, isPlay: boolean = false, withGlow: boolean = true): void{
         this.clearSelection();
         this.maxSelectedCards = maxSelectedCards;
+        this.cardsContainer.classList.toggle(HandHandler.SELECTABLE_WITHOUT_GLOW_CLASS, !withGlow);
 
         for(let card of this.getCardDivs()){
             const isSelectable = selectableCardIDs.includes(parseInt(card.getAttribute('data-card-id')));
@@ -241,6 +254,7 @@ export class HandHandler{
 
     public clearSelectableCards(): void{
         this.clearSelection();
+        this.cardsContainer.classList.remove(HandHandler.SELECTABLE_WITHOUT_GLOW_CLASS);
         for(let card of this.getCardDivs())
             card.classList.remove(HandHandler.SELECTABLE_CARD_CLASS, HandHandler.PLAYABLE_POWER_CARD_CLASS);
     }
@@ -266,6 +280,75 @@ export class HandHandler{
     }
 
     public isUndoableChosenCard(card: HTMLElement): boolean{ return card.classList.contains(HandHandler.UNDOABLE_CHOSEN_CARD_CLASS); }
+
+    //Expert mode: an unplayable card was clicked. It shakes sideways (not with reduced motion) and "Can't play [card]" pops up on it
+    private rejectCard(cardDiv: HTMLDivElement): void{
+        const cardData = this.getCardData(parseInt(cardDiv.getAttribute('data-card-id')));
+        if(!cardData)
+            return;
+
+        if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+            //restarted on a second click mid-shake. One-shot: removed once played, or once the rule stops applying (the interface locks)
+            cardDiv.classList.remove(HandHandler.REJECTED_CARD_CLASS);
+            void cardDiv.offsetWidth;
+            cardDiv.style.setProperty('--card-reject-shake-duration', Game.CARD_REJECT_SHAKE_DURATION + 'ms');
+            cardDiv.classList.add(HandHandler.REJECTED_CARD_CLASS);
+            //a timeout too, in case the shake never starts (then neither event comes)
+            const removeShake = () => {
+                cardDiv.classList.remove(HandHandler.REJECTED_CARD_CLASS);
+                cardDiv.removeEventListener('animationend', onShakeEvent);
+                cardDiv.removeEventListener('animationcancel', onShakeEvent);
+                clearTimeout(shakeTimeout);
+            };
+            const onShakeEvent = (event: AnimationEvent) => {
+                if(event.target === cardDiv && event.animationName === 'rejected-hand-card-shake')
+                    removeShake();
+            };
+            const shakeTimeout = setTimeout(removeShake, Game.CARD_REJECT_SHAKE_DURATION + 100);
+            cardDiv.addEventListener('animationend', onShakeEvent);
+            cardDiv.addEventListener('animationcancel', onShakeEvent);
+        }
+
+        this.showRejectedCardPopup(cardDiv, cardData);
+    }
+
+    //one popup at a time (a new rejection replaces it), fixed in <body> above the card (below it when there is no room above),
+    //kept inside the window. It ignores the pointer, fades out in Game.REJECTED_CARD_POPUP_DURATION and is removed
+    private showRejectedCardPopup(cardDiv: HTMLDivElement, cardData: RivieraCard): void{
+        this.removeRejectedCardPopup();
+
+        const popup = document.createElement('div');
+        popup.id = HandHandler.REJECTED_CARD_POPUP_ID;
+        popup.className = 'rejected-card-popup';
+        popup.style.setProperty('--rejected-card-popup-duration', Game.REJECTED_CARD_POPUP_DURATION + 'ms');
+        popup.innerHTML = _("Can't play ${card}").replace('${card}', this.game.getStatusCardIconHTML(cardData));
+        document.body.appendChild(popup);
+
+        const gap = HandHandler.REJECTED_CARD_POPUP_GAP;
+        const cardRect = cardDiv.getBoundingClientRect();
+        const popupRect = popup.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = document.documentElement.clientHeight;
+
+        let left = cardRect.left + (cardRect.width - popupRect.width) / 2;
+        left = Math.max(gap, Math.min(left, viewportWidth - popupRect.width - gap));
+        let top = cardRect.top - popupRect.height - gap;
+        if(top < gap)
+            top = cardRect.bottom + gap;
+        top = Math.max(gap, Math.min(top, viewportHeight - popupRect.height - gap));
+
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+
+        this.rejectedCardPopupTimeout = setTimeout(() => this.removeRejectedCardPopup(), Game.REJECTED_CARD_POPUP_DURATION);
+    }
+
+    private removeRejectedCardPopup(): void{
+        if(this.rejectedCardPopupTimeout !== null)
+            clearTimeout(this.rejectedCardPopupTimeout);
+        this.rejectedCardPopupTimeout = null;
+        document.getElementById(HandHandler.REJECTED_CARD_POPUP_ID)?.remove();
+    }
 
     //card 10 redraw: the discarded cards sweep off-screen up-left, then the drawn cards come in from off-screen up-left into
     //their sorted slots, dealt like a new hand. The hand is laid out once, in its final order, as the sweep starts, with the

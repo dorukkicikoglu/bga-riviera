@@ -1140,6 +1140,17 @@ body.current_player_is_active:not(.lockedInterface).mobile_version #my-hand-cont
 body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container .a-card.selectable-card.selected-hand-card {
   animation: none;
 }
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container.selectable-without-glow .a-card.selectable-card {
+  animation: none;
+}
+body.current_player_is_active:not(.lockedInterface) #my-hand-container .cards-container.selectable-without-glow .a-card.selectable-card.rejected-hand-card {
+  animation: rejected-hand-card-shake var(--card-reject-shake-duration, 400ms) ease-in-out;
+}
+
+html.riviera-expert-mode #my-hand-container .cards-container .a-card.chosen-card {
+  --still-glow-color: var(--card-glow-peak-color);
+  --still-glow-reach: 1;
+}
 
 body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-card.undoable-chosen-card {
   cursor: pointer;
@@ -2335,6 +2346,72 @@ body .start-token.flying-start-token {
   background: var(--bg-gradient-tooltip-connector);
 }
 
+.rejected-card-popup {
+  position: fixed;
+  z-index: 948;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--bg-gradient-tooltip);
+  outline: 0.5px solid #ffffff;
+  outline-offset: -0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #27271c;
+  font-family: "Roboto", sans-serif;
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1.2;
+  animation: rejected-card-popup-fade var(--rejected-card-popup-duration, 2s) ease forwards;
+}
+.rejected-card-popup .status-card-icon {
+  margin: 0px 0px 0px 4px;
+  width: 28px;
+  height: 28px;
+  border-width: calc(28px * 0.075);
+}
+.rejected-card-popup .status-card-icon .status-card-icon-number {
+  height: calc(28px * 0.7);
+  width: calc(calc(28px * 0.7) * 1.2063492063);
+}
+
+.expert-mode-indicator-anchor {
+  position: relative;
+}
+
+.expert-mode-indicator {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  z-index: 1;
+  box-sizing: border-box;
+  max-width: 92px;
+  padding: 2px 9px;
+  border: 1px solid #FFD700;
+  border-radius: 999px;
+  background: #05141a;
+  color: #ffd483;
+  font-family: "Roboto", sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 16px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  cursor: default;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 .power-needing-more-note {
   clear: both;
   margin-top: 6px;
@@ -2548,6 +2625,37 @@ body .start-token.flying-start-token {
   }
   100% {
     box-shadow: 0 0 calc(4px * var(--glow-reach)) calc(4px * var(--glow-reach)) var(--glow-color);
+  }
+}
+@keyframes rejected-hand-card-shake {
+  0%, 100% {
+    translate: 0px 0px;
+  }
+  15% {
+    translate: -7px 0px;
+  }
+  35% {
+    translate: 6px 0px;
+  }
+  55% {
+    translate: -4px 0px;
+  }
+  75% {
+    translate: 2px 0px;
+  }
+}
+@keyframes rejected-card-popup-fade {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 @keyframes bouncing-player-board {

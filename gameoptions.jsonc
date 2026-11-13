@@ -35,5 +35,20 @@
       }
     },
     "default": 1
+  },
+
+  "101": {
+    "name": "Highlight playable cards",
+    "values": {
+      "1": {
+        "name": "On"
+      },
+      "0": {
+        "name": "Off (Expert mode)",
+        "tmdisplay": "Expert mode",
+        "description": "In Expert mode, playable cards and special power cards are not highlighted. Players must find their own plays."
+      }
+    },
+    "default": 1
   }
 }
