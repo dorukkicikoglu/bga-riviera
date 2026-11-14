@@ -2013,6 +2013,26 @@ body .start-token.flying-start-token {
   text-shadow: none;
 }
 
+#logs .log.new-round-log .new-round-row, [id^=replaylogs] .gamelogreview.new-round-log .new-round-row {
+  position: relative;
+  isolation: isolate;
+}
+#logs .log.new-round-log .new-round-row::before, [id^=replaylogs] .gamelogreview.new-round-log .new-round-row::before {
+  content: "";
+  position: absolute;
+  bottom: 0px;
+  z-index: -1;
+  height: 150%;
+  top: 10%;
+  left: -4.5%;
+  aspect-ratio: 1326/1718;
+  pointer-events: none;
+  background-image: var(--image-source-bg-trees);
+  background-repeat: no-repeat;
+  background-size: 300.1508295626% 199.8835855646%;
+  background-position: 0% 0%;
+}
+
 .end-game-score-container {
   position: fixed;
   z-index: 100;

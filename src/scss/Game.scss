@@ -905,6 +905,21 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
     .roundedbox, .new-round-row{ color: #000000; }
     .new-round-row{ text-shadow: none; }
 }
+//"Round N" header: the first tree of img/bg_trees.webp (the teal one, 3980x3434) in the row's bottom-left corner, 80% of the
+//row's height, behind the text. Its measured box in the sprite: x 0 to 1325, y 0 to 1717 (the yellow tree starts at x 1327,
+//column 1326 is where their canopy tips blend; the orange tree starts at y 1718). Desktop log and replay only: BGA overrides
+//the background in the mobile table log. isolation keeps the z-index -1 tree above the row's background (on the log box)
+$bg-trees-sprite-width: 3980;
+$bg-trees-sprite-height: 3434;
+$log-round-tree: (x: 0, y: 0, width: 1326, height: 1718);
+#logs .log.new-round-log .new-round-row, [id^="replaylogs"] .gamelogreview.new-round-log .new-round-row{ position: relative; isolation: isolate;
+    &::before{ content: ""; position: absolute; bottom: 0px; z-index: -1; height: 150%; top: 10%; left: -4.5%; aspect-ratio: #{map.get($log-round-tree, width)} / #{map.get($log-round-tree, height)}; pointer-events: none;
+        background-image: var(--image-source-bg-trees); background-repeat: no-repeat;
+        background-size: math.div($bg-trees-sprite-width * 100%, map.get($log-round-tree, width)) math.div($bg-trees-sprite-height * 100%, map.get($log-round-tree, height));
+        //a % position aligns that share of the image with the same share of the box, hence the (sprite - box) divisor
+        background-position: math.div(map.get($log-round-tree, x) * 100%, $bg-trees-sprite-width - map.get($log-round-tree, width)) math.div(map.get($log-round-tree, y) * 100%, $bg-trees-sprite-height - map.get($log-round-tree, height));
+    }
+}
 //end logs
 
 //end-game scoring table (EndGameScoringHandler), from Fugu
