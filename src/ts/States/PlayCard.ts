@@ -117,7 +117,8 @@ export class PlayCard {
                 this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), {id: 'confirm-selected-card-button'});
                 this.selectionChanged();
             } else {
-                this.bga.statusBar.setTitle(_('${you} cannot play any card'));
+                //only the current player ever sees this: others see "Others must choose a card", since who has no playable card is hidden until the reveal
+                this.bga.statusBar.setTitle(_('${you} cannot play any cards'));
 
                 if(this.canUseLastChance)
                     this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), {id: 'last-chance-button'});

@@ -96,7 +96,8 @@ class PlayCard {
                 this.selectionChanged();
             }
             else {
-                this.bga.statusBar.setTitle(_('${you} cannot play any card'));
+                //only the current player ever sees this: others see "Others must choose a card", since who has no playable card is hidden until the reveal
+                this.bga.statusBar.setTitle(_('${you} cannot play any cards'));
                 if (this.canUseLastChance)
                     this.bga.statusBar.addActionButton(_('Use Last Chance'), () => this.bga.actions.performAction('actUseLastChance'), { id: 'last-chance-button' });
                 //no confirm dialog: Undo is the safety net until the last player has chosen
@@ -1548,9 +1549,14 @@ class TooltipHandler {
         const pendingReserverID = withRing ? (dieData.pending_reserved_by_POWER2 ?? null) : null;
         const reserverID = withRing ? dieData.reserved_by_POWER2 : null;
         if (pendingReserverID !== null || reserverID !== null) {
-            const reservationText = (pendingReserverID !== null) ? _('${player_name} may reserve ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}');
+            //the current player and the others get their own strings, since other languages conjugate them differently
+            const reservingPlayerID = pendingReserverID ?? reserverID;
+            const isMine = reservingPlayerID === this.game.getMyPlayerID();
+            const reservationText = (pendingReserverID !== null)
+                ? (isMine ? _('${you} may reserve ${die_color} die with ${card_icon}') : _('${player_name} may reserve ${die_color} die with ${card_icon}'))
+                : (isMine ? _('${you} reserved ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}'));
             const reservationHTML = reservationText
-                .replace('${player_name}', this.game.divColoredPlayer(pendingReserverID ?? reserverID, { class: 'playername tooltip-playername' }))
+                .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(reservingPlayerID, { class: 'playername tooltip-playername' }))
                 .replace('${die_color}', this.getDieColorName(dieData.color))
                 .replace('${card_icon}', this.game.getInlineCardIconHTML(dieData.color, 2));
             this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
@@ -1686,7 +1692,7 @@ class TooltipHandler {
         `;
     }
     getLastChanceTooltipText() {
-        return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');
+        return _('Last Chance: once per game, when you can\'t play any cards, play nothing this turn and stay in the round.');
     }
     isSafariMobile() { return document.body.classList.contains('safari-browser') && this.game.isMobile(); }
     static getPowerCardClass(value) { return 'power-card-POWER' + value; }
@@ -2592,13 +2598,20 @@ class LogMutationObserver {
     createLogGameEnd(winner_ids, winningScore) {
         const iWin = winner_ids.includes(this.game.getMyPlayerID());
         const otherWinnersHTML = winner_ids.filter(player_id => player_id !== this.game.getMyPlayerID()).map(player_id => this.game.divColoredPlayer(player_id, { class: 'playername' }));
-        const winnersHTML = [...(iWin ? [this.game.divYou({ class: 'playername' })] : []), ...otherWinnersHTML].join(', ');
-        const gameEndText = (iWin || winner_ids.length > 1)
-            ? _('${players} win with ${stars} ★')
-            : _('${players} wins with ${stars} ★');
+        //one string per case, since other languages conjugate "you", one other player and several players differently
+        let gameEndText;
+        if (iWin)
+            gameEndText = (otherWinnersHTML.length === 0) ? _('${you} win with ${stars} ★') : _('${you} and ${players} win with ${stars} ★');
+        else
+            gameEndText = (otherWinnersHTML.length === 1) ? _('${player_name} wins with ${stars} ★') : _('${players} win with ${stars} ★');
+        const gameEndHTML = gameEndText
+            .replace('${you}', this.game.divYou({ class: 'playername' }))
+            .replace('${player_name}', otherWinnersHTML[0] ?? '')
+            .replace('${players}', otherWinnersHTML.join(', '))
+            .replace('${stars}', `<b>${winningScore}</b>`);
         let logHTML = `
             <div class="game-end-row">
-                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndText.replace('${players}', winnersHTML).replace('${stars}', `<b>${winningScore}</b>`)}
+                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndHTML}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'game-end-log');
     }

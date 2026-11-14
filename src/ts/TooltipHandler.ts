@@ -215,9 +215,14 @@ export class TooltipHandler{
         const pendingReserverID = withRing ? (dieData.pending_reserved_by_POWER2 ?? null) : null;
         const reserverID = withRing ? dieData.reserved_by_POWER2 : null;
         if(pendingReserverID !== null || reserverID !== null){
-            const reservationText = (pendingReserverID !== null) ? _('${player_name} may reserve ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}');
+            //the current player and the others get their own strings, since other languages conjugate them differently
+            const reservingPlayerID = pendingReserverID ?? reserverID;
+            const isMine = reservingPlayerID === this.game.getMyPlayerID();
+            const reservationText = (pendingReserverID !== null)
+                ? (isMine ? _('${you} may reserve ${die_color} die with ${card_icon}') : _('${player_name} may reserve ${die_color} die with ${card_icon}'))
+                : (isMine ? _('${you} reserved ${die_color} die with ${card_icon}') : _('${player_name} reserved ${die_color} die with ${card_icon}'));
             const reservationHTML = reservationText
-                .replace('${player_name}', this.game.divColoredPlayer(pendingReserverID ?? reserverID, {class: 'playername tooltip-playername'}))
+                .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(reservingPlayerID, {class: 'playername tooltip-playername'}))
                 .replace('${die_color}', this.getDieColorName(dieData.color))
                 .replace('${card_icon}', this.game.getInlineCardIconHTML(dieData.color as CardColor, 2));
             this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
@@ -370,7 +375,7 @@ export class TooltipHandler{
     }
 
     private getLastChanceTooltipText(): string {
-        return _('Last Chance: once per game, when you can\'t play any card, play nothing this turn and stay in the round.');
+        return _('Last Chance: once per game, when you can\'t play any cards, play nothing this turn and stay in the round.');
     }
 
     private isSafariMobile(): boolean { return document.body.classList.contains('safari-browser') && this.game.isMobile(); }

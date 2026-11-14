@@ -352,15 +352,22 @@ export class LogMutationObserver{
     public createLogGameEnd(winner_ids: number[], winningScore: number): LogRowData {
         const iWin = winner_ids.includes(this.game.getMyPlayerID());
         const otherWinnersHTML = winner_ids.filter(player_id => player_id !== this.game.getMyPlayerID()).map(player_id => this.game.divColoredPlayer(player_id, {class: 'playername'}));
-        const winnersHTML = [...(iWin ? [this.game.divYou({class: 'playername'})] : []), ...otherWinnersHTML].join(', ');
 
-        const gameEndText = (iWin || winner_ids.length > 1)
-            ? _('${players} win with ${stars} ★')
-            : _('${players} wins with ${stars} ★');
+        //one string per case, since other languages conjugate "you", one other player and several players differently
+        let gameEndText: string;
+        if(iWin)
+            gameEndText = (otherWinnersHTML.length === 0) ? _('${you} win with ${stars} ★') : _('${you} and ${players} win with ${stars} ★');
+        else gameEndText = (otherWinnersHTML.length === 1) ? _('${player_name} wins with ${stars} ★') : _('${players} win with ${stars} ★');
+
+        const gameEndHTML = gameEndText
+            .replace('${you}', this.game.divYou({class: 'playername'}))
+            .replace('${player_name}', otherWinnersHTML[0] ?? '')
+            .replace('${players}', otherWinnersHTML.join(', '))
+            .replace('${stars}', `<b>${winningScore}</b>`);
 
         let logHTML = `
             <div class="game-end-row">
-                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndText.replace('${players}', winnersHTML).replace('${stars}', `<b>${winningScore}</b>`)}
+                <i class="fa6 fa-trophy"></i>&nbsp;${gameEndHTML}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'game-end-log');
