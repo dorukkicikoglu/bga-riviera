@@ -2009,18 +2009,18 @@ body .start-token.flying-start-token {
   text-shadow: none;
 }
 
-#logs .log.new-round-log .new-round-row, [id^=replaylogs] .gamelogreview.new-round-log .new-round-row {
+#logs .log.new-round-log .roundedbox, [id^=replaylogs] .gamelogreview.new-round-log {
   position: relative;
+  overflow: hidden;
   isolation: isolate;
 }
-#logs .log.new-round-log .new-round-row::before, [id^=replaylogs] .gamelogreview.new-round-log .new-round-row::before {
+#logs .log.new-round-log .roundedbox::before, [id^=replaylogs] .gamelogreview.new-round-log::before {
   content: "";
   position: absolute;
+  left: 0px;
   bottom: 0px;
   z-index: -1;
-  height: 150%;
-  top: 10%;
-  left: -4.5%;
+  height: 80%;
   aspect-ratio: 1326/1718;
   pointer-events: none;
   background-image: var(--image-source-bg-trees);
