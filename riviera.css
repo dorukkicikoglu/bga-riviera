@@ -1546,9 +1546,13 @@ body .start-token.flying-start-token {
   animation: bouncing-player-board 0.175s ease-in-out 2;
 }
 
-.log .roundedbox, .gamelogreview {
+.log .roundedbox, .log.a-game-log.roundedbox, .gamelogreview {
   background: var(--bg-log-default);
   color: #27271c;
+}
+
+#chatbar .chatwindowlogs:has([id^=chatwindowlogs_zone_tablelog_]) {
+  background-color: #032a2e;
 }
 
 #logs .log:not(.a-game-log), [id^=chatwindowlogs_zone_tablelog_] .log:not(.a-game-log), [id^=replaylogs] .gamelogreview:not(.a-game-log) {
@@ -1572,59 +1576,59 @@ body .start-token.flying-start-token {
 .log.a-game-log, .gamelogreview.a-game-log {
   position: relative;
 }
-.log.a-game-log .roundedbox, .gamelogreview.a-game-log .roundedbox {
+.log.a-game-log .roundedbox, .log.a-game-log.roundedbox, .gamelogreview.a-game-log .roundedbox, .gamelogreview.a-game-log.roundedbox {
   padding-bottom: 5px;
 }
-.log.new-round-log .roundedbox, .log.gamelogreview.new-round-log, .gamelogreview.new-round-log .roundedbox, .gamelogreview.gamelogreview.new-round-log {
+.log.new-round-log .roundedbox, .log.new-round-log.roundedbox, .log.gamelogreview.new-round-log, .gamelogreview.new-round-log .roundedbox, .gamelogreview.new-round-log.roundedbox, .gamelogreview.gamelogreview.new-round-log {
   background: var(--bg-log-new-round);
 }
-.log.dice-rolled-log .roundedbox, .log.gamelogreview.dice-rolled-log, .gamelogreview.dice-rolled-log .roundedbox, .gamelogreview.gamelogreview.dice-rolled-log {
+.log.dice-rolled-log .roundedbox, .log.dice-rolled-log.roundedbox, .log.gamelogreview.dice-rolled-log, .gamelogreview.dice-rolled-log .roundedbox, .gamelogreview.dice-rolled-log.roundedbox, .gamelogreview.gamelogreview.dice-rolled-log {
   background: var(--bg-log-dice-rolled);
 }
-.log.cards-revealed-log .roundedbox, .log.gamelogreview.cards-revealed-log, .gamelogreview.cards-revealed-log .roundedbox, .gamelogreview.gamelogreview.cards-revealed-log {
+.log.cards-revealed-log .roundedbox, .log.cards-revealed-log.roundedbox, .log.gamelogreview.cards-revealed-log, .gamelogreview.cards-revealed-log .roundedbox, .gamelogreview.cards-revealed-log.roundedbox, .gamelogreview.gamelogreview.cards-revealed-log {
   background: var(--bg-log-cards-revealed);
 }
-.log.last-chance-log .roundedbox, .log.gamelogreview.last-chance-log, .gamelogreview.last-chance-log .roundedbox, .gamelogreview.gamelogreview.last-chance-log {
+.log.last-chance-log .roundedbox, .log.last-chance-log.roundedbox, .log.gamelogreview.last-chance-log, .gamelogreview.last-chance-log .roundedbox, .gamelogreview.last-chance-log.roundedbox, .gamelogreview.gamelogreview.last-chance-log {
   background: var(--bg-log-last-chance);
 }
-.log.crash-log .roundedbox, .log.gamelogreview.crash-log, .gamelogreview.crash-log .roundedbox, .gamelogreview.gamelogreview.crash-log {
+.log.crash-log .roundedbox, .log.crash-log.roundedbox, .log.gamelogreview.crash-log, .gamelogreview.crash-log .roundedbox, .gamelogreview.crash-log.roundedbox, .gamelogreview.gamelogreview.crash-log {
   background: var(--bg-log-crash);
 }
-.log.grand-slam-log .roundedbox, .log.gamelogreview.grand-slam-log, .gamelogreview.grand-slam-log .roundedbox, .gamelogreview.gamelogreview.grand-slam-log {
+.log.grand-slam-log .roundedbox, .log.grand-slam-log.roundedbox, .log.gamelogreview.grand-slam-log, .gamelogreview.grand-slam-log .roundedbox, .gamelogreview.grand-slam-log.roundedbox, .gamelogreview.gamelogreview.grand-slam-log {
   background: var(--bg-log-grand-slam);
 }
-.log.start-token-log .roundedbox, .log.gamelogreview.start-token-log, .gamelogreview.start-token-log .roundedbox, .gamelogreview.gamelogreview.start-token-log {
+.log.start-token-log .roundedbox, .log.start-token-log.roundedbox, .log.gamelogreview.start-token-log, .gamelogreview.start-token-log .roundedbox, .gamelogreview.start-token-log.roundedbox, .gamelogreview.gamelogreview.start-token-log {
   background: var(--bg-log-start-token);
 }
-.log.stop-or-more-log .roundedbox, .log.gamelogreview.stop-or-more-log, .gamelogreview.stop-or-more-log .roundedbox, .gamelogreview.gamelogreview.stop-or-more-log {
+.log.stop-or-more-log .roundedbox, .log.stop-or-more-log.roundedbox, .log.gamelogreview.stop-or-more-log, .gamelogreview.stop-or-more-log .roundedbox, .gamelogreview.stop-or-more-log.roundedbox, .gamelogreview.gamelogreview.stop-or-more-log {
   background: var(--bg-log-stop-or-more);
 }
-.log.die-reserved-power2-log .roundedbox, .log.gamelogreview.die-reserved-power2-log, .gamelogreview.die-reserved-power2-log .roundedbox, .gamelogreview.gamelogreview.die-reserved-power2-log {
+.log.die-reserved-power2-log .roundedbox, .log.die-reserved-power2-log.roundedbox, .log.gamelogreview.die-reserved-power2-log, .gamelogreview.die-reserved-power2-log .roundedbox, .gamelogreview.die-reserved-power2-log.roundedbox, .gamelogreview.gamelogreview.die-reserved-power2-log {
   background: var(--bg-log-die-reserved-power2);
 }
-.log.golden-die-power11-log .roundedbox, .log.gamelogreview.golden-die-power11-log, .gamelogreview.golden-die-power11-log .roundedbox, .gamelogreview.gamelogreview.golden-die-power11-log {
+.log.golden-die-power11-log .roundedbox, .log.golden-die-power11-log.roundedbox, .log.gamelogreview.golden-die-power11-log, .gamelogreview.golden-die-power11-log .roundedbox, .gamelogreview.golden-die-power11-log.roundedbox, .gamelogreview.gamelogreview.golden-die-power11-log {
   background: var(--bg-log-golden-die-power11);
 }
-.log.die-modified-power9-log .roundedbox, .log.gamelogreview.die-modified-power9-log, .gamelogreview.die-modified-power9-log .roundedbox, .gamelogreview.gamelogreview.die-modified-power9-log {
+.log.die-modified-power9-log .roundedbox, .log.die-modified-power9-log.roundedbox, .log.gamelogreview.die-modified-power9-log, .gamelogreview.die-modified-power9-log .roundedbox, .gamelogreview.die-modified-power9-log.roundedbox, .gamelogreview.gamelogreview.die-modified-power9-log {
   background: var(--bg-log-die-modified-power9);
 }
-.log.cards-swapped-power10-log .roundedbox, .log.gamelogreview.cards-swapped-power10-log, .gamelogreview.cards-swapped-power10-log .roundedbox, .gamelogreview.gamelogreview.cards-swapped-power10-log {
+.log.cards-swapped-power10-log .roundedbox, .log.cards-swapped-power10-log.roundedbox, .log.gamelogreview.cards-swapped-power10-log, .gamelogreview.cards-swapped-power10-log .roundedbox, .gamelogreview.cards-swapped-power10-log.roundedbox, .gamelogreview.gamelogreview.cards-swapped-power10-log {
   background: var(--bg-log-cards-swapped-power10);
 }
-.log.cards-redrawn-power10-log .roundedbox, .log.gamelogreview.cards-redrawn-power10-log, .gamelogreview.cards-redrawn-power10-log .roundedbox, .gamelogreview.gamelogreview.cards-redrawn-power10-log {
+.log.cards-redrawn-power10-log .roundedbox, .log.cards-redrawn-power10-log.roundedbox, .log.gamelogreview.cards-redrawn-power10-log, .gamelogreview.cards-redrawn-power10-log .roundedbox, .gamelogreview.cards-redrawn-power10-log.roundedbox, .gamelogreview.gamelogreview.cards-redrawn-power10-log {
   background: var(--bg-log-cards-redrawn-power10);
 }
-.log.power-skipped-log .roundedbox, .log.gamelogreview.power-skipped-log, .gamelogreview.power-skipped-log .roundedbox, .gamelogreview.gamelogreview.power-skipped-log {
+.log.power-skipped-log .roundedbox, .log.power-skipped-log.roundedbox, .log.gamelogreview.power-skipped-log, .gamelogreview.power-skipped-log .roundedbox, .gamelogreview.power-skipped-log.roundedbox, .gamelogreview.gamelogreview.power-skipped-log {
   background: var(--bg-log-power-skipped);
 }
-.log.game-end-log .roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.gamelogreview.game-end-log {
+.log.game-end-log .roundedbox, .log.game-end-log.roundedbox, .log.gamelogreview.game-end-log, .gamelogreview.game-end-log .roundedbox, .gamelogreview.game-end-log.roundedbox, .gamelogreview.gamelogreview.game-end-log {
   background: var(--bg-log-game-end);
 }
-.log.new-round-log .roundedbox, .log.gamelogreview.new-round-log, .gamelogreview.new-round-log .roundedbox, .gamelogreview.gamelogreview.new-round-log {
+.log.new-round-log .roundedbox, .log.new-round-log.roundedbox, .log.gamelogreview.new-round-log, .gamelogreview.new-round-log .roundedbox, .gamelogreview.new-round-log.roundedbox, .gamelogreview.gamelogreview.new-round-log {
   color: #ffff89;
   border: 1px solid rgba(242, 214, 140, 0.45);
 }
-.log.grand-slam-log .roundedbox, .log.gamelogreview.grand-slam-log, .gamelogreview.grand-slam-log .roundedbox, .gamelogreview.gamelogreview.grand-slam-log {
+.log.grand-slam-log .roundedbox, .log.grand-slam-log.roundedbox, .log.gamelogreview.grand-slam-log, .gamelogreview.grand-slam-log .roundedbox, .gamelogreview.grand-slam-log.roundedbox, .gamelogreview.gamelogreview.grand-slam-log {
   border: 1px solid rgba(184, 134, 11, 0.7);
 }
 .log .last-chance-row, .gamelogreview .last-chance-row {
@@ -2002,19 +2006,12 @@ body .start-token.flying-start-token {
   text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
 }
 
-[id^=chatwindowlogs_zone_tablelog_] .log.new-round-log .roundedbox, [id^=chatwindowlogs_zone_tablelog_] .log.new-round-log .new-round-row {
-  color: #000000;
-}
-[id^=chatwindowlogs_zone_tablelog_] .log.new-round-log .new-round-row {
-  text-shadow: none;
-}
-
-#logs .log.new-round-log .roundedbox, [id^=replaylogs] .gamelogreview.new-round-log {
+#logs .log.new-round-log .roundedbox, [id^=chatwindowlogs_zone_tablelog_] .log.new-round-log.roundedbox, [id^=replaylogs] .gamelogreview.new-round-log {
   position: relative;
   overflow: hidden;
   isolation: isolate;
 }
-#logs .log.new-round-log .roundedbox::before, [id^=replaylogs] .gamelogreview.new-round-log::before {
+#logs .log.new-round-log .roundedbox::before, [id^=chatwindowlogs_zone_tablelog_] .log.new-round-log.roundedbox::before, [id^=replaylogs] .gamelogreview.new-round-log::before {
   content: "";
   position: absolute;
   left: 0px;

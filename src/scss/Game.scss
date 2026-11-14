@@ -702,8 +702,15 @@ $start-token-avatar-overlap: $start-token-size * 0.75;
 
 //logs
 //plain logs keep a neutral background; each log type (LogMutationObserver.createLog*) overrides it with its own.
-//The text color is set too: every background is pale, so BGA's dark mode must not lighten the text
-.log .roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
+//The text color is set too: every background is pale, so BGA's dark mode must not lighten the text.
+//In the mobile table log the row itself is the .roundedbox (no inner one), hence the compound .log.a-game-log.roundedbox:
+//(0,3,0) beats BGA's .chatwindowlogs_zone .roundedbox, and the shorthand replaces its rounded_b.png image
+.log .roundedbox, .log.a-game-log.roundedbox, .gamelogreview{ background: var(--bg-log-default); color: #27271c; }
+
+//the mobile table log's window: BGA paints it beige (.chatwindowlogs, --bga-surface-legacy-beige), which shows between the
+//rows. Dark like the desktop log area (the page's base teal), so the translucent rows sit on a dark background. Only the
+//window holding the table log; the chat windows keep BGA's look. #chatbar makes it beat BGA's html.dark .chatwindowlogs
+#chatbar .chatwindowlogs:has([id^="chatwindowlogs_zone_tablelog_"]){ background-color: #032a2e; }
 
 //only our own rows (every one gets .a-game-log from LogMutationObserver) show in the game log: BGA's other rows are hidden in
 //the desktop log (#logs), the mobile table log and the replay log. The chat zones are never touched. BGA sets an inline
@@ -730,15 +737,16 @@ $log-new-round-text-color: #ffff89;
 $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash", "grand-slam", "start-token", "stop-or-more",
     "die-reserved-power2", "golden-die-power11", "die-modified-power9", "cards-swapped-power10", "cards-redrawn-power10", "power-skipped", "game-end";
 .log, .gamelogreview{
+    //the &.…roundedbox selectors: the mobile table log's row is itself the .roundedbox (see the default background above)
     &.a-game-log{ position: relative;
-        .roundedbox{ padding-bottom: 5px; }
+        .roundedbox, &.roundedbox{ padding-bottom: 5px; }
     }
     @each $log-type in $log-types {
-        &.#{$log-type}-log .roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
+        &.#{$log-type}-log .roundedbox, &.#{$log-type}-log.roundedbox, &.gamelogreview.#{$log-type}-log{ background: var(--bg-log-#{$log-type}); }
     }
     //the dark "Round N" header: white text and a thin light gold border
-    &.new-round-log .roundedbox, &.gamelogreview.new-round-log{ color: $log-new-round-text-color; border: 1px solid rgba(242, 214, 140, 0.45); }
-    &.grand-slam-log .roundedbox, &.gamelogreview.grand-slam-log{ border: 1px solid rgba(184, 134, 11, 0.7); }
+    &.new-round-log .roundedbox, &.new-round-log.roundedbox, &.gamelogreview.new-round-log{ color: $log-new-round-text-color; border: 1px solid rgba(242, 214, 140, 0.45); }
+    &.grand-slam-log .roundedbox, &.grand-slam-log.roundedbox, &.gamelogreview.grand-slam-log{ border: 1px solid rgba(184, 134, 11, 0.7); }
 
     //"name → [Last Chance]": the reveal row's arrow and mini card, the name cut like the reveal rows' (full name in its title),
     //at the left of the log row like the reveal row
@@ -899,21 +907,16 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
 @each $light-player-color in "ffa500", "72c3b1", "bdd002", "ffffff" {
     .a-game-log .playername[player-color="#{$light-player-color}"]{ @include text-shade(#27271cBF, 1px); }
 }
-//the mobile table log (in the chat bar): BGA overrides the log background there, so the "Round N" header is plain black text
-[id^="chatwindowlogs_zone_tablelog_"] .log.new-round-log{
-    .roundedbox, .new-round-row{ color: #000000; }
-    .new-round-row{ text-shadow: none; }
-}
 //"Round N" header: the first tree of img/bg_trees.webp (the teal one, 3980x3434) in the band's bottom-left corner, 80% of the
 //band's height, behind the text. Its measured box in the sprite: x 0 to 1325, y 0 to 1717 (the yellow tree starts at x 1327,
 //column 1326 is where their canopy tips blend; the orange tree starts at y 1718). On the element that paints the band (the
-//desktop log's .roundedbox, the replay's .gamelogreview itself), never the row inside it, which reaches below the band.
-//Desktop log and replay only: BGA overrides the background in the mobile table log. overflow keeps the tree inside the band's
-//border; isolation keeps the z-index -1 tree above the band's own background and under the text
+//desktop log's .roundedbox, the mobile table log's row, which is itself the .roundedbox, the replay's .gamelogreview itself),
+//never the row inside it, which reaches below the band. overflow keeps the tree inside the band's border; isolation keeps the
+//z-index -1 tree above the band's own background and under the text
 $bg-trees-sprite-width: 3980;
 $bg-trees-sprite-height: 3434;
 $log-round-tree: (x: 0, y: 0, width: 1326, height: 1718);
-#logs .log.new-round-log .roundedbox, [id^="replaylogs"] .gamelogreview.new-round-log{ position: relative; overflow: hidden; isolation: isolate;
+#logs .log.new-round-log .roundedbox, [id^="chatwindowlogs_zone_tablelog_"] .log.new-round-log.roundedbox, [id^="replaylogs"] .gamelogreview.new-round-log{ position: relative; overflow: hidden; isolation: isolate;
     &::before{ content: ""; position: absolute; left: 0px; bottom: 0px; z-index: -1; height: 80%; aspect-ratio: #{map.get($log-round-tree, width)} / #{map.get($log-round-tree, height)}; pointer-events: none;
         background-image: var(--image-source-bg-trees); background-repeat: no-repeat;
         background-size: math.div($bg-trees-sprite-width * 100%, map.get($log-round-tree, width)) math.div($bg-trees-sprite-height * 100%, map.get($log-round-tree, height));
