@@ -27,9 +27,17 @@ export type SpotlightEntry = {
 //end at once. Nothing plays in a replay or with animations off (fast replay, instantaneous mode, hidden tab)
 export abstract class PlayerSpotlightOverlay<Entry extends SpotlightEntry = SpotlightEntry> {
     private static readonly FINISH_SAFETY_MARGIN = 1000; //ms past the timeline's end after which play() resolves anyway (a hidden tab's throttled animations)
+    private static readonly TOP_BAR_SELECTOR = '#topbar'; //BGA's top bar: the banner never goes under it (on mobile it paints over everything)
+    private static readonly STATUS_BAR_SELECTOR = '#page-title'; //BGA's status bar, the same element when BGA fixes it at the top once the page is scrolled: the banner sits on it
+    private static readonly OVERLAY_Z_INDEX = 948; //Game.scss's, BGA's status bar's: the overlay comes later in <body>, so it paints over the bar
+    private static readonly BANNER_TOP_GAP = 10; //px between BGA's top bar and the banner, when there is no status bar in sight to sit on
+    private static readonly STAGE_GAP = 12; //px kept between the banner and the slots, and between the slots and the screen's bottom
+    private static readonly MIN_FIT_SCALE = 0.35; //the slots never shrink below this share of their size to fit between the banner and the bottom
+    private static readonly FIT_PASSES = 4; //measure and shrink passes, for the slots and the banner's text (parts of each don't shrink, so one pass falls short)
 
     protected overlay: HTMLDivElement;
     protected stage: HTMLDivElement;
+    private banner: HTMLDivElement;
     protected animations: Animation[] = [];
     private finished = false;
     private resolveSkip: () => void = () => {};
@@ -73,9 +81,66 @@ export abstract class PlayerSpotlightOverlay<Entry extends SpotlightEntry = Spot
             <div class="player-spotlight-stage"></div>
         `;
         this.setPlayAreaBounds();
+        this.banner = this.overlay.querySelector('.player-spotlight-banner') as HTMLDivElement;
         this.stage = this.overlay.querySelector('.player-spotlight-stage') as HTMLDivElement;
         document.body.appendChild(this.overlay);
+
+        this.fitBannerText(); //first: the banner's height, which placeBanner centres, depends on its font size
+        this.placeBanner();
     }
+
+    //the banner sits on BGA's status bar, vertically centred on it, when the bar shows in the viewport (in place at the top of the
+    //page, or fixed at the top once the page is scrolled). Never under BGA's top bar: pushed down just enough to clear it. With
+    //no status bar in sight, just below the top bar (BANNER_TOP_GAP); with neither, Game.scss's default top. The overlay is fixed
+    //at the viewport's top-left corner, so these on-screen px are its own
+    private placeBanner(): void {
+        const topBarRect = PlayerSpotlightOverlay.getShownRect(PlayerSpotlightOverlay.TOP_BAR_SELECTOR);
+        const topBarBottom = topBarRect ? Math.max(0, topBarRect.bottom) : 0;
+        const statusBarRect = PlayerSpotlightOverlay.getShownRect(PlayerSpotlightOverlay.STATUS_BAR_SELECTOR);
+
+        let top: number | null = null;
+        if(statusBarRect && statusBarRect.bottom > topBarBottom){ //some of it is in sight, not wholly under the top bar
+            top = Math.max(topBarBottom, statusBarRect.top + (statusBarRect.height - this.banner.offsetHeight) / 2);
+            this.raiseOverStatusBar(PlayerSpotlightOverlay.STATUS_BAR_SELECTOR);
+        } else if(topBarRect)
+            top = topBarBottom + PlayerSpotlightOverlay.BANNER_TOP_GAP;
+
+        if(top !== null)
+            this.banner.style.top = `${top}px`;
+    }
+
+    //the element's rect on screen, if it shows and reaches into the viewport
+    private static getShownRect(selector: string): DOMRect | null {
+        const element = document.querySelector(selector) as HTMLElement | null;
+        if(!element)
+            return null;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const shown = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0 && rect.width > 0 && rect.height > 0;
+        return (shown && rect.bottom > 0 && rect.top < window.innerHeight) ? rect : null;
+    }
+
+    //the overlay (948 in Game.scss, later in <body>) already paints over BGA's status bar; should BGA ever give the bar a higher
+    //z-index, the overlay takes it, and still comes later
+    private raiseOverStatusBar(selector: string): void {
+        const statusBarZIndex = parseInt(getComputedStyle(document.querySelector(selector) as HTMLElement).zIndex);
+        if(!isNaN(statusBarZIndex) && statusBarZIndex > PlayerSpotlightOverlay.OVERLAY_Z_INDEX)
+            this.overlay.style.zIndex = statusBarZIndex.toString();
+    }
+
+    //the banner's text never wraps (Game.scss): its side lines shrink first, down to their minimum, and only then, if it still
+    //overflows the banner's maximum width (a long translation on a narrow screen), the whole banner's font size comes down to fit
+    private fitBannerText(): void {
+        for(let pass = 0; pass < PlayerSpotlightOverlay.FIT_PASSES && this.banner.clientWidth > 0; pass++){ //the side lines' minimum doesn't scale, so one pass may fall short
+            const overflow = this.banner.scrollWidth / this.banner.clientWidth;
+            if(overflow <= 1.01)
+                return;
+            this.banner.style.fontSize = `${parseFloat(getComputedStyle(this.banner).fontSize) / overflow}px`;
+        }
+    }
+
+    //the layout's bottom of the banner in viewport px: offsetTop and offsetHeight ignore the banner's own scale and shake
+    protected getBannerBottom(): number { return this.banner.offsetTop + this.banner.offsetHeight; }
 
     //the slots and the banner centre on the game's play area (bga.gameArea, beside the player boards and the log on desktop, the
     //whole width on mobile), the part of it inside the viewport, and the slots fit its width (--spotlight-area-width, in
@@ -105,6 +170,30 @@ export abstract class PlayerSpotlightOverlay<Entry extends SpotlightEntry = Spot
         const slotWidth = slots[0].getBoundingClientRect().width;
         if(count > 3 && slotWidth < minCardWidth)
             this.fillRows(slots, Math.ceil(count / 2));
+
+        this.fitStageBelowBanner();
+    }
+
+    //the slots start below the banner and end above the screen's bottom (STAGE_GAP each side): centred on the viewport when that
+    //fits, pushed down when the banner reaches into them, and scaled down (--spotlight-fit-scale on the slots' width) when the
+    //space between the banner and the bottom is shorter than they are. Done before anything measures the slots
+    private fitStageBelowBanner(): void {
+        const viewportHeight = window.innerHeight;
+        const top = this.getBannerBottom() + PlayerSpotlightOverlay.STAGE_GAP;
+        const bottom = viewportHeight - PlayerSpotlightOverlay.STAGE_GAP;
+        const available = bottom - top;
+        if(available <= 0)
+            return;
+
+        let scale = 1;
+        for(let pass = 0; pass < PlayerSpotlightOverlay.FIT_PASSES && this.stage.offsetHeight > available && scale > PlayerSpotlightOverlay.MIN_FIT_SCALE; pass++){
+            scale = Math.max(PlayerSpotlightOverlay.MIN_FIT_SCALE, scale * available / this.stage.offsetHeight);
+            this.overlay.style.setProperty('--spotlight-fit-scale', scale.toString());
+        }
+
+        const height = this.stage.offsetHeight;
+        const center = Math.max(top + height / 2, Math.min(viewportHeight / 2, bottom - height / 2));
+        this.stage.style.top = `${center}px`;
     }
 
     //the slots in rows of perRow; Game.scss sizes them from --spotlight-per-row and data-rows

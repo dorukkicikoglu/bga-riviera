@@ -2186,7 +2186,7 @@ body .start-token.flying-start-token {
   --spotlight-min-card-width: 90px;
   --spotlight-max-card-width: 220px;
   --spotlight-max-card-height: 46vh;
-  --spotlight-card-width: min(var(--spotlight-max-card-width), calc((var(--spotlight-area-width, 100vw) - 32px - (var(--spotlight-per-row, 1) - 1) * 24px) / var(--spotlight-per-row, 1)), calc(var(--spotlight-max-card-height) / 1.4740566038));
+  --spotlight-card-width: calc(var(--spotlight-fit-scale, 1) * min(var(--spotlight-max-card-width), calc((var(--spotlight-area-width, 100vw) - 32px - (var(--spotlight-per-row, 1) - 1) * 24px) / var(--spotlight-per-row, 1)), calc(var(--spotlight-max-card-height) / 1.4740566038)));
 }
 .player-spotlight-overlay[data-size=small] {
   --spotlight-max-card-width: 150px;
@@ -2196,6 +2196,7 @@ body .start-token.flying-start-token {
   --spotlight-max-card-height: 24vh;
 }
 .player-spotlight-overlay .player-spotlight-banner {
+  --spotlight-banner-letter-spacing: 0.15em;
   position: absolute;
   top: max(16px, 7vh);
   left: var(--spotlight-center-x, 50%);
@@ -2209,18 +2210,19 @@ body .start-token.flying-start-token {
   min-width: calc(var(--spotlight-area-width, 100vw) * 0.65);
   max-width: calc(var(--spotlight-area-width, 100vw) - 32px);
   padding: 0.45em 3.2em;
-  font-size: clamp(18px, 4vw, 36px);
+  font-size: clamp(14px, 4vw, 36px);
   font-weight: bold;
   line-height: 1.2;
   background: linear-gradient(90deg, transparent, var(--spotlight-banner-strip-color) 22%, var(--spotlight-banner-strip-color) 78%, transparent);
   animation: player-spotlight-banner-fade-in 300ms ease-out both;
 }
 .player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-text {
-  min-width: 0;
-  padding-left: 0.15em;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-left: var(--spotlight-banner-letter-spacing);
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: var(--spotlight-banner-letter-spacing);
   color: var(--spotlight-banner-accent);
   background: var(--spotlight-banner-text-gradient);
   -webkit-background-clip: text;
@@ -2232,7 +2234,7 @@ body .start-token.flying-start-token {
   display: flex;
   align-items: center;
   flex: 0 1 clamp(22px, 7vw, 90px);
-  min-width: 10px;
+  min-width: 16px;
   height: 10.5px;
   animation: player-spotlight-banner-lines-left 450ms ease-out 120ms both;
 }
@@ -2254,6 +2256,13 @@ body .start-token.flying-start-token {
 .player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament + .player-spotlight-banner-text + .player-spotlight-banner-ornament {
   flex-direction: row-reverse;
   animation-name: player-spotlight-banner-lines-right;
+}
+@media (max-width: 600px) {
+  .player-spotlight-overlay .player-spotlight-banner {
+    --spotlight-banner-letter-spacing: 0.08em;
+    padding-left: 1.4em;
+    padding-right: 1.4em;
+  }
 }
 .player-spotlight-overlay .player-spotlight-stage {
   position: absolute;

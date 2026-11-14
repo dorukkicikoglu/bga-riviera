@@ -94,7 +94,7 @@ export class CrashSpotlight extends PlayerSpotlightOverlay<CrashSpotlightEntry> 
     }
 
     //the player's tag just above their column, centred on it and kept inside the viewport (the overlay is fixed over the whole
-    //viewport, so its children are placed in viewport px). Below the top edge when the column starts at the very top
+    //viewport, so its children are placed in viewport px). Below the banner when the column starts higher than that
     private addAreaTag(playerID: number, areaRect: DOMRect, index: number): void {
         const tag = this.createPlayerTag(playerID);
         tag.classList.add('player-spotlight-area-tag');
@@ -104,7 +104,7 @@ export class CrashSpotlight extends PlayerSpotlightOverlay<CrashSpotlightEntry> 
         const viewportWidth = document.documentElement.clientWidth;
         const centeredLeft = areaRect.left + (areaRect.width - tagRect.width) / 2;
         tag.style.left = `${Math.max(4, Math.min(centeredLeft, viewportWidth - tagRect.width - 4))}px`;
-        tag.style.top = `${Math.max(4, areaRect.top - CrashSpotlight.TAG_GAP - tagRect.height)}px`;
+        tag.style.top = `${Math.max(this.getBannerBottom() + CrashSpotlight.TAG_GAP, areaRect.top - CrashSpotlight.TAG_GAP - tagRect.height)}px`; //never over the banner
 
         this.fadeIn(tag, index);
     }
