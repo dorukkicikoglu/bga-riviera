@@ -2941,7 +2941,9 @@ class BackgroundHandler {
         this.swayVariants = BackgroundHandler.SWAY_SHAPES.slice(0, BackgroundHandler.numOfSwayAnimations).map((_, variant) => `background-tree-sway-${variant}`); //the @keyframes names
         this.treeAspect = null; //width / height of one sprite cell, read from the image once it has loaded
         this.builtWidth = 0;
-        this.builtAsMobile = false;
+        this.builtAsNarrow = false;
+        this.narrowTrees = []; //under narrowBreakpoint: each tree with its unscaled layout, for applyNarrowScale()
+        this.narrowFirstTreeShare = 0; //the first tree's height as a share of the container's width, picked in buildTrees(), so a rescale keeps it
         this.treesEnabled = true;
         this.resizeDebounceTimeout = null;
         this.onResize = () => this.scheduleRebuild();
@@ -3014,7 +3016,7 @@ class BackgroundHandler {
             return `@keyframes ${variantName} { ${keyframes.join(' ')} }`;
         }).join('\n');
     }
-    isMobileWidth() { return window.innerWidth <= BackgroundHandler.mobileBreakpoint; }
+    isNarrowWidth() { return window.innerWidth < BackgroundHandler.narrowBreakpoint; }
     scheduleRebuild() {
         if (this.resizeDebounceTimeout)
             clearTimeout(this.resizeDebounceTimeout);
@@ -3022,9 +3024,13 @@ class BackgroundHandler {
             this.resizeDebounceTimeout = null;
             if (this.treeAspect === null) //not loaded yet: the first build will read the new size
                 return;
-            const crossedBreakpoint = this.isMobileWidth() !== this.builtAsMobile;
+            const crossedBreakpoint = this.isNarrowWidth() !== this.builtAsNarrow;
             const widthChange = Math.abs(window.innerWidth - this.builtWidth) / this.builtWidth;
-            if (crossedBreakpoint || widthChange >= BackgroundHandler.rebuildWidthChange)
+            if (crossedBreakpoint)
+                this.buildTrees();
+            else if (this.builtAsNarrow) //the same forest, rescaled to the new width: never a new random one
+                this.applyNarrowScale();
+            else if (widthChange >= BackgroundHandler.rebuildWidthChange)
                 this.buildTrees();
         }, BackgroundHandler.resizeDebounceTime);
     }
@@ -3032,27 +3038,55 @@ class BackgroundHandler {
         if (!this.treesEnabled)
             return;
         this.builtWidth = window.innerWidth;
-        this.builtAsMobile = this.isMobileWidth();
+        this.builtAsNarrow = this.isNarrowWidth();
         let previousColor = null;
-        const treeElements = this.getTreePlacements().map(placement => {
+        const trees = this.getTreePlacements().map(placement => {
             previousColor = BackgroundHandler.randomItemExcept(BackgroundHandler.pickableTreeColors, previousColor);
-            return this.createTree(placement, previousColor);
+            return { element: this.createTree(placement, previousColor), placement };
         });
-        this.container.replaceChildren(...treeElements);
+        this.container.replaceChildren(...trees.map(tree => tree.element));
+        this.narrowTrees = this.builtAsNarrow ? trees : [];
+        if (this.builtAsNarrow) {
+            this.narrowFirstTreeShare = BackgroundHandler.narrowFirstTreeMaxHeightShare * BackgroundHandler.randomBetween(BackgroundHandler.narrowFirstTreeMinRatio, 1);
+            this.applyNarrowScale();
+        }
+    }
+    //under narrowBreakpoint: the desktop forest, starting at the left edge, its span (the right edge of its rightmost-reaching tree) at
+    //narrowForestWidthShare of the container's width. The first (tallest) tree is narrowFirstTreeShare of that width tall, the others
+    //keep their proportions to it (never wider than the span itself), and the steps shrink or grow by one factor, the largest that
+    //keeps every tree's right edge within the span. Whole px from the container's own width (what clips the trees, never a
+    //scrollbar), measured on every call, so nothing depends on when the sprite loaded: every tree stays whole, the first at left 0
+    applyNarrowScale() {
+        const containerWidth = this.container.clientWidth;
+        if (!this.treesEnabled || containerWidth <= 0 || this.narrowTrees.length == 0)
+            return;
+        const span = containerWidth * BackgroundHandler.narrowForestWidthShare;
+        const widestTree = Math.max(...this.narrowTrees.map(({ placement }) => placement.width));
+        const sizeScale = Math.min(containerWidth * this.narrowFirstTreeShare / this.narrowTrees[0].placement.height, span / widestTree);
+        const stepScale = Math.min(...this.narrowTrees.filter(({ placement }) => placement.left > 0).map(({ placement }) => (span - placement.width * sizeScale) / placement.left));
+        this.narrowTrees.forEach(({ element, placement }) => {
+            const height = Math.round(placement.height * sizeScale);
+            element.style.left = `${Math.round(placement.left * stepScale)}px`;
+            element.style.width = `${Math.round(height * this.treeAspect)}px`;
+            element.style.height = `${height}px`;
+            element.style.bottom = `${-Math.round(height * BackgroundHandler.treeSinkRatio)}px`;
+        });
     }
     //sizes and places a new forest in the bottom left corner, left to right, heights descending
     getTreePlacements() {
         const { minHeight, maxHeight } = this.getHeightRange();
-        const treeCount = BackgroundHandler.minNumOfTrees + Math.floor(Math.random() * (BackgroundHandler.maxNumOfTrees - BackgroundHandler.minNumOfTrees + 1));
+        const maxNumOfTrees = this.builtAsNarrow ? BackgroundHandler.maxNumOfTreesNarrow : BackgroundHandler.maxNumOfTrees;
+        const treeCount = BackgroundHandler.minNumOfTrees + Math.floor(Math.random() * (maxNumOfTrees - BackgroundHandler.minNumOfTrees + 1));
         const rawHeights = Array.from({ length: treeCount }, () => BackgroundHandler.randomBetween(minHeight, maxHeight)).sort((a, b) => b - a);
         //whole px, so the sprite's percentages land on whole pixels too and no neighbouring cell's edge shows through
         const sizes = rawHeights.map(rawHeight => ({ height: Math.round(rawHeight), width: Math.round(rawHeight * this.treeAspect) }));
         const steps = sizes.slice(0, -1).map(size => size.width * (BackgroundHandler.treeSpacing + BackgroundHandler.randomBetween(-BackgroundHandler.spacingJitter, BackgroundHandler.spacingJitter)));
-        //squeezed so the last tree's right edge stays within maxSpanOfWidth
-        const firstLeft = -sizes[0].width * BackgroundHandler.edgeBleed;
+        //squeezed so the last tree's right edge stays within maxSpanOfWidth. Under narrowBreakpoint: no squeeze and no edgeBleed,
+        //the first tree at 0; applyNarrowScale() then scales the whole forest down
+        const firstLeft = this.builtAsNarrow ? 0 : -sizes[0].width * BackgroundHandler.edgeBleed;
         const room = this.builtWidth * BackgroundHandler.maxSpanOfWidth - sizes[sizes.length - 1].width - firstLeft;
         const totalSteps = steps.reduce((total, step) => total + step, 0);
-        const stepScale = totalSteps > room ? Math.max(room, 0) / totalSteps : 1;
+        const stepScale = !this.builtAsNarrow && totalSteps > room ? Math.max(room, 0) / totalSteps : 1;
         let left = firstLeft;
         return sizes.map((size, index) => {
             if (index > 0)
@@ -3061,10 +3095,11 @@ class BackgroundHandler {
         });
     }
     getHeightRange() {
-        const maxHeight = Math.min(this.builtAsMobile ? BackgroundHandler.maxTreeHeightMobile : BackgroundHandler.maxTreeHeight, window.innerHeight * BackgroundHandler.maxTreeHeightOfViewport);
-        const minHeight = Math.min(this.builtAsMobile ? BackgroundHandler.minTreeHeightMobile : BackgroundHandler.minTreeHeight, maxHeight);
+        const maxHeight = Math.min(BackgroundHandler.maxTreeHeight, window.innerHeight * BackgroundHandler.maxTreeHeightOfViewport);
+        const minHeight = Math.min(BackgroundHandler.minTreeHeight, maxHeight);
         return { minHeight: Math.max(minHeight, maxHeight / BackgroundHandler.maxHeightRatio), maxHeight };
     }
+    //under narrowBreakpoint, applyNarrowScale() replaces the place and size set here
     createTree(placement, color) {
         const tree = document.createElement('div');
         tree.classList.add('background-tree');
@@ -3107,20 +3142,22 @@ class BackgroundHandler {
 //tree count, picked at random on every build
 BackgroundHandler.minNumOfTrees = 4;
 BackgroundHandler.maxNumOfTrees = 7;
+BackgroundHandler.maxNumOfTreesNarrow = 5; //under narrowBreakpoint: more trees would crowd into the span
 //tree height in px, picked per tree; the width follows from the sprite's cell
 BackgroundHandler.minTreeHeight = 50;
 BackgroundHandler.maxTreeHeight = 156;
-BackgroundHandler.minTreeHeightMobile = 40;
-BackgroundHandler.maxTreeHeightMobile = 104;
 BackgroundHandler.maxHeightRatio = 1.95; //the tallest tree is at most this many times the shortest: getHeightRange() raises the min to enforce it
 BackgroundHandler.treeSinkRatio = 0.06; //share of a tree's height below the screen's bottom edge, so no gap shows under the trunk as it rotates
-BackgroundHandler.mobileBreakpoint = 700; //px of window width, at or under it the mobile heights apply (same as the 700px media query in Game.scss)
+BackgroundHandler.narrowBreakpoint = 600; //px of window width, under it the whole forest is scaled down to narrowForestWidthShare (applyNarrowScale())
 BackgroundHandler.maxTreeHeightOfViewport = 0.85; //no tree is taller than this share of the window, so a landscape phone doesn't cut the canopies off
 //horizontal spacing: the trees stand in the bottom left corner, tallest on the left, each step measured in the width of the tree just placed
 BackgroundHandler.maxSpanOfWidth = 0.2; //the trees never reach past this share of the screen's width: the steps are squeezed to fit
+BackgroundHandler.narrowForestWidthShare = 0.25; //under narrowBreakpoint: the forest's span, from the left edge to this share of the container's width
+BackgroundHandler.narrowFirstTreeMaxHeightShare = 0.184; //under narrowBreakpoint: the first (tallest) tree's height is at most this share of the container's width (69px at 375px); the others keep their proportions to it
+BackgroundHandler.narrowFirstTreeMinRatio = 0.8; //and at least this share of that maximum (55px at 375px), picked at random once per build
 BackgroundHandler.treeSpacing = 0.9; //step to the next tree when there is room; under 1 neighbours overlap, over 1 there is a gap between them
 BackgroundHandler.spacingJitter = 0.15; //random change to each step, added to or taken from treeSpacing
-BackgroundHandler.edgeBleed = 0.3; //share of the first tree's width off the left edge of the screen
+BackgroundHandler.edgeBleed = 0.3; //share of the first tree's width off the left edge of the screen (not under narrowBreakpoint, where every tree is whole)
 //wind
 BackgroundHandler.minWindStrength = 0.75; //degrees of rotation at peak sway
 BackgroundHandler.maxWindStrength = 2.5;
