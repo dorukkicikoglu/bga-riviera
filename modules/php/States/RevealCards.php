@@ -33,7 +33,8 @@ class RevealCards extends \Bga\GameFramework\States\GameState
 
     /**
      * Applies every pending play choice clockwise from the Start token holder, reveals the played cards (card-1
-     * chains included) and Last Chances in one notification, then one notification per crash. A player whose hand
+     * chains included) and Last Chances in one notification, then one log notification per Last Chance and per crash, each kind
+     * followed by one animation notification for all of them. A player whose hand
      * is now empty made a Grand Slam, which ends the game before any power. Otherwise last turn's dice effects
      * expire and this turn's powers are marked pending. [BGA, confirmed with publisher] Card 10 resolves right away,
      * before Stop or More, for owners still in the round, clockwise from the Start token holder (NextPOWER10Owner, then
@@ -148,6 +149,15 @@ class RevealCards extends \Bga\GameFramework\States\GameState
                 'preserve' => ['player_id'],
                 'player_id' => $playerID,
                 'CRASH_LOG_STR' => $this->game->getPlayerNameById($playerID).' crashes',
+            ]);
+        }
+
+        //[BGA] one animation for every crash of this reveal, after all their log rows (no log row of its own): the client shows
+        //the crashed columns, then discards their cards (the playerCrashed rows above discard nothing). The client already has
+        //every column and its own hand, so the player ids are all it needs
+        if(count($crashedPlayerIDs) > 0){
+            $this->bga->notify->all('crashAnimation', '', [
+                'player_ids' => $crashedPlayerIDs,
             ]);
         }
 

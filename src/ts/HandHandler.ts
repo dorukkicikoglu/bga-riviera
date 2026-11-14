@@ -473,13 +473,18 @@ export class HandHandler{
     //every card in my hand sweeps off-screen up-left (Game.sweepCardsOffScreen) and the hand is emptied at once
     private async sweepOutCards(durationMs: number = Game.CARD_SWEEP_DURATION, staggerMs: number = Game.CARD_SWEEP_STAGGER): Promise<void>{
         const sweep = this.game.sweepCardsOffScreen(this.getCardDivs(), durationMs, staggerMs);
-        this.handData = [];
-        this.cardsContainer.innerHTML = '';
+        this.removeAllCards();
 
         await sweep;
     }
 
-    private getCardDivs(): HTMLDivElement[]{ return Array.from(this.cardsContainer.querySelectorAll('.a-card')) as HTMLDivElement[]; }
+    //every card leaves the hand at once, with no animation (a crash's cards have already tumbled out, Game.notif_crashAnimation)
+    public removeAllCards(): void{
+        this.handData = [];
+        this.cardsContainer.innerHTML = '';
+    }
+
+    public getCardDivs(): HTMLDivElement[]{ return Array.from(this.cardsContainer.querySelectorAll('.a-card')) as HTMLDivElement[]; }
     private getCardDiv(cardID: number): HTMLDivElement{ return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
 
     public getCardCount(): number{ return this.cardsContainer.querySelectorAll('.a-card').length; }

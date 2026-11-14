@@ -25,7 +25,8 @@ import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
 import { EndGameScoringHandler } from "./EndGameScoringHandler";
 import { PrefHandler } from "./PrefHandler";
 import { BackgroundHandler } from "./BackgroundHandler";
-import { PlayerSpotlightOverlay } from "./PlayerSpotlightOverlay";
+import { LastChanceSpotlight } from "./LastChanceSpotlight";
+import { CrashSpotlight, CrashSpotlightEntry } from "./CrashSpotlight";
 
 //optional settings of Game.animateSlide / animateSlideAway
 export type SlideOptions = {
@@ -49,8 +50,6 @@ export class Game {
     public static readonly BOARD_ARRIVAL_HOLD = 100; //ms a card that has flown onto a player board (avatar or hand count) stays fully shown before it fades or goes
     public static readonly CARD_SWEEP_DURATION = 293; //ms each card leaving at a new round (hand and columns) takes to slide off-screen, quicker than the deal so the two read apart
     public static readonly CARD_SWEEP_STAGGER = 32; //ms between two cards starting their sweep at a new round
-    public static readonly CRASH_SWEEP_DURATION = 440; //ms each card leaving at a crash (hand and column) takes to slide off-screen
-    public static readonly CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash
     public static readonly CARD_SWEEP_EASING = 'ease-in-out';
     public static readonly CARD_DEAL_DURATION = 440; //ms each card of a new hand slides in for
     public static readonly CARD_DEAL_STAGGER = 48; //ms between the starts of two dealt cards (well under CARD_DEAL_DURATION: a few cards move at once)
@@ -802,7 +801,7 @@ export class Game {
         const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
         const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getLastChanceCardElement() }));
 
-        await new PlayerSpotlightOverlay(this, entries, _('Last Chance!'), 'last-chance-spotlight').play();
+        await new LastChanceSpotlight(this, entries).play();
 
         players.forEach(player => player.setLastChanceUsed(true));
     }
@@ -858,19 +857,32 @@ export class Game {
         }
     }
 
+    //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
     public async notif_playerCrashed(args: PlayerCrashedArgs) {
-        const player = this.players[args.player_id];
-        if(!player)
-            return;
+    }
 
-        player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
-        const discards: Promise<void>[] = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)];
-        if(args.player_id === this.myPlayerID && this.handHandler)
-            discards.push(this.handHandler.discardAll(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)); //started with the column's: both sweep together
+    //[BGA] every crash of the reveal at once: a "Crashed!" banner, each crashed column glows red and shakes where it is, under its
+    //player's avatar and name (a large tile in the middle of the play area too, for a column off screen), then its cards tumble
+    //out, my hand's too if I crashed. The queue waits for the whole animation (or a click on the overlay that skips it). No
+    //animation in a replay or with animations off. Then the end state: column and hand emptied, hand count 0, round status crashed
+    public async notif_crashAnimation(args: CrashAnimationArgs) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries: CrashSpotlightEntry[] = players.map(player => {
+            const cardGroups = [player.getPlayedColumn().getCardElements().reverse()]; //last card first
+            if(player.getPlayerID() === this.myPlayerID && this.handHandler)
+                cardGroups.push(this.handHandler.getCardDivs().reverse());
+            return { playerID: player.getPlayerID(), element: player.getPlayedColumn().getColumnContainer(), cardGroups: cardGroups };
+        });
 
-        await Promise.all(discards);
-        player.setHandCount(0);
-        player.setRoundStatus('crashed');
+        await new CrashSpotlight(this, entries).play();
+
+        for(let player of players){
+            player.getPlayedColumn().removeAllCards();
+            if(player.getPlayerID() === this.myPlayerID)
+                this.handHandler?.removeAllCards();
+            player.setHandCount(0);
+            player.setRoundStatus('crashed');
+        }
     }
 
     public async notif_grandSlam(args: ScoreChangedArgs) {

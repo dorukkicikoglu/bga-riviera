@@ -1048,19 +1048,24 @@ class PlayedColumnHandler {
         await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, fromBoard ? { boardEnd: true } : { keepSize: true });
         this.updateStarsTotal();
     }
-    //a crash or a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
+    //a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
     //peeling the stack, staggerMs apart. The column keeps its height until the sweep has ended, so nothing below it moves meanwhile
     async clear(durationMs = Game.CARD_SWEEP_DURATION, staggerMs = Game.CARD_SWEEP_STAGGER) {
-        this.playedCardsData = [];
         const cards = Array.from(this.cardsColumn.querySelectorAll('.a-card'));
         if (cards.length > 0)
             this.cardsColumn.style.minHeight = getComputedStyle(this.cardsColumn).height; //CSS px, unrounded
         const sweep = this.game.sweepCardsOffScreen(cards.reverse(), durationMs, staggerMs);
-        this.cardsColumn.innerHTML = '';
-        this.updateStarsTotal();
+        this.removeAllCards();
         await sweep;
         this.cardsColumn.style.minHeight = '';
     }
+    //every card leaves the column at once, with no animation (a crash's cards have already tumbled out, Game.notif_crashAnimation)
+    removeAllCards() {
+        this.playedCardsData = [];
+        this.cardsColumn.innerHTML = '';
+        this.updateStarsTotal();
+    }
+    getCardElements() { return Array.from(this.cardsColumn.querySelectorAll('.a-card')); } //top to bottom, in play order
     getStarsTotal() {
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
@@ -2062,9 +2067,13 @@ class HandHandler {
     //every card in my hand sweeps off-screen up-left (Game.sweepCardsOffScreen) and the hand is emptied at once
     async sweepOutCards(durationMs = Game.CARD_SWEEP_DURATION, staggerMs = Game.CARD_SWEEP_STAGGER) {
         const sweep = this.game.sweepCardsOffScreen(this.getCardDivs(), durationMs, staggerMs);
+        this.removeAllCards();
+        await sweep;
+    }
+    //every card leaves the hand at once, with no animation (a crash's cards have already tumbled out, Game.notif_crashAnimation)
+    removeAllCards() {
         this.handData = [];
         this.cardsContainer.innerHTML = '';
-        await sweep;
     }
     getCardDivs() { return Array.from(this.cardsContainer.querySelectorAll('.a-card')); }
     getCardDiv(cardID) { return this.cardsContainer.querySelector(`.a-card[data-card-id="${cardID}"]`); }
@@ -3156,9 +3165,11 @@ BackgroundHandler.DRIFT_OFFSET_X_PROPERTY = '--bg-drift-offset-x';
 BackgroundHandler.DRIFT_OFFSET_Y_PROPERTY = '--bg-drift-offset-y';
 BackgroundHandler.instance = null; //guards against a second background if the game sets its UI up again
 
-//a fixed overlay over the whole page (a light dim and a banner at the top) that shows one element per player in a row, the
-//player's avatar and name above each, then sends them back. Both centre on the play area, not the whole screen (setPlayAreaBounds). Reusable: the theme class (on the overlay) styles the banner and
-//the dim in Game.scss (.last-chance-spotlight). Sizes and gaps live in Game.scss; the timeline lives here.
+//the shared part of the announcement overlays: a fixed overlay over the whole page (a light dim and an art deco banner at the
+//top), centred on the play area, not the whole screen (setPlayAreaBounds). Each subclass plays its own timeline (start()) with
+//the helpers here: the player tag (avatar and name), slots laid out in rows like the Last Chance cards, the overlay's fade.
+//The theme class (on the overlay) styles the banner and the dim in Game.scss (.last-chance-spotlight, .crash-spotlight). Sizes
+//and gaps live in Game.scss; each timeline lives at the top of its subclass.
 //play() resolves once everything is gone; the caller then applies the end state. A click or tap on the overlay skips to that
 //end at once. Nothing plays in a replay or with animations off (fast replay, instantaneous mode, hidden tab)
 class PlayerSpotlightOverlay {
@@ -3167,7 +3178,6 @@ class PlayerSpotlightOverlay {
         this.entries = entries;
         this.bannerText = bannerText;
         this.themeClass = themeClass;
-        this.clones = [];
         this.animations = [];
         this.finished = false;
         this.resolveSkip = () => { };
@@ -3175,28 +3185,21 @@ class PlayerSpotlightOverlay {
     async play() {
         if (this.entries.length === 0 || this.game.isReplay() || !this.game.bga.gameui.bgaAnimationsActive())
             return;
-        const slotPlaces = this.createOverlay();
+        this.createOverlay();
         const skipped = new Promise(resolve => this.resolveSkip = resolve);
         this.overlay.addEventListener('click', () => this.resolveSkip());
-        const count = this.entries.length;
-        const holdDuration = PlayerSpotlightOverlay.HOLD_DURATION + (count - 1) * PlayerSpotlightOverlay.CARD_STAGGER; //every copy holds as long, so they come back in the order they came
-        const cardDuration = PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION + PlayerSpotlightOverlay.BOARD_HOLD_DURATION + PlayerSpotlightOverlay.BOARD_FADE_DURATION;
-        const totalDuration = (count - 1) * PlayerSpotlightOverlay.CARD_STAGGER + cardDuration;
-        this.animateOverlay(PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration);
-        const cardFlights = this.entries.map((entry, index) => this.animateCard(entry.element, slotPlaces[index], index, holdDuration, cardDuration));
-        this.animatePlayers();
-        const timeout = new Promise(resolve => setTimeout(resolve, totalDuration + PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN));
-        await Promise.race([Promise.all(cardFlights), skipped, timeout]);
+        const timeline = this.start();
+        const timeout = new Promise(resolve => setTimeout(resolve, timeline.duration + PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN));
+        await Promise.race([timeline.done, skipped, timeout]);
         this.finish();
     }
-    //the overlay, its banner and one slot per player (avatar and name above an empty place the card's size), in one row, or two
-    //when one row would make the cards narrower than --spotlight-min-card-width (4 to 6 players on a narrow screen). Returns
-    //each player's card place, in the entries' order
+    //after a skip or at the end, once every animation has stopped and the overlay is gone: the subclass removes its own
+    //temporary elements and shows again what it hid
+    cleanUp() { }
+    //the overlay with its banner and an empty stage for slots, in <body>
     createOverlay() {
-        const count = this.entries.length;
         this.overlay = document.createElement('div');
         this.overlay.className = 'player-spotlight-overlay ' + this.themeClass;
-        this.overlay.setAttribute('data-size', count <= 3 ? 'large' : 'small');
         this.overlay.innerHTML = `
             <div class="player-spotlight-banner" role="status">
                 <span class="player-spotlight-banner-ornament" aria-hidden="true"></span>
@@ -3206,18 +3209,11 @@ class PlayerSpotlightOverlay {
             <div class="player-spotlight-stage"></div>
         `;
         this.setPlayAreaBounds();
-        const stage = this.overlay.querySelector('.player-spotlight-stage');
-        const slots = this.entries.map(entry => this.createSlot(entry.playerID));
+        this.stage = this.overlay.querySelector('.player-spotlight-stage');
         document.body.appendChild(this.overlay);
-        this.layOutSlots(stage, slots, count);
-        const minCardWidth = parseFloat(getComputedStyle(this.overlay).getPropertyValue('--spotlight-min-card-width')) || 0;
-        const cardWidth = slots[0].querySelector('.player-spotlight-card-place').getBoundingClientRect().width;
-        if (count > 3 && cardWidth < minCardWidth)
-            this.layOutSlots(stage, slots, Math.ceil(count / 2));
-        return slots.map(slot => slot.querySelector('.player-spotlight-card-place'));
     }
-    //the cards and the banner centre on the game's play area (bga.gameArea, beside the player boards and the log on desktop, the
-    //whole width on mobile), the part of it inside the viewport, and the cards fit its width (--spotlight-area-width, in
+    //the slots and the banner centre on the game's play area (bga.gameArea, beside the player boards and the log on desktop, the
+    //whole width on mobile), the part of it inside the viewport, and the slots fit its width (--spotlight-area-width, in
     //Game.scss's card width). Vertically they centre on the viewport. Measured once, as the animation starts
     setPlayAreaBounds() {
         const viewportWidth = document.documentElement.clientWidth; //without a vertical scrollbar
@@ -3231,9 +3227,20 @@ class PlayerSpotlightOverlay {
         this.overlay.style.setProperty('--spotlight-center-x', `${(left + right) / 2}px`);
         this.overlay.style.setProperty('--spotlight-area-width', `${right - left}px`);
     }
-    //the slots in rows of perRow; Game.scss sizes the cards from --spotlight-per-row and data-rows
-    layOutSlots(stage, slots, perRow) {
-        stage.innerHTML = '';
+    //the slots (already in the page or not) on the stage: 1 to 3 large, 4 to 6 smaller, in one row, or two when one row would
+    //make them narrower than --spotlight-min-card-width (4 to 6 on a narrow screen). Each slot is --spotlight-card-width wide
+    layOutSlots(slots) {
+        const count = slots.length;
+        this.overlay.setAttribute('data-size', count <= 3 ? 'large' : 'small');
+        this.fillRows(slots, count);
+        const minCardWidth = parseFloat(getComputedStyle(this.overlay).getPropertyValue('--spotlight-min-card-width')) || 0;
+        const slotWidth = slots[0].getBoundingClientRect().width;
+        if (count > 3 && slotWidth < minCardWidth)
+            this.fillRows(slots, Math.ceil(count / 2));
+    }
+    //the slots in rows of perRow; Game.scss sizes them from --spotlight-per-row and data-rows
+    fillRows(slots, perRow) {
+        this.stage.innerHTML = '';
         const rowCount = Math.ceil(slots.length / perRow);
         this.overlay.style.setProperty('--spotlight-per-row', perRow.toString());
         this.overlay.setAttribute('data-rows', rowCount.toString());
@@ -3241,35 +3248,86 @@ class PlayerSpotlightOverlay {
             const row = document.createElement('div');
             row.className = 'player-spotlight-row';
             slots.slice(rowIndex * perRow, (rowIndex + 1) * perRow).forEach(slot => row.appendChild(slot));
-            stage.appendChild(row);
+            this.stage.appendChild(row);
         }
     }
+    //an empty slot in the player's color (--player-color), for the subclass to fill
     createSlot(playerID) {
         const slot = document.createElement('div');
         slot.className = 'player-spotlight-slot';
-        slot.style.setProperty('--player-color', '#' + (this.game.getPlayerColor(playerID) ?? '000000'));
-        slot.innerHTML = `
-            <div class="player-spotlight-player">
-                <span class="player-spotlight-avatar"></span>
-                ${this.game.divColoredPlayer(playerID, { class: 'playername player-spotlight-name' }, false)}
-            </div>
-            <div class="player-spotlight-card-place"></div>
-        `;
-        this.game.fillPlayerAvatar(slot.querySelector('.player-spotlight-avatar'), playerID, 'player-spotlight-avatar-image', 'player-spotlight-avatar-initial');
+        slot.style.setProperty('--player-color', this.getPlayerColor(playerID));
         return slot;
     }
-    //the dim and the banner fade in, stay while the cards are shown, and fade out while the cards fly back (from fadeOutStart);
-    //then the overlay goes, so it no longer catches clicks while the copies fade out on the boards
-    animateOverlay(fadeOutStart) {
-        const duration = fadeOutStart + PlayerSpotlightOverlay.CARD_OUT_DURATION;
+    //the player tag: their BGA avatar and their name in their color, on a light pill
+    createPlayerTag(playerID) {
+        const tag = document.createElement('div');
+        tag.className = 'player-spotlight-player';
+        tag.style.setProperty('--player-color', this.getPlayerColor(playerID));
+        tag.innerHTML = `
+            <span class="player-spotlight-avatar"></span>
+            ${this.game.divColoredPlayer(playerID, { class: 'playername player-spotlight-name' }, false)}
+        `;
+        this.game.fillPlayerAvatar(tag.querySelector('.player-spotlight-avatar'), playerID, 'player-spotlight-avatar-image', 'player-spotlight-avatar-initial');
+        return tag;
+    }
+    getPlayerColor(playerID) { return '#' + (this.game.getPlayerColor(playerID) ?? '000000'); }
+    //the dim and the banner fade in (fadeInMs), stay, and fade out from fadeOutStart (fadeOutMs); then the overlay goes, so it no
+    //longer catches clicks. Resolves when it has faded out (or at once, after a skip)
+    animateOverlay(fadeInMs, fadeOutStart, fadeOutMs) {
+        const duration = fadeOutStart + fadeOutMs;
         const overlayAnimation = this.overlay.animate([
             { opacity: 0, offset: 0 },
-            { opacity: 1, offset: PlayerSpotlightOverlay.OVERLAY_FADE_IN_DURATION / duration },
+            { opacity: 1, offset: fadeInMs / duration },
             { opacity: 1, offset: fadeOutStart / duration },
             { opacity: 0, offset: 1 },
         ], { duration: duration, fill: 'forwards' });
         this.animations.push(overlayAnimation);
-        overlayAnimation.finished.then(() => this.overlay.remove()).catch(() => { }); //cancelled by a skip, which removes it itself
+        return overlayAnimation.finished.then(() => this.overlay.remove()).catch(() => { }); //cancelled by a skip, which removes it itself
+    }
+    //an animation stopped by a skip (cancelled) resolves too, instead of rejecting
+    static whenFinished(animation) {
+        return animation.finished.then(() => { }).catch(() => { });
+    }
+    //the end, reached or skipped: every animation stops, the overlay goes, then the subclass's own clean-up (the caller applies the
+    //end state right after, in the same task, so nothing paints in between)
+    finish() {
+        if (this.finished)
+            return;
+        this.finished = true;
+        this.animations.forEach(animation => animation.cancel());
+        this.overlay.remove();
+        this.cleanUp();
+    }
+}
+PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN = 1000; //ms past the timeline's end after which play() resolves anyway (a hidden tab's throttled animations)
+
+//[BGA] every Last Chance of a reveal (Game.notif_lastChanceAnimation): each entry's element is the player's Last Chance card on
+//their board. A copy of it flies to the middle of the play area, grows, holds under the player's avatar and name, flies back
+//and fades out there; the board card waits hidden meanwhile. Shown in one row of slots (two for 4 to 6 on a narrow screen)
+class LastChanceSpotlight extends PlayerSpotlightOverlay {
+    constructor(game, entries) {
+        super(game, entries, _('Last Chance!'), 'last-chance-spotlight');
+        this.clones = [];
+    }
+    start() {
+        const slots = this.entries.map(entry => this.createCardSlot(entry.playerID));
+        this.layOutSlots(slots);
+        const slotPlaces = slots.map(slot => slot.querySelector('.player-spotlight-card-place'));
+        const count = this.entries.length;
+        const holdDuration = LastChanceSpotlight.HOLD_DURATION + (count - 1) * LastChanceSpotlight.CARD_STAGGER; //every copy holds as long, so they come back in the order they came
+        const cardDuration = LastChanceSpotlight.CARD_IN_DURATION + holdDuration + LastChanceSpotlight.CARD_OUT_DURATION + LastChanceSpotlight.BOARD_HOLD_DURATION + LastChanceSpotlight.BOARD_FADE_DURATION;
+        //the overlay fades out while the cards fly back, so it no longer catches clicks while the copies fade out on the boards
+        this.animateOverlay(LastChanceSpotlight.OVERLAY_FADE_IN_DURATION, LastChanceSpotlight.CARD_IN_DURATION + holdDuration, LastChanceSpotlight.CARD_OUT_DURATION);
+        const cardFlights = this.entries.map((entry, index) => this.animateCard(entry.element, slotPlaces[index], index, holdDuration, cardDuration));
+        this.animatePlayers();
+        return { done: Promise.all(cardFlights).then(() => { }), duration: (count - 1) * LastChanceSpotlight.CARD_STAGGER + cardDuration };
+    }
+    //the player's tag above an empty place the card's size
+    createCardSlot(playerID) {
+        const slot = this.createSlot(playerID);
+        slot.appendChild(this.createPlayerTag(playerID));
+        slot.insertAdjacentHTML('beforeend', '<div class="player-spotlight-card-place"></div>');
+        return slot;
     }
     //each player's avatar and name come in as their card arrives
     animatePlayers() {
@@ -3277,7 +3335,7 @@ class PlayerSpotlightOverlay {
             this.animations.push(player.animate([
                 { opacity: 0, translate: '0px 6px' },
                 { opacity: 1, translate: '0px 0px' },
-            ], { duration: PlayerSpotlightOverlay.PLAYER_FADE_IN_DURATION, delay: index * PlayerSpotlightOverlay.CARD_STAGGER + PlayerSpotlightOverlay.CARD_IN_DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
+            ], { duration: LastChanceSpotlight.PLAYER_FADE_IN_DURATION, delay: index * LastChanceSpotlight.CARD_STAGGER + LastChanceSpotlight.CARD_IN_DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
         });
     }
     //one copy's whole trip in one animation: board → place (CARD_IN), hold, place → board (CARD_OUT), stay, fade out. The copy is
@@ -3289,53 +3347,178 @@ class PlayerSpotlightOverlay {
         const startRect = (boardRect.width > 0 && boardRect.height > 0) ? boardRect : new DOMRect(placeRect.left + placeRect.width / 2, placeRect.top + placeRect.height / 2, 0, 0); //no board card on screen (display: none): it grows from the place's middle
         const clone = this.game.createSlidingClone(element);
         clone.classList.add('player-spotlight-card');
-        clone.style.setProperty('--my-card-width', `${placeRect.width / this.getZoom(clone)}px`);
+        clone.style.setProperty('--my-card-width', `${placeRect.width / LastChanceSpotlight.getZoom(clone)}px`);
         this.clones.push(clone);
         element.style.visibility = 'hidden';
         const transformOnto = this.game.getSlidingCloneTransform(clone);
-        const arrived = PlayerSpotlightOverlay.CARD_IN_DURATION / duration;
-        const leaving = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration) / duration;
-        const back = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION) / duration;
-        const fading = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION + PlayerSpotlightOverlay.BOARD_HOLD_DURATION) / duration;
+        const arrived = LastChanceSpotlight.CARD_IN_DURATION / duration;
+        const leaving = (LastChanceSpotlight.CARD_IN_DURATION + holdDuration) / duration;
+        const back = (LastChanceSpotlight.CARD_IN_DURATION + holdDuration + LastChanceSpotlight.CARD_OUT_DURATION) / duration;
+        const fading = (LastChanceSpotlight.CARD_IN_DURATION + holdDuration + LastChanceSpotlight.CARD_OUT_DURATION + LastChanceSpotlight.BOARD_HOLD_DURATION) / duration;
         const flight = clone.animate([
-            { transform: transformOnto(startRect), opacity: 1, offset: 0, easing: PlayerSpotlightOverlay.CARD_IN_EASING },
+            { transform: transformOnto(startRect), opacity: 1, offset: 0, easing: LastChanceSpotlight.CARD_IN_EASING },
             { transform: transformOnto(placeRect), opacity: 1, offset: arrived, easing: 'linear' },
-            { transform: transformOnto(placeRect), opacity: 1, offset: leaving, easing: PlayerSpotlightOverlay.CARD_OUT_EASING },
+            { transform: transformOnto(placeRect), opacity: 1, offset: leaving, easing: LastChanceSpotlight.CARD_OUT_EASING },
             { transform: transformOnto(startRect), opacity: 1, offset: back, easing: 'linear' },
             { transform: transformOnto(startRect), opacity: 1, offset: fading, easing: 'ease' },
             { transform: transformOnto(startRect), opacity: 0, offset: 1 },
-        ], { duration: duration, delay: index * PlayerSpotlightOverlay.CARD_STAGGER, fill: 'both' });
+        ], { duration: duration, delay: index * LastChanceSpotlight.CARD_STAGGER, fill: 'both' });
         this.animations.push(flight);
-        return flight.finished.then(() => { }).catch(() => { }); //a skip cancels it
+        return PlayerSpotlightOverlay.whenFinished(flight);
     }
     //the copy's measured zoom (it lives in <body>, outside BGA's mobile scaling), to turn on-screen px into its own px
-    getZoom(element) {
+    static getZoom(element) {
         const cssWidth = parseFloat(getComputedStyle(element).width);
         return (cssWidth > 0) ? element.getBoundingClientRect().width / cssWidth : 1;
     }
-    //the end, reached or skipped: every animation stops, the copies and the overlay go and the board elements show again (the
-    //caller applies the end state right after, in the same task, so they never paint in between)
-    finish() {
-        if (this.finished)
-            return;
-        this.finished = true;
-        this.animations.forEach(animation => animation.cancel());
+    //the copies go and the board cards show again
+    cleanUp() {
         this.clones.forEach(clone => clone.remove());
-        this.overlay.remove();
         this.entries.forEach(entry => entry.element.style.removeProperty('visibility'));
     }
 }
-PlayerSpotlightOverlay.OVERLAY_FADE_IN_DURATION = 250; //ms the dim and the banner take to appear
-PlayerSpotlightOverlay.CARD_IN_DURATION = 550; //ms each copy takes from its player board to the middle of the screen
-PlayerSpotlightOverlay.CARD_IN_EASING = 'ease-out';
-PlayerSpotlightOverlay.CARD_STAGGER = 120; //ms between two copies leaving their boards (and again between two coming back)
-PlayerSpotlightOverlay.HOLD_DURATION = 1300; //ms every copy stays still in the middle, counted from the last one's arrival
-PlayerSpotlightOverlay.CARD_OUT_DURATION = 550; //ms each copy takes back to its player board, shrinking to the board card's size
-PlayerSpotlightOverlay.CARD_OUT_EASING = 'ease-in-out';
-PlayerSpotlightOverlay.BOARD_HOLD_DURATION = 100; //ms a copy stays fully shown on the board before it fades (like Game.BOARD_ARRIVAL_HOLD)
-PlayerSpotlightOverlay.BOARD_FADE_DURATION = 400; //ms it then fades out there
-PlayerSpotlightOverlay.PLAYER_FADE_IN_DURATION = 250; //ms a player's avatar and name take to appear, as their card arrives
-PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN = 1000; //ms past the timeline's end after which play() resolves anyway (a hidden tab's throttled animations)
+LastChanceSpotlight.OVERLAY_FADE_IN_DURATION = 250; //ms the dim and the banner take to appear
+LastChanceSpotlight.CARD_IN_DURATION = 550; //ms each copy takes from its player board to the middle of the screen
+LastChanceSpotlight.CARD_IN_EASING = 'ease-out';
+LastChanceSpotlight.CARD_STAGGER = 120; //ms between two copies leaving their boards (and again between two coming back)
+LastChanceSpotlight.HOLD_DURATION = 1300; //ms every copy stays still in the middle, counted from the last one's arrival
+LastChanceSpotlight.CARD_OUT_DURATION = 550; //ms each copy takes back to its player board, shrinking to the board card's size
+LastChanceSpotlight.CARD_OUT_EASING = 'ease-in-out';
+LastChanceSpotlight.BOARD_HOLD_DURATION = 100; //ms a copy stays fully shown on the board before it fades (like Game.BOARD_ARRIVAL_HOLD)
+LastChanceSpotlight.BOARD_FADE_DURATION = 400; //ms it then fades out there
+LastChanceSpotlight.PLAYER_FADE_IN_DURATION = 250; //ms a player's avatar and name take to appear, as their card arrives
+
+//[BGA] every crash of a reveal (Game.notif_crashAnimation), under a "Crashed!" banner (.crash-spotlight). Each crashed player's
+//column animates where it is, nothing scrolls: a red glow on its border and one short shake, their avatar and name just
+//above it, then its cards tumble (a random turn, a small drop, a fade), last card first. A column that isn't on screen also
+//gets a large tile with the avatar and name in the middle of the play area, laid out like the Last Chance cards. Players
+//start PLAYER_STAGGER apart. The caller discards the cards at the end (the tumbled cards stay hidden until then)
+class CrashSpotlight extends PlayerSpotlightOverlay {
+    constructor(game, entries) {
+        super(game, entries, _('Crashed!'), 'crash-spotlight');
+    }
+    start() {
+        //measured before anything moves: which columns are on screen, and where to put their tags
+        const areaRects = this.entries.map(entry => entry.element.getBoundingClientRect());
+        const onScreen = areaRects.map(rect => CrashSpotlight.isOnScreen(rect));
+        const offScreenTiles = [];
+        const offScreenIndexes = [];
+        this.entries.forEach((entry, index) => {
+            if (onScreen[index])
+                this.addAreaTag(entry.playerID, areaRects[index], index);
+            else {
+                offScreenTiles.push(this.createTileSlot(entry.playerID));
+                offScreenIndexes.push(index);
+            }
+        });
+        if (offScreenTiles.length > 0) {
+            this.layOutSlots(offScreenTiles);
+            offScreenTiles.forEach((slot, tileIndex) => this.fadeIn(slot.querySelector('.player-spotlight-tile'), offScreenIndexes[tileIndex]));
+        }
+        let lastCardGone = 0;
+        this.entries.forEach((entry, index) => {
+            const delay = index * CrashSpotlight.PLAYER_STAGGER;
+            this.animateArea(entry.element, delay);
+            lastCardGone = Math.max(lastCardGone, delay + CrashSpotlight.AREA_FLASH_DURATION);
+            for (let cards of entry.cardGroups) {
+                cards.forEach((card, cardIndex) => this.tumbleCard(card, delay + CrashSpotlight.TUMBLE_START + cardIndex * CrashSpotlight.CARD_TUMBLE_STAGGER));
+                if (cards.length > 0)
+                    lastCardGone = Math.max(lastCardGone, delay + CrashSpotlight.TUMBLE_START + (cards.length - 1) * CrashSpotlight.CARD_TUMBLE_STAGGER + CrashSpotlight.CARD_TUMBLE_DURATION);
+            }
+        });
+        const fadeOutStart = lastCardGone + CrashSpotlight.HOLD_DURATION;
+        const done = this.animateOverlay(CrashSpotlight.OVERLAY_FADE_IN_DURATION, fadeOutStart, CrashSpotlight.OVERLAY_FADE_OUT_DURATION);
+        return { done: done, duration: fadeOutStart + CrashSpotlight.OVERLAY_FADE_OUT_DURATION };
+    }
+    //enough of the column inside the viewport, on both axes, to see it animate
+    static isOnScreen(rect) {
+        if (rect.width <= 0 || rect.height <= 0)
+            return false;
+        const visibleWidth = Math.min(rect.right, document.documentElement.clientWidth) - Math.max(rect.left, 0);
+        const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        return visibleWidth > 0 && visibleHeight >= rect.height * CrashSpotlight.MIN_VISIBLE_SHARE;
+    }
+    //the player's tag just above their column, centred on it and kept inside the viewport (the overlay is fixed over the whole
+    //viewport, so its children are placed in viewport px). Below the top edge when the column starts at the very top
+    addAreaTag(playerID, areaRect, index) {
+        const tag = this.createPlayerTag(playerID);
+        tag.classList.add('player-spotlight-area-tag');
+        this.overlay.appendChild(tag);
+        const tagRect = tag.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const centeredLeft = areaRect.left + (areaRect.width - tagRect.width) / 2;
+        tag.style.left = `${Math.max(4, Math.min(centeredLeft, viewportWidth - tagRect.width - 4))}px`;
+        tag.style.top = `${Math.max(4, areaRect.top - CrashSpotlight.TAG_GAP - tagRect.height)}px`;
+        this.fadeIn(tag, index);
+    }
+    //a column off screen: a large tile with the avatar and the name, in the middle of the play area
+    createTileSlot(playerID) {
+        const slot = this.createSlot(playerID);
+        slot.innerHTML = `
+            <div class="player-spotlight-tile">
+                <span class="player-spotlight-avatar"></span>
+                ${this.game.divColoredPlayer(playerID, { class: 'playername player-spotlight-name' }, false)}
+            </div>
+        `;
+        this.game.fillPlayerAvatar(slot.querySelector('.player-spotlight-avatar'), playerID, 'player-spotlight-avatar-image', 'player-spotlight-avatar-initial');
+        return slot;
+    }
+    //a tag or a tile comes in with its player's turn
+    fadeIn(element, index) {
+        this.animations.push(element.animate([
+            { opacity: 0, translate: '0px 6px' },
+            { opacity: 1, translate: '0px 0px' },
+        ], { duration: CrashSpotlight.TAG_FADE_IN_DURATION, delay: index * CrashSpotlight.PLAYER_STAGGER, easing: 'ease-out', fill: 'backwards' }));
+    }
+    //the column, where it is: a red glow on its border (box-shadow, up and down) and one short shake (translate), together
+    animateArea(area, delay) {
+        const noGlow = `0 0 0 0px rgba(217, 72, 59, 0), 0 0 0px 0px rgba(217, 72, 59, 0)`;
+        const glow = `0 0 0 3px ${CrashSpotlight.GLOW_COLOR}, 0 0 22px 6px ${CrashSpotlight.GLOW_HALO_COLOR}`;
+        this.animations.push(area.animate([
+            { boxShadow: noGlow, offset: 0 },
+            { boxShadow: glow, offset: 0.2 },
+            { boxShadow: glow, offset: 0.45 },
+            { boxShadow: noGlow, offset: 1 },
+        ], { duration: CrashSpotlight.AREA_FLASH_DURATION, delay: delay, easing: 'ease-out' }));
+        const distance = CrashSpotlight.AREA_SHAKE_DISTANCE;
+        this.animations.push(area.animate([
+            { translate: '0px 0px' },
+            { translate: `${-distance}px 0px` },
+            { translate: `${distance}px 0px` },
+            { translate: `${-distance * 0.6}px 0px` },
+            { translate: `${distance * 0.6}px 0px` },
+            { translate: `${-distance * 0.25}px 0px` },
+            { translate: '0px 0px' },
+        ], { duration: CrashSpotlight.AREA_SHAKE_DURATION, delay: delay, easing: 'ease-in-out' }));
+    }
+    //a card turns a random amount either way, drops a little and fades out, then stays hidden (fill forwards) until the caller
+    //discards it. rotate and translate are their own properties, so a hand card's transform (its lift) is untouched
+    tumbleCard(card, delay) {
+        const rotation = (Math.random() * 2 - 1) * CrashSpotlight.CARD_TUMBLE_MAX_ROTATION;
+        this.animations.push(card.animate([
+            { rotate: '0deg', translate: '0px 0px', opacity: 1 },
+            { rotate: `${rotation}deg`, translate: `0px ${CrashSpotlight.CARD_TUMBLE_DROP}px`, opacity: 0 },
+        ], { duration: CrashSpotlight.CARD_TUMBLE_DURATION, delay: delay, easing: CrashSpotlight.CARD_TUMBLE_EASING, fill: 'forwards' }));
+    }
+}
+CrashSpotlight.OVERLAY_FADE_IN_DURATION = 150; //ms the dim and the banner take to appear (the banner's slam and shake are in Game.scss)
+CrashSpotlight.PLAYER_STAGGER = 100; //ms between two crashed players' animations
+CrashSpotlight.AREA_FLASH_DURATION = 750; //ms of the red glow on the column's border, up and down
+CrashSpotlight.AREA_SHAKE_DURATION = 400; //ms of the column's one short shake, with the glow
+CrashSpotlight.AREA_SHAKE_DISTANCE = 6; //px of the shake's widest swing (in the column's own px)
+CrashSpotlight.TAG_FADE_IN_DURATION = 250; //ms the avatar and name above the column (or the off-screen tile) take to appear
+CrashSpotlight.TAG_GAP = 6; //px between the tag and the top of the column
+CrashSpotlight.TUMBLE_START = 400; //ms after a player's start their cards begin to tumble (once the shake is over)
+CrashSpotlight.CARD_TUMBLE_DURATION = 520; //ms each card takes to turn, drop and fade out
+CrashSpotlight.CARD_TUMBLE_STAGGER = 50; //ms between two cards of a group starting to tumble
+CrashSpotlight.CARD_TUMBLE_EASING = 'ease-in';
+CrashSpotlight.CARD_TUMBLE_MAX_ROTATION = 15; //degrees, either way, at random per card
+CrashSpotlight.CARD_TUMBLE_DROP = 28; //px each card drops (in its own px)
+CrashSpotlight.HOLD_DURATION = 500; //ms everything stays once the last card is gone, before the overlay fades out
+CrashSpotlight.OVERLAY_FADE_OUT_DURATION = 300; //ms the dim, the banner, the tags and the tiles take to fade out
+CrashSpotlight.MIN_VISIBLE_SHARE = 0.4; //a column with less than this share of its height in the viewport counts as off screen (it gets a tile)
+CrashSpotlight.GLOW_COLOR = 'rgba(217, 72, 59, 0.9)'; //the banner's red (#d9483b)
+CrashSpotlight.GLOW_HALO_COLOR = 'rgba(217, 72, 59, 0.6)';
 
 /**
  *------
@@ -3968,7 +4151,7 @@ class Game {
     async notif_lastChanceAnimation(args) {
         const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
         const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getLastChanceCardElement() }));
-        await new PlayerSpotlightOverlay(this, entries, _('Last Chance!'), 'last-chance-spotlight').play();
+        await new LastChanceSpotlight(this, entries).play();
         players.forEach(player => player.setLastChanceUsed(true));
     }
     //[BGA] the last player in had only Crash, so the server chose it. The reveal comes after this, so after the roll has landed too
@@ -4016,17 +4199,29 @@ class Game {
             clearInterval(dotsTimer);
         }
     }
+    //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
     async notif_playerCrashed(args) {
-        const player = this.players[args.player_id];
-        if (!player)
-            return;
-        player.getPlayedColumn().setRoundStatus('crashed'); //the badge turns to the bomb at once, while the cards fade out
-        const discards = [player.getPlayedColumn().clear(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)];
-        if (args.player_id === this.myPlayerID && this.handHandler)
-            discards.push(this.handHandler.discardAll(Game.CRASH_SWEEP_DURATION, Game.CRASH_SWEEP_STAGGER)); //started with the column's: both sweep together
-        await Promise.all(discards);
-        player.setHandCount(0);
-        player.setRoundStatus('crashed');
+    }
+    //[BGA] every crash of the reveal at once: a "Crashed!" banner, each crashed column glows red and shakes where it is, under its
+    //player's avatar and name (a large tile in the middle of the play area too, for a column off screen), then its cards tumble
+    //out, my hand's too if I crashed. The queue waits for the whole animation (or a click on the overlay that skips it). No
+    //animation in a replay or with animations off. Then the end state: column and hand emptied, hand count 0, round status crashed
+    async notif_crashAnimation(args) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries = players.map(player => {
+            const cardGroups = [player.getPlayedColumn().getCardElements().reverse()]; //last card first
+            if (player.getPlayerID() === this.myPlayerID && this.handHandler)
+                cardGroups.push(this.handHandler.getCardDivs().reverse());
+            return { playerID: player.getPlayerID(), element: player.getPlayedColumn().getColumnContainer(), cardGroups: cardGroups };
+        });
+        await new CrashSpotlight(this, entries).play();
+        for (let player of players) {
+            player.getPlayedColumn().removeAllCards();
+            if (player.getPlayerID() === this.myPlayerID)
+                this.handHandler?.removeAllCards();
+            player.setHandCount(0);
+            player.setRoundStatus('crashed');
+        }
     }
     async notif_grandSlam(args) {
         this.players[args.player_id]?.setScore(args.score);
@@ -4128,8 +4323,6 @@ Game.BOARD_STACK_OFFSET = 10; //px right and down, before BOARD_CARD_SCALE, each
 Game.BOARD_ARRIVAL_HOLD = 100; //ms a card that has flown onto a player board (avatar or hand count) stays fully shown before it fades or goes
 Game.CARD_SWEEP_DURATION = 293; //ms each card leaving at a new round (hand and columns) takes to slide off-screen, quicker than the deal so the two read apart
 Game.CARD_SWEEP_STAGGER = 32; //ms between two cards starting their sweep at a new round
-Game.CRASH_SWEEP_DURATION = 440; //ms each card leaving at a crash (hand and column) takes to slide off-screen
-Game.CRASH_SWEEP_STAGGER = 29; //ms between two cards starting their sweep at a crash
 Game.CARD_SWEEP_EASING = 'ease-in-out';
 Game.CARD_DEAL_DURATION = 440; //ms each card of a new hand slides in for
 Game.CARD_DEAL_STAGGER = 48; //ms between the starts of two dealt cards (well under CARD_DEAL_DURATION: a few cards move at once)
