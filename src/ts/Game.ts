@@ -806,11 +806,6 @@ export class Game {
         players.forEach(player => player.setLastChanceUsed(true));
     }
 
-    //[BGA] the last player in had only Crash, so the server chose it. The reveal comes after this, so after the roll has landed too
-    public async notif_autoCrashAnnounced(args: AutoCrashAnnouncedArgs) {
-        await this.announceAutoChoice(args.player_id, _('${you} crash'), _('${player_name} crashes'));
-    }
-
     //[BGA] the player's last card was playable, so the server played it. While others choose, only that player gets this (the
     //others still see them choosing), and their status bar goes back to the waiting title after the hold
     public async notif_autoGrandSlamAnnounced(args: AutoGrandSlamAnnouncedArgs) {
@@ -823,8 +818,9 @@ export class Game {
             this.playCard.refresh();
     }
 
-    //a choice the server made for a player: no buttons or selectable cards, the status bar says it with looping dots, then the
-    //queue holds (not in a replay or with no animations)
+    //a choice the server made for a player (the automatic Grand Slam): no buttons or selectable cards, the status bar says it
+    //with looping dots, then the queue holds (not in a replay or with no animations). An automatic crash has no announcement:
+    //the reveal's crash animation shows it
     private async announceAutoChoice(playerID: number, myTitle: string, othersTitle: string): Promise<void> {
         this.bga.statusBar.removeActionButtons();
         this.handHandler?.clearSelectableCards();

@@ -54,15 +54,11 @@ class PlayCard extends GameState
         if(empty($inRoundIDs))
             return RevealCards::class;
 
-        //[BGA] Crash is the last player in's only button, so they don't have to click it
+        //[BGA] Crash is the last player in's only button, so they don't have to click it. No notification of its own: the reveal
+        //logs the crash and its crashAnimation shows it
         $playerID = $inRoundIDs[0];
         if(count($inRoundIDs) === 1 && $this->game->tableManager->hasNoPlayableCard($playerID) && !$this->game->tableManager->canUseLastChance($playerID) && $this->getUndoableDieChangePOWER9($playerID) === null){
             $this->game->DbQuery("UPDATE `player` SET `play_choice` = 'crash' WHERE `player_id` = $playerID");
-
-            //no log row (RevealCards logs the crash): the client shows it in the status bar for a moment first
-            $this->bga->notify->all('autoCrashAnnounced', '', [
-                'player_id' => $playerID,
-            ]);
             return RevealCards::class;
         }
 

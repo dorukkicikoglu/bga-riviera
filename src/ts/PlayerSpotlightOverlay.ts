@@ -54,8 +54,10 @@ export abstract class PlayerSpotlightOverlay<Entry extends SpotlightEntry = Spot
 
         const timeline = this.start();
 
-        const timeout = new Promise<void>(resolve => setTimeout(resolve, timeline.duration + PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN));
+        let safetyTimer: number;
+        const timeout = new Promise<void>(resolve => safetyTimer = window.setTimeout(resolve, timeline.duration + PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN));
         await Promise.race([timeline.done, skipped, timeout]);
+        window.clearTimeout(safetyTimer); //nothing left running once the overlay is done
 
         this.finish();
     }

@@ -240,10 +240,6 @@ interface CrashAnimationArgs {
     player_ids: number[]; //every player who crashed in this reveal, clockwise from the Start token holder
 }
 
-interface AutoCrashAnnouncedArgs {
-    player_id: number;
-}
-
 interface AutoGrandSlamAnnouncedArgs {
     player_id: number;
     others_choosing: boolean;
