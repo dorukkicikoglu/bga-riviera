@@ -25,6 +25,7 @@ import { TooltipHandler, POWER_CARD_VALUES } from "./TooltipHandler";
 import { EndGameScoringHandler } from "./EndGameScoringHandler";
 import { PrefHandler } from "./PrefHandler";
 import { BackgroundHandler } from "./BackgroundHandler";
+import { PlayerSpotlightOverlay } from "./PlayerSpotlightOverlay";
 
 //optional settings of Game.animateSlide / animateSlideAway
 export type SlideOptions = {
@@ -65,6 +66,7 @@ export class Game {
     private static readonly AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
     private static readonly AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
     private static readonly AUTO_CHOICE_DOT_COUNT = 3;
+    private static readonly AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in a bigger circle
 
     public bga: Bga<RivieraPlayer, RivieraGamedatas>;
     private gamedatas: RivieraGamedatas;
@@ -398,7 +400,7 @@ export class Game {
         return opacity;
     }
 
-    private createSlidingClone(element: HTMLDivElement): HTMLDivElement {
+    public createSlidingClone(element: HTMLDivElement): HTMLDivElement {
         const slidingClone = element.cloneNode(true) as HTMLDivElement;
         slidingClone.removeAttribute('id');
         slidingClone.classList.add('sliding-clone');
@@ -437,7 +439,7 @@ export class Game {
     //returns the transform that puts the copy (a fresh createSlidingClone, untransformed) onto an on-screen rect: scaled to
     //rect's height (cards and the token keep their aspect) and centered on rect, so a source wider than the copy, like a row
     //of mini card backs, still sends it off from its middle. The copy converts screen px with its own measured zoom
-    private getSlidingCloneTransform(slidingClone: HTMLDivElement): (rect: DOMRect) => string {
+    public getSlidingCloneTransform(slidingClone: HTMLDivElement): (rect: DOMRect) => string {
         const baseRect = slidingClone.getBoundingClientRect(); //on screen, untransformed at the viewport's top-left corner
         const cssWidth = parseFloat(getComputedStyle(slidingClone).width); //unrounded, unlike offsetWidth
         const zoom = (cssWidth > 0) ? baseRect.width / cssWidth : 1;
@@ -582,6 +584,38 @@ export class Game {
             this.players[player_id].updateEndGameScoreHighlight();
     }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
+
+    //fills container with the player's avatar from their BGA player board (#avatar_<id>, there on setup for players, spectators
+    //and replays alike), at a bigger size so it stays sharp (an <img> with imageClass). If the bigger one fails, the board's own;
+    //with no avatar at all, the name's initial, with initialClass on container (a played column's header, the spotlight overlay)
+    public fillPlayerAvatar(container: HTMLElement, playerID: number, imageClass: string, initialClass: string): void {
+        const showInitial = () => {
+            container.classList.add(initialClass);
+            container.textContent = Array.from(this.getPlayerName(playerID))[0]?.toUpperCase() ?? '';
+        };
+
+        const boardAvatar = document.getElementById('avatar_' + playerID);
+        const boardSource = boardAvatar instanceof HTMLImageElement ? boardAvatar.getAttribute('src') : null;
+        if(!boardSource){
+            showInitial();
+            return;
+        }
+
+        const image = document.createElement('img');
+        image.className = imageClass;
+        image.alt = this.getPlayerName(playerID);
+        image.draggable = false;
+        image.addEventListener('error', () => {
+            if(image.getAttribute('src') !== boardSource)
+                image.setAttribute('src', boardSource);
+            else{
+                image.remove();
+                showInitial();
+            }
+        });
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, Game.AVATAR_SIZE_SUFFIX + '$2'));
+        container.appendChild(image);
+    }
 
     //card ids for an action's comma-separated cardIDs param, sorted numerically so the request is the same whatever order
     //they were clicked in (BGA tutorials compare the request's params)
@@ -740,10 +774,8 @@ export class Game {
         if(!player)
             return;
 
-        if(reveal.choice === 'last_chance'){
-            await player.setLastChanceUsed(true, true);
+        if(reveal.choice === 'last_chance') //the card stays on the board until lastChanceAnimation, after the Last Chance log rows
             return;
-        }
 
         //a card-1 chain follows its first card into the column, slightly behind it
         const revealedCards = [reveal.card, ...(reveal.extra_cards_POWER1 ?? [])];
@@ -759,8 +791,20 @@ export class Game {
         await Promise.all(slides);
     }
 
-    //the log row only: cardsRevealed already took the Last Chance card off the player board
+    //the log row only, at once: lastChanceAnimation, after every Last Chance row of the reveal, takes the cards off the boards
     public async notif_lastChanceUsed(args: LastChanceUsedArgs) {
+    }
+
+    //[BGA] every Last Chance of the reveal at once: the cards fly from their boards to the middle of the screen under a "Last
+    //Chance!" banner, each with its player's avatar and name, then back to their boards, where they fade out. The queue waits
+    //for the whole animation (or a click on the overlay that skips it). No animation in a replay or with animations off
+    public async notif_lastChanceAnimation(args: LastChanceAnimationArgs) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getLastChanceCardElement() }));
+
+        await new PlayerSpotlightOverlay(this, entries, _('Last Chance!'), 'last-chance-spotlight').play();
+
+        players.forEach(player => player.setLastChanceUsed(true));
     }
 
     //[BGA] the last player in had only Crash, so the server chose it. The reveal comes after this, so after the roll has landed too

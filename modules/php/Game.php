@@ -410,6 +410,17 @@ class Game extends \Bga\GameFramework\Table
         }
     }
 
+    // Last Chance: every player still in has no playable card and gets their Last Chance back, so they can all use it on the same
+    // turn (the lastChanceAnimation overlay). Every die in play shows 1, the golden die is out of the roll and every 1 and 2 in a
+    // hand is discarded, so no card matches a die or a sum
+    #[Debug(reload: true)]
+    public function debug_lastChance() {
+        self::DbQuery("UPDATE `dice` SET `die_value` = 1, `in_use_by_POWER11` = 'no'");
+        self::DbQuery("UPDATE `cards` SET `card_location` = 'discard' WHERE `card_location` = 'hand' AND `value` <= 2");
+        self::DbQuery("UPDATE `player` SET `last_chance_used` = 'no'");
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
+    }
+
     // card 1: two 1s and a 2, all playable on the same roll, to chain 1 -> 1 -> 2 (the 2 then reserves its die)
     #[Debug(reload: true)]
     public function debug_POWER1() {

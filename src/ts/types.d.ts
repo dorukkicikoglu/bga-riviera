@@ -249,6 +249,10 @@ interface LastChanceUsedArgs {
     player_id: number;
 }
 
+interface LastChanceAnimationArgs {
+    player_ids: number[]; //every player who used Last Chance in this reveal, clockwise from the Start token holder
+}
+
 interface DiceRolledArgs {
     dice: RivieraDie[];
     first_roll_of_round: boolean;

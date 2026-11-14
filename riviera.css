@@ -1371,10 +1371,6 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
 .riviera-player-board .player-board-cards-row .last-chance-indicator .a-card.mini-card {
   --my-card-width: 29px;
   box-shadow: 1px 1px 2px #000000;
-  transition: opacity 0.4s ease;
-}
-.riviera-player-board .player-board-cards-row .last-chance-indicator.last-chance-fading .a-card.mini-card {
-  opacity: 0;
 }
 .riviera-player-board .player-board-cards-row .last-chance-indicator[data-used=true] {
   display: none;
@@ -2171,6 +2167,216 @@ body .start-token.flying-start-token {
     transform-origin: top left;
   }
 }
+.player-spotlight-overlay {
+  position: fixed;
+  inset: 0px;
+  z-index: 948;
+  background-color: var(--spotlight-dim-color, rgba(0, 0, 0, 0.35));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  --spotlight-banner-strip-color: rgba(20, 20, 22, 0.85);
+  --spotlight-banner-gold: #e0a840;
+  --spotlight-banner-text-gradient: linear-gradient(180deg, #f7d785 0%, #e0a840 55%, #b47a24 100%);
+  --spotlight-min-card-width: 90px;
+  --spotlight-max-card-width: 220px;
+  --spotlight-max-card-height: 46vh;
+  --spotlight-card-width: min(var(--spotlight-max-card-width), calc((var(--spotlight-area-width, 100vw) - 32px - (var(--spotlight-per-row, 1) - 1) * 24px) / var(--spotlight-per-row, 1)), calc(var(--spotlight-max-card-height) / 1.4740566038));
+}
+.player-spotlight-overlay[data-size=small] {
+  --spotlight-max-card-width: 150px;
+  --spotlight-max-card-height: 38vh;
+}
+.player-spotlight-overlay[data-rows="2"] {
+  --spotlight-max-card-height: 24vh;
+}
+.player-spotlight-overlay .player-spotlight-banner {
+  position: absolute;
+  top: max(16px, 7vh);
+  left: var(--spotlight-center-x, 50%);
+  translate: -50% 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  width: max-content;
+  min-width: calc(var(--spotlight-area-width, 100vw) * 0.65);
+  max-width: calc(var(--spotlight-area-width, 100vw) - 32px);
+  padding: 0.45em 3.2em;
+  font-size: clamp(18px, 4vw, 36px);
+  font-weight: bold;
+  line-height: 1.2;
+  background: linear-gradient(90deg, transparent, var(--spotlight-banner-strip-color) 22%, var(--spotlight-banner-strip-color) 78%, transparent);
+  animation: player-spotlight-banner-fade-in 300ms ease-out both;
+}
+.player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-text {
+  min-width: 0;
+  padding-left: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--spotlight-banner-gold);
+  background: var(--spotlight-banner-text-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+}
+.player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament {
+  display: flex;
+  align-items: center;
+  flex: 0 1 clamp(22px, 7vw, 90px);
+  min-width: 10px;
+  height: 10.5px;
+  animation: player-spotlight-banner-lines-left 450ms ease-out 120ms both;
+}
+.player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament::before {
+  content: "";
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: 0 2px;
+  rotate: 45deg;
+  background-color: var(--spotlight-banner-gold);
+}
+.player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--spotlight-banner-gold);
+}
+.player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament + .player-spotlight-banner-text + .player-spotlight-banner-ornament {
+  flex-direction: row-reverse;
+  animation-name: player-spotlight-banner-lines-right;
+}
+.player-spotlight-overlay .player-spotlight-stage {
+  position: absolute;
+  top: 50%;
+  left: var(--spotlight-center-x, 50%);
+  translate: -50% -50%;
+  width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.player-spotlight-overlay .player-spotlight-row {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.player-spotlight-overlay .player-spotlight-slot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: var(--spotlight-card-width);
+}
+.player-spotlight-overlay .player-spotlight-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 3px 10px 3px 3px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px var(--player-color);
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-avatar .player-spotlight-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-avatar.player-spotlight-avatar-initial {
+  background-color: var(--player-color);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1;
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: bold;
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-name[player-color=ffa500] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-name[player-color="72c3b1"] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-name[player-color=bdd002] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.player-spotlight-overlay .player-spotlight-player .player-spotlight-name[player-color=ffffff] {
+  text-shadow: 1px 0 rgba(39, 39, 28, 0.7490196078), -1px 0 rgba(39, 39, 28, 0.7490196078), 0 1px rgba(39, 39, 28, 0.7490196078), 0 -1px rgba(39, 39, 28, 0.7490196078), 0.5px 0.5px rgba(39, 39, 28, 0.7490196078), -0.5px -0.5px rgba(39, 39, 28, 0.7490196078), 0.5px -0.5px rgba(39, 39, 28, 0.7490196078), -0.5px 0.5px rgba(39, 39, 28, 0.7490196078);
+}
+.player-spotlight-overlay .player-spotlight-card-place {
+  width: var(--spotlight-card-width);
+  height: calc(var(--spotlight-card-width) * 1.4740566038);
+}
+
+body .sliding-clone.player-spotlight-card {
+  box-shadow: 2px 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.player-spotlight-overlay.last-chance-spotlight {
+  --spotlight-dim-color: rgba(40, 12, 6, 0.38);
+}
+
+@keyframes player-spotlight-banner-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes player-spotlight-banner-lines-left {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes player-spotlight-banner-lines-right {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-spotlight-overlay .player-spotlight-banner, .player-spotlight-overlay .player-spotlight-banner-ornament {
+    animation: none;
+  }
+}
 .dijitTooltip {
   max-width: calc(100vw - 16px);
   overflow-wrap: break-word;
@@ -2784,5 +2990,3 @@ body .start-token.flying-start-token {
     opacity: 1;
   }
 }
-
-/*# sourceMappingURL=riviera.css.map */

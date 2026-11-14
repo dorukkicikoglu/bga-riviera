@@ -1016,34 +1016,9 @@ class PlayedColumnHandler {
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
         this.displayColumn();
     }
-    //the avatar on the owner's BGA player board (#avatar_<id>, there on setup for players, spectators and replays alike), at a
-    //bigger size so it stays sharp. If the bigger one fails, the board's own; with no avatar at all, the name's initial on the
-    //owner's color, so every header can still show a circle
+    //the owner's BGA avatar (Game.fillPlayerAvatar), or the name's initial on the owner's color, so every header can show a circle
     fillAvatar(avatarContainer) {
-        const boardAvatar = document.getElementById('avatar_' + this.owner.getPlayerID());
-        const boardSource = boardAvatar instanceof HTMLImageElement ? boardAvatar.getAttribute('src') : null;
-        if (!boardSource) {
-            this.showAvatarInitial(avatarContainer);
-            return;
-        }
-        const image = document.createElement('img');
-        image.className = 'played-column-avatar-image';
-        image.alt = this.owner.getPlayerName();
-        image.draggable = false;
-        image.addEventListener('error', () => {
-            if (image.getAttribute('src') !== boardSource)
-                image.setAttribute('src', boardSource);
-            else {
-                image.remove();
-                this.showAvatarInitial(avatarContainer);
-            }
-        });
-        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, PlayedColumnHandler.AVATAR_SIZE_SUFFIX + '$2'));
-        avatarContainer.appendChild(image);
-    }
-    showAvatarInitial(avatarContainer) {
-        avatarContainer.classList.add('played-column-avatar-initial');
-        avatarContainer.textContent = Array.from(this.owner.getPlayerName())[0]?.toUpperCase() ?? '';
+        this.game.fillPlayerAvatar(avatarContainer, this.owner.getPlayerID(), 'played-column-avatar-image', 'played-column-avatar-initial');
     }
     displayColumn() {
         this.cardsColumn.innerHTML = ''; // Clear existing cards
@@ -1123,7 +1098,6 @@ class PlayedColumnHandler {
     getColumnContainer() { return this.columnContainer; }
 }
 PlayedColumnHandler.LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
-PlayedColumnHandler.AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in the header circle
 
 class PlayerHandler {
     constructor(game, playerID, playerName, playerColor, playerNo, handCount, roundStatus, lastChanceUsed, playedCardsData, score) {
@@ -1244,14 +1218,9 @@ class PlayerHandler {
         if (handCount > PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS)
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
-    //a used Last Chance card disappears from the board; live, it fades out first
-    async setLastChanceUsed(lastChanceUsed, animate = false) {
+    //a used Last Chance card disappears from the board. Live, Game.notif_lastChanceAnimation shows it first (PlayerSpotlightOverlay)
+    setLastChanceUsed(lastChanceUsed) {
         this.lastChanceUsed = lastChanceUsed;
-        if (lastChanceUsed && animate) {
-            this.lastChanceIndicator.classList.add('last-chance-fading');
-            await this.game.bga.gameui.wait(PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME);
-            this.lastChanceIndicator.classList.remove('last-chance-fading');
-        }
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
     }
     //card 10: the whole BGA player board (boardElement) bounces once a swap or redraw has landed. Nothing waits for it:
@@ -1386,6 +1355,7 @@ class PlayerHandler {
     getPlayedColumn() { return this.playedColumn; }
     getStartTokenAnchor() { return this.startTokenAnchor; }
     getHandCountElement() { return this.handCountBacks; }
+    getLastChanceCardElement() { return this.lastChanceIndicator.querySelector('.last-chance-card'); }
     //where card 10's swapped cards fly to and from in my hand: BGA's avatar on this player's board, or the top mini card
     //back of the hand count when the avatar isn't shown
     getAvatarRect() {
@@ -1397,7 +1367,6 @@ class PlayerHandler {
     }
 }
 PlayerHandler.MAX_INDIVIDUAL_CARD_BACKS = 7; //above this, the hand count shows a single card back followed by "x N"
-PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME = 400;
 PlayerHandler.BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
 PlayerHandler.STOPPED_CLASS = 'stopped-player-board'; //greys out the hand area under the STOPPED stamp
 PlayerHandler.END_GAME_SCORE_CLASS = 'end-game-score-player-board'; //the score stays red and bold at WINNING_SCORE or more
@@ -3187,6 +3156,187 @@ BackgroundHandler.DRIFT_OFFSET_X_PROPERTY = '--bg-drift-offset-x';
 BackgroundHandler.DRIFT_OFFSET_Y_PROPERTY = '--bg-drift-offset-y';
 BackgroundHandler.instance = null; //guards against a second background if the game sets its UI up again
 
+//a fixed overlay over the whole page (a light dim and a banner at the top) that shows one element per player in a row, the
+//player's avatar and name above each, then sends them back. Both centre on the play area, not the whole screen (setPlayAreaBounds). Reusable: the theme class (on the overlay) styles the banner and
+//the dim in Game.scss (.last-chance-spotlight). Sizes and gaps live in Game.scss; the timeline lives here.
+//play() resolves once everything is gone; the caller then applies the end state. A click or tap on the overlay skips to that
+//end at once. Nothing plays in a replay or with animations off (fast replay, instantaneous mode, hidden tab)
+class PlayerSpotlightOverlay {
+    constructor(game, entries, bannerText, themeClass) {
+        this.game = game;
+        this.entries = entries;
+        this.bannerText = bannerText;
+        this.themeClass = themeClass;
+        this.clones = [];
+        this.animations = [];
+        this.finished = false;
+        this.resolveSkip = () => { };
+    }
+    async play() {
+        if (this.entries.length === 0 || this.game.isReplay() || !this.game.bga.gameui.bgaAnimationsActive())
+            return;
+        const slotPlaces = this.createOverlay();
+        const skipped = new Promise(resolve => this.resolveSkip = resolve);
+        this.overlay.addEventListener('click', () => this.resolveSkip());
+        const count = this.entries.length;
+        const holdDuration = PlayerSpotlightOverlay.HOLD_DURATION + (count - 1) * PlayerSpotlightOverlay.CARD_STAGGER; //every copy holds as long, so they come back in the order they came
+        const cardDuration = PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION + PlayerSpotlightOverlay.BOARD_HOLD_DURATION + PlayerSpotlightOverlay.BOARD_FADE_DURATION;
+        const totalDuration = (count - 1) * PlayerSpotlightOverlay.CARD_STAGGER + cardDuration;
+        this.animateOverlay(PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration);
+        const cardFlights = this.entries.map((entry, index) => this.animateCard(entry.element, slotPlaces[index], index, holdDuration, cardDuration));
+        this.animatePlayers();
+        const timeout = new Promise(resolve => setTimeout(resolve, totalDuration + PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN));
+        await Promise.race([Promise.all(cardFlights), skipped, timeout]);
+        this.finish();
+    }
+    //the overlay, its banner and one slot per player (avatar and name above an empty place the card's size), in one row, or two
+    //when one row would make the cards narrower than --spotlight-min-card-width (4 to 6 players on a narrow screen). Returns
+    //each player's card place, in the entries' order
+    createOverlay() {
+        const count = this.entries.length;
+        this.overlay = document.createElement('div');
+        this.overlay.className = 'player-spotlight-overlay ' + this.themeClass;
+        this.overlay.setAttribute('data-size', count <= 3 ? 'large' : 'small');
+        this.overlay.innerHTML = `
+            <div class="player-spotlight-banner" role="status">
+                <span class="player-spotlight-banner-ornament" aria-hidden="true"></span>
+                <span class="player-spotlight-banner-text">${this.bannerText}</span>
+                <span class="player-spotlight-banner-ornament" aria-hidden="true"></span>
+            </div>
+            <div class="player-spotlight-stage"></div>
+        `;
+        this.setPlayAreaBounds();
+        const stage = this.overlay.querySelector('.player-spotlight-stage');
+        const slots = this.entries.map(entry => this.createSlot(entry.playerID));
+        document.body.appendChild(this.overlay);
+        this.layOutSlots(stage, slots, count);
+        const minCardWidth = parseFloat(getComputedStyle(this.overlay).getPropertyValue('--spotlight-min-card-width')) || 0;
+        const cardWidth = slots[0].querySelector('.player-spotlight-card-place').getBoundingClientRect().width;
+        if (count > 3 && cardWidth < minCardWidth)
+            this.layOutSlots(stage, slots, Math.ceil(count / 2));
+        return slots.map(slot => slot.querySelector('.player-spotlight-card-place'));
+    }
+    //the cards and the banner centre on the game's play area (bga.gameArea, beside the player boards and the log on desktop, the
+    //whole width on mobile), the part of it inside the viewport, and the cards fit its width (--spotlight-area-width, in
+    //Game.scss's card width). Vertically they centre on the viewport. Measured once, as the animation starts
+    setPlayAreaBounds() {
+        const viewportWidth = document.documentElement.clientWidth; //without a vertical scrollbar
+        const areaRect = this.game.bga.gameArea.getElement().getBoundingClientRect();
+        let left = Math.max(0, areaRect.left);
+        let right = Math.min(viewportWidth, areaRect.right);
+        if (right - left <= 0) { //off-screen or not laid out: the whole viewport
+            left = 0;
+            right = viewportWidth;
+        }
+        this.overlay.style.setProperty('--spotlight-center-x', `${(left + right) / 2}px`);
+        this.overlay.style.setProperty('--spotlight-area-width', `${right - left}px`);
+    }
+    //the slots in rows of perRow; Game.scss sizes the cards from --spotlight-per-row and data-rows
+    layOutSlots(stage, slots, perRow) {
+        stage.innerHTML = '';
+        const rowCount = Math.ceil(slots.length / perRow);
+        this.overlay.style.setProperty('--spotlight-per-row', perRow.toString());
+        this.overlay.setAttribute('data-rows', rowCount.toString());
+        for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+            const row = document.createElement('div');
+            row.className = 'player-spotlight-row';
+            slots.slice(rowIndex * perRow, (rowIndex + 1) * perRow).forEach(slot => row.appendChild(slot));
+            stage.appendChild(row);
+        }
+    }
+    createSlot(playerID) {
+        const slot = document.createElement('div');
+        slot.className = 'player-spotlight-slot';
+        slot.style.setProperty('--player-color', '#' + (this.game.getPlayerColor(playerID) ?? '000000'));
+        slot.innerHTML = `
+            <div class="player-spotlight-player">
+                <span class="player-spotlight-avatar"></span>
+                ${this.game.divColoredPlayer(playerID, { class: 'playername player-spotlight-name' }, false)}
+            </div>
+            <div class="player-spotlight-card-place"></div>
+        `;
+        this.game.fillPlayerAvatar(slot.querySelector('.player-spotlight-avatar'), playerID, 'player-spotlight-avatar-image', 'player-spotlight-avatar-initial');
+        return slot;
+    }
+    //the dim and the banner fade in, stay while the cards are shown, and fade out while the cards fly back (from fadeOutStart);
+    //then the overlay goes, so it no longer catches clicks while the copies fade out on the boards
+    animateOverlay(fadeOutStart) {
+        const duration = fadeOutStart + PlayerSpotlightOverlay.CARD_OUT_DURATION;
+        const overlayAnimation = this.overlay.animate([
+            { opacity: 0, offset: 0 },
+            { opacity: 1, offset: PlayerSpotlightOverlay.OVERLAY_FADE_IN_DURATION / duration },
+            { opacity: 1, offset: fadeOutStart / duration },
+            { opacity: 0, offset: 1 },
+        ], { duration: duration, fill: 'forwards' });
+        this.animations.push(overlayAnimation);
+        overlayAnimation.finished.then(() => this.overlay.remove()).catch(() => { }); //cancelled by a skip, which removes it itself
+    }
+    //each player's avatar and name come in as their card arrives
+    animatePlayers() {
+        this.overlay.querySelectorAll('.player-spotlight-player').forEach((player, index) => {
+            this.animations.push(player.animate([
+                { opacity: 0, translate: '0px 6px' },
+                { opacity: 1, translate: '0px 0px' },
+            ], { duration: PlayerSpotlightOverlay.PLAYER_FADE_IN_DURATION, delay: index * PlayerSpotlightOverlay.CARD_STAGGER + PlayerSpotlightOverlay.CARD_IN_DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
+        });
+    }
+    //one copy's whole trip in one animation: board → place (CARD_IN), hold, place → board (CARD_OUT), stay, fade out. The copy is
+    //made at the place's size, so it is crisp while it holds, and the transform scales it down to the board card at both ends.
+    //Its start is measured now, before the board card is hidden (it doesn't move meanwhile)
+    animateCard(element, place, index, holdDuration, duration) {
+        const boardRect = element.getBoundingClientRect();
+        const placeRect = place.getBoundingClientRect();
+        const startRect = (boardRect.width > 0 && boardRect.height > 0) ? boardRect : new DOMRect(placeRect.left + placeRect.width / 2, placeRect.top + placeRect.height / 2, 0, 0); //no board card on screen (display: none): it grows from the place's middle
+        const clone = this.game.createSlidingClone(element);
+        clone.classList.add('player-spotlight-card');
+        clone.style.setProperty('--my-card-width', `${placeRect.width / this.getZoom(clone)}px`);
+        this.clones.push(clone);
+        element.style.visibility = 'hidden';
+        const transformOnto = this.game.getSlidingCloneTransform(clone);
+        const arrived = PlayerSpotlightOverlay.CARD_IN_DURATION / duration;
+        const leaving = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration) / duration;
+        const back = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION) / duration;
+        const fading = (PlayerSpotlightOverlay.CARD_IN_DURATION + holdDuration + PlayerSpotlightOverlay.CARD_OUT_DURATION + PlayerSpotlightOverlay.BOARD_HOLD_DURATION) / duration;
+        const flight = clone.animate([
+            { transform: transformOnto(startRect), opacity: 1, offset: 0, easing: PlayerSpotlightOverlay.CARD_IN_EASING },
+            { transform: transformOnto(placeRect), opacity: 1, offset: arrived, easing: 'linear' },
+            { transform: transformOnto(placeRect), opacity: 1, offset: leaving, easing: PlayerSpotlightOverlay.CARD_OUT_EASING },
+            { transform: transformOnto(startRect), opacity: 1, offset: back, easing: 'linear' },
+            { transform: transformOnto(startRect), opacity: 1, offset: fading, easing: 'ease' },
+            { transform: transformOnto(startRect), opacity: 0, offset: 1 },
+        ], { duration: duration, delay: index * PlayerSpotlightOverlay.CARD_STAGGER, fill: 'both' });
+        this.animations.push(flight);
+        return flight.finished.then(() => { }).catch(() => { }); //a skip cancels it
+    }
+    //the copy's measured zoom (it lives in <body>, outside BGA's mobile scaling), to turn on-screen px into its own px
+    getZoom(element) {
+        const cssWidth = parseFloat(getComputedStyle(element).width);
+        return (cssWidth > 0) ? element.getBoundingClientRect().width / cssWidth : 1;
+    }
+    //the end, reached or skipped: every animation stops, the copies and the overlay go and the board elements show again (the
+    //caller applies the end state right after, in the same task, so they never paint in between)
+    finish() {
+        if (this.finished)
+            return;
+        this.finished = true;
+        this.animations.forEach(animation => animation.cancel());
+        this.clones.forEach(clone => clone.remove());
+        this.overlay.remove();
+        this.entries.forEach(entry => entry.element.style.removeProperty('visibility'));
+    }
+}
+PlayerSpotlightOverlay.OVERLAY_FADE_IN_DURATION = 250; //ms the dim and the banner take to appear
+PlayerSpotlightOverlay.CARD_IN_DURATION = 550; //ms each copy takes from its player board to the middle of the screen
+PlayerSpotlightOverlay.CARD_IN_EASING = 'ease-out';
+PlayerSpotlightOverlay.CARD_STAGGER = 120; //ms between two copies leaving their boards (and again between two coming back)
+PlayerSpotlightOverlay.HOLD_DURATION = 1300; //ms every copy stays still in the middle, counted from the last one's arrival
+PlayerSpotlightOverlay.CARD_OUT_DURATION = 550; //ms each copy takes back to its player board, shrinking to the board card's size
+PlayerSpotlightOverlay.CARD_OUT_EASING = 'ease-in-out';
+PlayerSpotlightOverlay.BOARD_HOLD_DURATION = 100; //ms a copy stays fully shown on the board before it fades (like Game.BOARD_ARRIVAL_HOLD)
+PlayerSpotlightOverlay.BOARD_FADE_DURATION = 400; //ms it then fades out there
+PlayerSpotlightOverlay.PLAYER_FADE_IN_DURATION = 250; //ms a player's avatar and name take to appear, as their card arrives
+PlayerSpotlightOverlay.FINISH_SAFETY_MARGIN = 1000; //ms past the timeline's end after which play() resolves anyway (a hidden tab's throttled animations)
+
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
@@ -3634,6 +3784,35 @@ class Game {
             this.players[player_id].updateEndGameScoreHighlight();
     }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
+    //fills container with the player's avatar from their BGA player board (#avatar_<id>, there on setup for players, spectators
+    //and replays alike), at a bigger size so it stays sharp (an <img> with imageClass). If the bigger one fails, the board's own;
+    //with no avatar at all, the name's initial, with initialClass on container (a played column's header, the spotlight overlay)
+    fillPlayerAvatar(container, playerID, imageClass, initialClass) {
+        const showInitial = () => {
+            container.classList.add(initialClass);
+            container.textContent = Array.from(this.getPlayerName(playerID))[0]?.toUpperCase() ?? '';
+        };
+        const boardAvatar = document.getElementById('avatar_' + playerID);
+        const boardSource = boardAvatar instanceof HTMLImageElement ? boardAvatar.getAttribute('src') : null;
+        if (!boardSource) {
+            showInitial();
+            return;
+        }
+        const image = document.createElement('img');
+        image.className = imageClass;
+        image.alt = this.getPlayerName(playerID);
+        image.draggable = false;
+        image.addEventListener('error', () => {
+            if (image.getAttribute('src') !== boardSource)
+                image.setAttribute('src', boardSource);
+            else {
+                image.remove();
+                showInitial();
+            }
+        });
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, Game.AVATAR_SIZE_SUFFIX + '$2'));
+        container.appendChild(image);
+    }
     //card ids for an action's comma-separated cardIDs param, sorted numerically so the request is the same whatever order
     //they were clicked in (BGA tutorials compare the request's params)
     getCardIDsParam(cardIDs) { return [...cardIDs].sort((a, b) => a - b).join(','); }
@@ -3765,10 +3944,8 @@ class Game {
         const player = this.players[reveal.player_id];
         if (!player)
             return;
-        if (reveal.choice === 'last_chance') {
-            await player.setLastChanceUsed(true, true);
+        if (reveal.choice === 'last_chance') //the card stays on the board until lastChanceAnimation, after the Last Chance log rows
             return;
-        }
         //a card-1 chain follows its first card into the column, slightly behind it
         const revealedCards = [reveal.card, ...(reveal.extra_cards_POWER1 ?? [])];
         const slides = [];
@@ -3782,8 +3959,17 @@ class Game {
         }
         await Promise.all(slides);
     }
-    //the log row only: cardsRevealed already took the Last Chance card off the player board
+    //the log row only, at once: lastChanceAnimation, after every Last Chance row of the reveal, takes the cards off the boards
     async notif_lastChanceUsed(args) {
+    }
+    //[BGA] every Last Chance of the reveal at once: the cards fly from their boards to the middle of the screen under a "Last
+    //Chance!" banner, each with its player's avatar and name, then back to their boards, where they fade out. The queue waits
+    //for the whole animation (or a click on the overlay that skips it). No animation in a replay or with animations off
+    async notif_lastChanceAnimation(args) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getLastChanceCardElement() }));
+        await new PlayerSpotlightOverlay(this, entries, _('Last Chance!'), 'last-chance-spotlight').play();
+        players.forEach(player => player.setLastChanceUsed(true));
     }
     //[BGA] the last player in had only Crash, so the server chose it. The reveal comes after this, so after the roll has landed too
     async notif_autoCrashAnnounced(args) {
@@ -3959,5 +4145,6 @@ Game.OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or
 Game.AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
 Game.AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
 Game.AUTO_CHOICE_DOT_COUNT = 3;
+Game.AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in a bigger circle
 
 export { Game };

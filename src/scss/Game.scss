@@ -575,10 +575,9 @@ $hand-back-step-ratio: 0.2; //every 2nd back sits this share of the width lower
             }
             .hand-count-text{ margin-left: 5px; font-weight: bold; white-space: nowrap; }
         }
-        //a used Last Chance card disappears; live, it fades out first (PlayerHandler.setLastChanceUsed)
+        //a used Last Chance card disappears; live, the spotlight overlay shows it first (Game.notif_lastChanceAnimation)
         .last-chance-indicator{ position: relative; display: flex; align-items: center; flex-shrink: 0; margin-right: var(--last-chance-margin-right, 0px); right: 4px; margin-bottom: 2px;
-            .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; transition: opacity 0.4s ease; }
-            &.last-chance-fading .a-card.mini-card{ opacity: 0; }
+            .a-card.mini-card{ --my-card-width: 29px; box-shadow: 1px 1px 2px #000000; }
             &[data-used="true"]{ display: none; }
         }
         //STOPPED or CRASHED over the middle of the hand area, out of the greyed elements so it stays fully opaque. Only the
@@ -962,6 +961,105 @@ $log-round-tree: (x: 0, y: 0, width: 1326, height: 1718);
     .end-game-score-container{ transform: scale(0.7); transform-origin: top left; }
 }
 //end end-game scoring table
+
+//the spotlight overlay (PlayerSpotlightOverlay): a light dim over the whole page and a banner at the top, then one card per
+//player in the middle of the play area (vertically, of the screen), the player's avatar and name above it. In <body>, outside BGA's mobile scaling, so every
+//size here is in real screen px and viewport units. Over BGA's fixed status bar (948, later in <body>), under its popins,
+//dialogs, chat bar and tooltips. The flying cards are .sliding-clone copies (1000), over the overlay. A theme class on the
+//overlay styles the banner and the dim (.last-chance-spotlight). The card timeline lives at the top of PlayerSpotlightOverlay
+$spotlight-dim-color: rgba(0, 0, 0, 0.35);
+$spotlight-gutter: 16px; //the side margin the cards and the banner keep inside the play area
+$spotlight-card-gap: 24px; //between two cards of a row
+$spotlight-row-gap: 18px; //between two rows (4 to 6 cards on a narrow screen)
+$spotlight-large-card-width: 220px; //1 to 3 cards: about twice a desktop game-area card (--card-width, at most 110px)
+$spotlight-small-card-width: 150px; //4 to 6 cards
+$spotlight-min-card-width: 90px; //4 to 6 cards narrower than this in one row go on two rows (PlayerSpotlightOverlay.createOverlay)
+$spotlight-large-card-max-height: 46vh; //1 to 3 cards, so a short screen (a phone held sideways) still fits them
+$spotlight-small-card-max-height: 38vh; //4 to 6 cards in one row
+$spotlight-two-rows-card-max-height: 24vh; //4 to 6 cards, each of two rows
+$spotlight-avatar-size: 30px;
+$spotlight-banner-fade-in-duration: 300ms; //the banner's strip and text fade in, while the dim fades in (it fades out with the whole overlay)
+$spotlight-banner-lines-duration: 450ms; //then its gold lines grow outwards from the text, their diamonds last
+$spotlight-banner-lines-delay: 120ms;
+$spotlight-banner-strip-share: 0.65; //the banner's strip is at least this share of the play area's width, more if the text needs it
+$spotlight-banner-ornament-length: clamp(22px, 7vw, 90px); //each gold line, its diamond included
+$spotlight-banner-diamond-size: 7px;
+
+.player-spotlight-overlay{ position: fixed; inset: 0px; z-index: 948; background-color: var(--spotlight-dim-color, #{$spotlight-dim-color}); cursor: pointer; -webkit-tap-highlight-color: transparent; @include non-selectable();
+    --spotlight-banner-strip-color: rgba(20, 20, 22, 0.85); //close to the page background
+    --spotlight-banner-gold: #e0a840; //the card art's gold
+    --spotlight-banner-text-gradient: linear-gradient(180deg, #f7d785 0%, #e0a840 55%, #b47a24 100%);
+    --spotlight-min-card-width: #{$spotlight-min-card-width}; //read by PlayerSpotlightOverlay
+    --spotlight-max-card-width: #{$spotlight-large-card-width};
+    --spotlight-max-card-height: #{$spotlight-large-card-max-height};
+    //the largest card that fits: its maximum, the row's share of the play area's width (--spotlight-area-width), and the height cap
+    --spotlight-card-width: min(var(--spotlight-max-card-width), calc((var(--spotlight-area-width, 100vw) - #{2 * $spotlight-gutter} - (var(--spotlight-per-row, 1) - 1) * #{$spotlight-card-gap}) / var(--spotlight-per-row, 1)), calc(var(--spotlight-max-card-height) / #{$card-aspect}));
+    &[data-size="small"]{ --spotlight-max-card-width: #{$spotlight-small-card-width}; --spotlight-max-card-height: #{$spotlight-small-card-max-height}; }
+    &[data-rows="2"]{ --spotlight-max-card-height: #{$spotlight-two-rows-card-max-height}; }
+
+    //art deco, like the cards: a dark strip fading out at both ends, the text in the cards' gold, uppercase and widely spaced, a
+    //thin gold line ending in a diamond on each side. Centred on the play area (--spotlight-center-x, PlayerSpotlightOverlay)
+    //and at least $spotlight-banner-strip-share of its width. The theme can recolor it through the --spotlight-banner-* variables
+    .player-spotlight-banner{ position: absolute; top: max(16px, 7vh); left: var(--spotlight-center-x, 50%); translate: -50% 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 0.6em;
+        width: max-content; min-width: calc(var(--spotlight-area-width, 100vw) * #{$spotlight-banner-strip-share}); max-width: calc(var(--spotlight-area-width, 100vw) - #{2 * $spotlight-gutter}); padding: 0.45em 3.2em;
+        font-size: clamp(18px, 4vw, 36px); font-weight: bold; line-height: 1.2;
+        background: linear-gradient(90deg, transparent, var(--spotlight-banner-strip-color) 22%, var(--spotlight-banner-strip-color) 78%, transparent);
+        animation: player-spotlight-banner-fade-in $spotlight-banner-fade-in-duration ease-out both;
+
+        //letter-spacing also follows the last letter, so the same space before the first keeps the text centred
+        .player-spotlight-banner-text{ min-width: 0; padding-left: 0.15em; text-align: center; text-transform: uppercase; letter-spacing: 0.15em;
+            color: var(--spotlight-banner-gold); background: var(--spotlight-banner-text-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+        //a line ending in a diamond (::before), the diamond on the outer end: the first ornament runs diamond → line, the second line → diamond.
+        //Each grows outwards from the text (clip-path), with room inside for the turned diamond's corners
+        .player-spotlight-banner-ornament{ display: flex; align-items: center; flex: 0 1 $spotlight-banner-ornament-length; min-width: 10px; height: $spotlight-banner-diamond-size * 1.5;
+            animation: player-spotlight-banner-lines-left $spotlight-banner-lines-duration ease-out $spotlight-banner-lines-delay both;
+            &::before{ content: ""; flex-shrink: 0; width: $spotlight-banner-diamond-size; height: $spotlight-banner-diamond-size; margin: 0 2px; rotate: 45deg; background-color: var(--spotlight-banner-gold); }
+            &::after{ content: ""; flex: 1; height: 1px; background-color: var(--spotlight-banner-gold); }
+            & + .player-spotlight-banner-text + .player-spotlight-banner-ornament{ flex-direction: row-reverse; animation-name: player-spotlight-banner-lines-right; }
+        }
+    }
+    //max-content: placed by its left edge, an absolute box would otherwise only get the room right of that edge (half the area)
+    .player-spotlight-stage{ position: absolute; top: 50%; left: var(--spotlight-center-x, 50%); translate: -50% -50%; width: max-content; display: flex; flex-direction: column; align-items: center; gap: $spotlight-row-gap; }
+    .player-spotlight-row{ display: flex; justify-content: center; gap: $spotlight-card-gap; }
+    .player-spotlight-slot{ flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: var(--spotlight-card-width); }
+    //the player above their card: avatar and name on a light pill, so every player color reads on the dim
+    .player-spotlight-player{ display: flex; align-items: center; gap: 6px; box-sizing: border-box; max-width: 100%; padding: 3px 10px 3px 3px; border-radius: 999px; background-color: rgba(255, 255, 255, 0.92); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        .player-spotlight-avatar{ display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: $spotlight-avatar-size; height: $spotlight-avatar-size; border-radius: 50%; overflow: hidden; background-color: #ffffff; box-shadow: 0 0 0 2px var(--player-color);
+            .player-spotlight-avatar-image{ display: block; width: 100%; height: 100%; object-fit: cover; }
+            &.player-spotlight-avatar-initial{ background-color: var(--player-color); color: #ffffff; font-size: $spotlight-avatar-size * 0.5; font-weight: bold; line-height: 1; }
+        }
+        .player-spotlight-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: bold;
+            @each $light-player-color in "ffa500", "72c3b1", "bdd002", "ffffff" {
+                &[player-color="#{$light-player-color}"]{ @include text-shade(#27271cBF, 1px); }
+            }
+        }
+    }
+    //an empty place the card's size: the flying copy lands on it
+    .player-spotlight-card-place{ width: var(--spotlight-card-width); height: calc(var(--spotlight-card-width) * #{$card-aspect}); }
+}
+//the flying copy (a .sliding-clone): a deeper shadow while it is big
+body .sliding-clone.player-spotlight-card{ box-shadow: 2px 6px 18px rgba(0, 0, 0, 0.6); }
+
+//Last Chance: a warm dim, the banner's default gold
+.player-spotlight-overlay.last-chance-spotlight{ --spotlight-dim-color: rgba(40, 12, 6, 0.38); }
+
+@keyframes player-spotlight-banner-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+//the first ornament grows leftwards from the text, the second rightwards
+@keyframes player-spotlight-banner-lines-left {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes player-spotlight-banner-lines-right {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@media (prefers-reduced-motion: reduce){
+    .player-spotlight-overlay .player-spotlight-banner, .player-spotlight-overlay .player-spotlight-banner-ornament{ animation: none; }
+}
 
 //no tooltip, BGA's plain ones included, is ever wider than the screen. Dojo also sets its own width on .dijitTooltip when a tooltip has less room
 //than that beside its target, so the content follows the tooltip's width and wraps. Left and right tooltips have 14px of arrow padding on top of their width

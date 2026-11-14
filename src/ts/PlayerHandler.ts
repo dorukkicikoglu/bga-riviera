@@ -14,7 +14,6 @@ import { PlayedColumnHandler } from "./PlayedColumnHandler";
 
 export class PlayerHandler{
     private static readonly MAX_INDIVIDUAL_CARD_BACKS = 7; //above this, the hand count shows a single card back followed by "x N"
-    private static readonly LAST_CHANCE_FADE_ANIM_TIME = 400;
     private static readonly BOUNCE_CLASS = 'bouncing-player-board'; //the one shared bounce class, its timing lives in Game.scss
     private static readonly STOPPED_CLASS = 'stopped-player-board'; //greys out the hand area under the STOPPED stamp
     private static readonly END_GAME_SCORE_CLASS = 'end-game-score-player-board'; //the score stays red and bold at WINNING_SCORE or more
@@ -157,16 +156,9 @@ export class PlayerHandler{
             this.handCountBacks.insertAdjacentHTML('beforeend', `<span class="hand-count-text">x ${handCount}</span>`);
     }
 
-    //a used Last Chance card disappears from the board; live, it fades out first
-    public async setLastChanceUsed(lastChanceUsed: boolean, animate: boolean = false): Promise<void> {
+    //a used Last Chance card disappears from the board. Live, Game.notif_lastChanceAnimation shows it first (PlayerSpotlightOverlay)
+    public setLastChanceUsed(lastChanceUsed: boolean): void {
         this.lastChanceUsed = lastChanceUsed;
-
-        if(lastChanceUsed && animate){
-            this.lastChanceIndicator.classList.add('last-chance-fading');
-            await this.game.bga.gameui.wait(PlayerHandler.LAST_CHANCE_FADE_ANIM_TIME);
-            this.lastChanceIndicator.classList.remove('last-chance-fading');
-        }
-
         this.lastChanceIndicator.setAttribute('data-used', lastChanceUsed ? 'true' : 'false');
     }
 
@@ -319,6 +311,7 @@ export class PlayerHandler{
     public getPlayedColumn(): PlayedColumnHandler { return this.playedColumn; }
     public getStartTokenAnchor(): HTMLElement { return this.startTokenAnchor; }
     public getHandCountElement(): HTMLDivElement { return this.handCountBacks; }
+    public getLastChanceCardElement(): HTMLDivElement { return this.lastChanceIndicator.querySelector('.last-chance-card') as HTMLDivElement; }
 
     //where card 10's swapped cards fly to and from in my hand: BGA's avatar on this player's board, or the top mini card
     //back of the hand count when the avatar isn't shown

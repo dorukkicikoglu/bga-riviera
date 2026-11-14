@@ -134,6 +134,15 @@ class RevealCards extends \Bga\GameFramework\States\GameState
             ]);
         }
 
+        //[BGA] one animation for every Last Chance of this reveal, after all their log rows (no log row of its own): the client
+        //shows the players' Last Chance cards together, then takes them off their boards. The cards all look the same, so the
+        //player ids are all it needs
+        if(count($lastChancePlayerIDs) > 0){
+            $this->bga->notify->all('lastChanceAnimation', '', [
+                'player_ids' => $lastChancePlayerIDs,
+            ]);
+        }
+
         foreach($crashedPlayerIDs as $playerID){
             $this->bga->notify->all('playerCrashed', '${CRASH_LOG_STR}', [
                 'preserve' => ['player_id'],
