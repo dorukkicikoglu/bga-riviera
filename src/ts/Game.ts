@@ -27,6 +27,7 @@ import { PrefHandler } from "./PrefHandler";
 import { BackgroundHandler } from "./BackgroundHandler";
 import { LastChanceSpotlight } from "./LastChanceSpotlight";
 import { CrashSpotlight, CrashSpotlightEntry } from "./CrashSpotlight";
+import { GrandSlamSpotlight } from "./GrandSlamSpotlight";
 
 //optional settings of Game.animateSlide / animateSlideAway
 export type SlideOptions = {
@@ -62,9 +63,6 @@ export class Game {
     public static readonly REJECTED_CARD_POPUP_DURATION = 2000; //ms the "Can't play [card]" popup stays before it has faded out
     public static readonly CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
     private static readonly OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
-    private static readonly AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
-    private static readonly AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
-    private static readonly AUTO_CHOICE_DOT_COUNT = 3;
     private static readonly AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in a bigger circle
 
     public bga: Bga<RivieraPlayer, RivieraGamedatas>;
@@ -806,51 +804,11 @@ export class Game {
         players.forEach(player => player.setLastChanceUsed(true));
     }
 
-    //[BGA] the player's last card was playable, so the server played it. While others choose, only that player gets this (the
-    //others still see them choosing), and their status bar goes back to the waiting title after the hold
+    //[BGA] my last card was playable, so the server played it (only I get this): no Undo, and the status bar says it is a Grand
+    //Slam while the others choose. No hold: the reveal's grandSlamAnimation shows it
     public async notif_autoGrandSlamAnnounced(args: AutoGrandSlamAnnouncedArgs) {
         if(args.player_id === this.myPlayerID)
             this.playCard.onAutoGrandSlam();
-
-        await this.announceAutoChoice(args.player_id, _('${you} go for a Grand Slam'), _('${player_name} goes for a Grand Slam'));
-
-        if(args.others_choosing)
-            this.playCard.refresh();
-    }
-
-    //a choice the server made for a player (the automatic Grand Slam): no buttons or selectable cards, the status bar says it
-    //with looping dots, then the queue holds (not in a replay or with no animations). An automatic crash has no announcement:
-    //the reveal's crash animation shows it
-    private async announceAutoChoice(playerID: number, myTitle: string, othersTitle: string): Promise<void> {
-        this.bga.statusBar.removeActionButtons();
-        this.handHandler?.clearSelectableCards();
-
-        //the dots stay out of the translated text. All of them are there from the start, hidden, so the text never moves
-        const dotsHTML = '<span class="auto-choice-dots">' + '<span>.</span>'.repeat(Game.AUTO_CHOICE_DOT_COUNT) + '</span>';
-        if(playerID === this.myPlayerID)
-            this.bga.statusBar.setTitle(myTitle + dotsHTML);
-        else this.bga.statusBar.setTitle(othersTitle + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(playerID) });
-
-        const dots = Array.from(document.querySelectorAll<HTMLElement>('#pagemaintitletext .auto-choice-dots > span'));
-        //no hold in a replay, or with no animations (fast forward, instantaneous mode, hidden tab): the whole "..." at once
-        if(this.isReplay() || !this.bga.gameui.bgaAnimationsActive()){
-            dots.forEach(dot => dot.classList.add('shown-dot'));
-            return;
-        }
-
-        //"." at once, then a step every AUTO_CHOICE_DOT_STEP_TIME, back to "." after "...", for the whole hold
-        let shownDotCount = 0;
-        const showNextDots = () => {
-            shownDotCount = shownDotCount % dots.length + 1;
-            dots.forEach((dot, index) => dot.classList.toggle('shown-dot', index < shownDotCount));
-        };
-        showNextDots();
-        const dotsTimer = setInterval(showNextDots, Game.AUTO_CHOICE_DOT_STEP_TIME);
-        try {
-            await this.bga.gameui.wait(Game.AUTO_CHOICE_HOLD_TIME);
-        } finally {
-            clearInterval(dotsTimer);
-        }
     }
 
     //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
@@ -884,6 +842,17 @@ export class Game {
     public async notif_grandSlam(args: ScoreChangedArgs) {
         this.players[args.player_id]?.setScore(args.score);
         this.players[args.player_id]?.setGrandSlam();
+    }
+
+    //[BGA] every Grand Slam of the reveal at once, for everyone (players and spectators): a gold "Grand Slam!" banner, each
+    //winner's avatar popping in over a turning sunburst, gold confetti. The queue waits for the whole animation (or a click on
+    //the overlay that skips it), so the end-game table and the game end come after it. No animation in a replay or with
+    //animations off. Nothing to apply after it: the grandSlam rows already set the scores and the boards
+    public async notif_grandSlamAnimation(args: GrandSlamAnimationArgs) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getPlayedColumn().getColumnContainer() }));
+
+        await new GrandSlamSpotlight(this, entries).play();
     }
 
     //the flight doesn't block: the card 2 and 11 notifications (no animation) and the roll play while it flies, and

@@ -657,13 +657,6 @@ body .sliding-clone {
   color: var(--die-color-orange);
 }
 
-.auto-choice-dots > span {
-  visibility: hidden;
-}
-.auto-choice-dots > span.shown-dot {
-  visibility: inherit;
-}
-
 .mobile_version #generalactions::before {
   content: "";
   display: block;
@@ -1473,11 +1466,6 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   text-shadow: 1px 0 #ffffff, -1px 0 #ffffff, 0 1px #ffffff, 0 -1px #ffffff, 0.5px 0.5px #ffffff, -0.5px -0.5px #ffffff, 0.5px -0.5px #ffffff, -0.5px 0.5px #ffffff;
 }
 
-.riviera-player-board.grand-slam-player-board {
-  border-radius: 6px;
-  box-shadow: 0 0 10px 3px #e9c45a;
-}
-
 .start-token {
   position: relative;
   box-sizing: border-box;
@@ -1745,25 +1733,48 @@ body .start-token.flying-start-token {
   color: #b8860b;
 }
 .log .grand-slam-row, .gamelogreview .grand-slam-row {
-  font-weight: bold;
-  font-size: 18px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #7a4e00;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 196, 60, 0.85), 0 1px 0 #fff6d0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
   padding: 3px 0px;
 }
-.log .grand-slam-row::before, .log .grand-slam-row::after, .gamelogreview .grand-slam-row::before, .gamelogreview .grand-slam-row::after {
-  content: "★";
+.log .grand-slam-row .grand-slam-star, .gamelogreview .grand-slam-row .grand-slam-star {
+  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
   color: #f9a11a;
   text-shadow: 0 1px 0 #8a6a00;
-  letter-spacing: 0;
 }
-.log .grand-slam-row::before, .gamelogreview .grand-slam-row::before {
-  margin-right: 0.4em;
+.log .grand-slam-row .grand-slam-lines, .gamelogreview .grand-slam-row .grand-slam-lines {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
-.log .grand-slam-row::after, .gamelogreview .grand-slam-row::after {
-  margin-left: 0.4em;
+.log .grand-slam-row .playername, .gamelogreview .grand-slam-row .playername {
+  display: block;
+  width: 0px;
+  min-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 1.15;
+}
+.log .grand-slam-row .grand-slam-title, .gamelogreview .grand-slam-row .grand-slam-title {
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding-left: 0.12em;
+  color: #7a4e00;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 196, 60, 0.85), 0 1px 0 #fff6d0;
 }
 .log .player-crashed-row, .gamelogreview .player-crashed-row {
   display: flex;
@@ -2438,6 +2449,69 @@ body .sliding-clone.player-spotlight-card {
   animation-delay: 140ms;
 }
 
+.player-spotlight-overlay.grand-slam-spotlight {
+  --spotlight-dim-color: rgba(36, 22, 4, 0.4);
+}
+.player-spotlight-overlay.grand-slam-spotlight .player-spotlight-banner {
+  animation: grand-slam-spotlight-banner-settle 450ms ease-out both;
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-rays-layer {
+  position: absolute;
+  inset: 0px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-rays {
+  position: absolute;
+  left: var(--rays-center-x, 50%);
+  top: var(--rays-center-y, 50%);
+  width: calc(var(--rays-avatar-size, 150px) * 3.2);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  opacity: 0;
+  background: repeating-conic-gradient(rgba(240, 192, 80, 0.16) 0deg 4deg, transparent 4deg 15deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000000 25%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000000 25%, transparent 100%);
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 17px;
+  width: 100%;
+}
+.player-spotlight-overlay.grand-slam-spotlight .player-spotlight-avatar.grand-slam-avatar {
+  width: calc(var(--spotlight-card-width) * 0.72);
+  height: calc(var(--spotlight-card-width) * 0.72);
+  box-shadow: 0 0 0 5px #e0a840, 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+.player-spotlight-overlay.grand-slam-spotlight .player-spotlight-avatar.grand-slam-avatar.player-spotlight-avatar-initial {
+  font-size: calc(var(--spotlight-card-width) * 0.36);
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-name-pill {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 4px 14px;
+  border: 2px solid #e0a840;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-name-pill .player-spotlight-name {
+  max-width: 100%;
+  font-size: clamp(14px, var(--spotlight-card-width) * 0.11, 22px);
+}
+.player-spotlight-overlay.grand-slam-spotlight .grand-slam-confetti {
+  position: absolute;
+  inset: 0px;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 @keyframes player-spotlight-banner-fade-in {
   from {
     opacity: 0;
@@ -2472,6 +2546,16 @@ body .sliding-clone.player-spotlight-card {
     scale: 1;
   }
 }
+@keyframes grand-slam-spotlight-banner-settle {
+  from {
+    opacity: 0;
+    scale: 1.15;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
 @keyframes crash-spotlight-banner-shake {
   0%, 100% {
     transform: translateX(0px);
@@ -2494,7 +2578,8 @@ body .sliding-clone.player-spotlight-card {
 }
 @media (prefers-reduced-motion: reduce) {
   .player-spotlight-overlay .player-spotlight-banner, .player-spotlight-overlay .player-spotlight-banner-ornament,
-  .player-spotlight-overlay.crash-spotlight .player-spotlight-banner, .player-spotlight-overlay.crash-spotlight .player-spotlight-banner-ornament {
+  .player-spotlight-overlay.crash-spotlight .player-spotlight-banner, .player-spotlight-overlay.crash-spotlight .player-spotlight-banner-ornament,
+  .player-spotlight-overlay.grand-slam-spotlight .player-spotlight-banner {
     animation: none;
   }
 }

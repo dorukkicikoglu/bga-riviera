@@ -130,7 +130,9 @@ export class PlayCard {
             if(this.canUndoDieChange)
                 this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         } else {
-            if(this.pendingChoice.choice === 'card'){
+            if(this.autoGrandSlam) //[BGA] the server played my last card for me: no card icon, since I didn't choose it
+                this.bga.statusBar.setTitle(_('${you} go for a Grand Slam. Waiting for other players'));
+            else if(this.pendingChoice.choice === 'card'){
                 //each chosen card with its power icon, like "Play [card]?"
                 const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardWithPowerHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players'), { card: cardsIcons || _('a card') });
@@ -235,9 +237,11 @@ export class PlayCard {
             this.updateStatusBar(this.bga.players.isCurrentPlayerActive());
     }
 
-    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card
+    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card: the Undo button goes
+    //and the title says it is a Grand Slam
     public onAutoGrandSlam(): void {
         this.autoGrandSlam = true;
+        this.refresh();
     }
 
     public onChoiceConfirmed(args: PlayChoiceConfirmedArgs): void {

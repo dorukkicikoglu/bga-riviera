@@ -276,11 +276,6 @@ $more-button-badge-inset: 3.5px;
         &[data-color="#{$color}"] .status-card-icon-number{ color: var(--die-color-#{$color}); }
     }
 }
-//the looping "..." after an automatic crash or Grand Slam (Game.announceAutoChoice). Hidden dots keep their width, so the
-//text never moves
-.auto-choice-dots > span{ visibility: hidden;
-    &.shown-dot{ visibility: inherit; }
-}
 //mobile: a line break right before the action buttons, like a <br>, so they and BGA's arrow button start a second line
 //under the status bar title (the hourglass stays inline with it). Desktop keeps them next to the title
 .mobile_version #generalactions::before{ content: ""; display: block; }
@@ -632,8 +627,6 @@ $end-game-score-peak-scale: 1.8; //the score's size at the top of every intro be
     .player-name, .player-score-counter, .score-target{ @include text-shade(#ffffff, 1px); }
 }
 
-.riviera-player-board.grand-slam-player-board{ border-radius: 6px; box-shadow: 0 0 10px 3px #e9c45a; }
-
 //#start-token, its flying copy and the mini token in log rows: img/start_token.webp (a black pawn, portrait) fitted inside the
 //box, over a stroke in its owner's color (--start-token-color, set inline from the player color).
 //No filter: the stroke is a layer bigger than the token by its width on every side, masked by the pawn's silhouette (the
@@ -796,12 +789,17 @@ $log-types: "new-round", "dice-rolled", "cards-revealed", "last-chance", "crash"
     .game-end-row{ text-align: center; color: #27271c; margin-top: 5px; margin-bottom: -7px; font-size: 15px;
         .fa-trophy{ color: #b8860b; }
     }
-    //a big moment: bigger, uppercase, gold-brown with a light glow, a ★ on each side (pseudo-elements, so the translated
-    //string is untouched) and a little more room above and below than the other rows
-    .grand-slam-row{ font-weight: bold; font-size: 18px; text-transform: uppercase; letter-spacing: 0.12em; color: #7a4e00; text-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 196, 60, 0.85), 0 1px 0 #fff6d0; padding: 3px 0px;
-        &::before, &::after{ content: "★"; color: #f9a11a; text-shadow: 0 1px 0 #8a6a00; letter-spacing: 0; }
-        &::before{ margin-right: 0.4em; }
-        &::after{ margin-left: 0.4em; }
+    //a big moment, on two centred lines: the name (player color, cut with an ellipsis, full name in its title), then "Grand
+    //Slam!", bigger, uppercase and gold-brown with a light glow. A ★ on each side (spans, out of the translated strings), centred
+    //on the two lines together, 10px from them: star, lines, star are centred in the row as one group. The lines are as wide as
+    //"Grand Slam!" (the name adds no width of its own, width 0, and fills the column, min-width 100%), so a long name is cut
+    //there instead of widening the group out to the row's edges. A little more room above and below than the other rows
+    .grand-slam-row{ display: flex; justify-content: center; align-items: center; gap: 10px; padding: 3px 0px;
+        .grand-slam-star{ flex-shrink: 0; font-size: 22px; line-height: 1; color: #f9a11a; text-shadow: 0 1px 0 #8a6a00; }
+        .grand-slam-lines{ display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; max-width: 100%; }
+        .playername{ display: block; width: 0px; min-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: bold; line-height: 1.15; }
+        //letter-spacing also follows the last letter, so the same space before the first keeps the text centred
+        .grand-slam-title{ white-space: nowrap; font-size: 18px; font-weight: bold; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.12em; padding-left: 0.12em; color: #7a4e00; text-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 14px rgba(255, 196, 60, 0.85), 0 1px 0 #fff6d0; }
     }
     //"[bomb] name [bomb]", centred; the name is cut like the reveal rows' (full name in its title)
     .player-crashed-row{ display: flex; justify-content: center; align-items: center; gap: 6px; white-space: nowrap;
@@ -1105,6 +1103,39 @@ body .sliding-clone.player-spotlight-card{ box-shadow: 2px 6px 18px rgba(0, 0, 0
     .player-spotlight-banner-ornament{ animation-duration: $crash-banner-lines-duration; animation-delay: $crash-banner-lines-delay; }
 }
 
+//Grand Slam (GrandSlamSpotlight: its timeline and confetti are at the top of the class): the banner's default gold, settling in
+//from a little oversized while its lines grow outwards as usual, on a warm dim. Each winner's large avatar in a solid gold ring,
+//their name in their color on a gold-rimmed pill below, over a sunburst of thin gold rays that fades towards its edge (a layer
+//under the banner and the slots, placed in viewport px on each avatar's centre by GrandSlamSpotlight.animateRays)
+$grand-slam-dim-color: rgba(36, 22, 4, 0.4);
+$grand-slam-banner-settle-scale: 1.15;
+$grand-slam-banner-settle-duration: 450ms;
+$grand-slam-avatar-share: 0.72; //the avatar's diameter, a share of the slot's width (--spotlight-card-width, the Last Chance card's)
+$grand-slam-ring-width: 5px;
+$grand-slam-name-pill-gap: 12px; //between the avatar's ring and the name pill
+$grand-slam-rays-scale: 3.2; //the sunburst's diameter, times the avatar's
+$grand-slam-ray-color: rgba(240, 192, 80, 0.16);
+$grand-slam-ray-width: 4deg; //each ray
+$grand-slam-ray-period: 15deg; //one ray every this many degrees
+$grand-slam-rays-solid-share: 25%; //the rays are at full strength out to this share of the sunburst's radius, then fade out to its edge
+.player-spotlight-overlay.grand-slam-spotlight{ --spotlight-dim-color: #{$grand-slam-dim-color};
+    .player-spotlight-banner{ animation: grand-slam-spotlight-banner-settle $grand-slam-banner-settle-duration ease-out both; }
+    .grand-slam-rays-layer{ position: absolute; inset: 0px; overflow: hidden; pointer-events: none; }
+    .grand-slam-rays{ position: absolute; left: var(--rays-center-x, 50%); top: var(--rays-center-y, 50%); width: calc(var(--rays-avatar-size, 150px) * #{$grand-slam-rays-scale}); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; opacity: 0;
+        background: repeating-conic-gradient($grand-slam-ray-color 0deg $grand-slam-ray-width, transparent $grand-slam-ray-width $grand-slam-ray-period);
+        -webkit-mask-image: radial-gradient(closest-side, #000000 $grand-slam-rays-solid-share, transparent 100%); mask-image: radial-gradient(closest-side, #000000 $grand-slam-rays-solid-share, transparent 100%);
+    }
+    .grand-slam-winner{ display: flex; flex-direction: column; align-items: center; gap: $grand-slam-ring-width + $grand-slam-name-pill-gap; width: 100%; }
+    .player-spotlight-avatar.grand-slam-avatar{ width: calc(var(--spotlight-card-width) * #{$grand-slam-avatar-share}); height: calc(var(--spotlight-card-width) * #{$grand-slam-avatar-share}); box-shadow: 0 0 0 $grand-slam-ring-width $banner-accent, 0 4px 18px rgba(0, 0, 0, 0.45);
+        &.player-spotlight-avatar-initial{ font-size: calc(var(--spotlight-card-width) * #{$grand-slam-avatar-share * 0.5}); }
+    }
+    .grand-slam-name-pill{ display: flex; justify-content: center; box-sizing: border-box; max-width: 100%; padding: 4px 14px; border: 2px solid $banner-accent; border-radius: 999px; background-color: rgba(255, 255, 255, 0.94); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        .player-spotlight-name{ max-width: 100%; font-size: clamp(14px, calc(var(--spotlight-card-width) * 0.11), 22px); }
+    }
+    //the confetti, over everything in the overlay: the viewport's size in CSS px, its own size in device px
+    .grand-slam-confetti{ position: absolute; inset: 0px; width: 100%; height: 100%; pointer-events: none; }
+}
+
 @keyframes player-spotlight-banner-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1122,6 +1153,10 @@ body .sliding-clone.player-spotlight-card{ box-shadow: 2px 6px 18px rgba(0, 0, 0
   from { opacity: 0; scale: $crash-banner-slam-scale; }
   to { opacity: 1; scale: 1; }
 }
+@keyframes grand-slam-spotlight-banner-settle {
+  from { opacity: 0; scale: $grand-slam-banner-settle-scale; }
+  to { opacity: 1; scale: 1; }
+}
 @keyframes crash-spotlight-banner-shake {
   0%, 100% { transform: translateX(0px); }
   17% { transform: translateX(-$crash-banner-shake-distance); }
@@ -1132,7 +1167,8 @@ body .sliding-clone.player-spotlight-card{ box-shadow: 2px 6px 18px rgba(0, 0, 0
 }
 @media (prefers-reduced-motion: reduce){
     .player-spotlight-overlay .player-spotlight-banner, .player-spotlight-overlay .player-spotlight-banner-ornament,
-    .player-spotlight-overlay.crash-spotlight .player-spotlight-banner, .player-spotlight-overlay.crash-spotlight .player-spotlight-banner-ornament{ animation: none; }
+    .player-spotlight-overlay.crash-spotlight .player-spotlight-banner, .player-spotlight-overlay.crash-spotlight .player-spotlight-banner-ornament,
+    .player-spotlight-overlay.grand-slam-spotlight .player-spotlight-banner{ animation: none; }
 }
 
 //no tooltip, BGA's plain ones included, is ever wider than the screen. Dojo also sets its own width on .dijitTooltip when a tooltip has less room

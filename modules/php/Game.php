@@ -289,9 +289,15 @@ class Game extends \Bga\GameFramework\Table
                 'preserve' => ['player_id', 'score'],
                 'player_id' => $playerID,
                 'score' => $grandSlamScore,
-                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById($playerID).' does a Grand Slam!',
+                'GRAND_SLAM_LOG_STR' => $this->getPlayerNameById($playerID).': Grand Slam!', //plain fallback: the client builds the row from player_id
             ]);
         }
+
+        //[BGA] one animation for every Grand Slam of this reveal, after all their log rows (no log row of its own), to everyone.
+        //EndScore comes right after, and the client plays the notifications in order, so the end-game table waits for it
+        $this->bga->notify->all('grandSlamAnimation', '', [
+            'player_ids' => $playerIDs,
+        ]);
     }
 
     /**
@@ -390,6 +396,33 @@ class Game extends \Bga\GameFramework\Table
     public function debug_trimHands(int $count = 1) {
         $this->debugTrimHands($count);
         $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
+    }
+
+    // Grand Slam (the grandSlamAnimation overlay): $winners players still in (me first, then clockwise) are left with one card in
+    // hand, a 3 to 6 with no power, each of its own color, and that color's die shows its value (not reserved), so it is their
+    // only card and playable: the server plays it for them, and the reveal makes them all win at once. The other players keep
+    // their hands and choose as usual
+    #[Debug(reload: true)]
+    public function debug_grandSlam(int $winners = 1) {
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+        $inRoundIDs = array_map('intval', $this->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'in'", true));
+        $orderedIDs = array_values(array_filter($this->tableManager->getPlayerIDsInTurnOrderFrom($currentPlayerID), fn(int $playerID) => in_array($playerID, $inRoundIDs, true)));
+        $colorsInUse = $this->tableManager->getColorsInUse();
+
+        foreach(array_slice($orderedIDs, 0, max(1, min($winners, count($colorsInUse)))) as $index => $playerID){
+            $color = $colorsInUse[$index];
+            $cardDB = $this->getObjectFromDB("SELECT * FROM `cards` WHERE `color` = '$color' AND `value` BETWEEN 3 AND ".DIE_FACES." AND `card_location` IN ('deck', 'discard', 'hand') ORDER BY (`card_location` = 'hand' AND `card_location_arg` = $playerID) DESC, (`card_location` = 'hand') ASC, RAND() LIMIT 1");
+            if(!$cardDB)
+                continue;
+
+            $cardID = (int) $cardDB['card_id'];
+            self::DbQuery("UPDATE `cards` SET `card_location` = 'discard', `chain_position_POWER1` = NULL WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID AND `card_id` <> $cardID");
+            self::DbQuery("UPDATE `cards` SET `card_location` = 'hand', `card_location_arg` = $playerID, `location_in_column` = NULL, `chain_position_POWER1` = NULL WHERE `card_id` = $cardID");
+            self::DbQuery("UPDATE `dice` SET `die_value` = ".(int) $cardDB['value'].", `reserved_by_POWER2` = NULL WHERE `die_color` = '$color'");
+        }
+
+        self::DbQuery("UPDATE `player` SET `play_choice` = NULL, `play_choice_card_id` = NULL");
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards (and the automatic Grand Slam) are recomputed
     }
 
     // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies (if the option is on); each re-roll writes a "First roll re-rolled" line in the Studio server log

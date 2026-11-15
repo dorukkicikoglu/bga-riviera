@@ -73,16 +73,13 @@ class PlayCard extends GameState
             $autoGrandSlamPlayerIDs[] = $inRoundID;
         }
 
-        //no log row (RevealCards logs the reveal). While others choose, only that player may know: a notify->all with
-        //_private would still show the others that a notification came
-        $othersChoosing = count($autoGrandSlamPlayerIDs) < count($inRoundIDs);
-        foreach($autoGrandSlamPlayerIDs as $autoGrandSlamPlayerID){
-            $notifArgs = ['player_id' => $autoGrandSlamPlayerID, 'others_choosing' => $othersChoosing];
-            if($othersChoosing)
-                $this->bga->notify->player($autoGrandSlamPlayerID, 'autoGrandSlamAnnounced', '', $notifArgs);
-            else $this->bga->notify->all('autoGrandSlamAnnounced', '', $notifArgs);
-        }
+        //no log row (RevealCards logs the reveal, then its grandSlamAnimation shows it). Only that player is told, so their client
+        //drops the Undo button and says it is a Grand Slam (the state args may come before the card was played). While others
+        //choose, only that player may know: a notify->all with _private would still show the others that a notification came
+        foreach($autoGrandSlamPlayerIDs as $autoGrandSlamPlayerID)
+            $this->bga->notify->player($autoGrandSlamPlayerID, 'autoGrandSlamAnnounced', '', ['player_id' => $autoGrandSlamPlayerID]);
 
+        $othersChoosing = count($autoGrandSlamPlayerIDs) < count($inRoundIDs);
         if(!$othersChoosing)
             return RevealCards::class;
 

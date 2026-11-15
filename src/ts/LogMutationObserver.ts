@@ -184,15 +184,17 @@ export class LogMutationObserver{
         return this.addLogClassTag(logHTML, 'crash-log');
     }
 
+    //"★ name / GRAND SLAM! ★": the name on the first line (cut like the reveal rows', full name in its title), "Grand Slam!" (the
+    //spotlight banner's string) on the second, a star on each side, out of the translated strings
     public createLogGrandSlam(player_id: number): LogRowData {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, {class: 'playername'});
-        const grandSlamText = player_id === this.game.getMyPlayerID()
-            ? _('${you} do a Grand Slam!').replace('${you}', playerNameHTML)
-            : _('${player_name} does a Grand Slam!').replace('${player_name}', playerNameHTML);
-
         let logHTML = `
             <div class="grand-slam-row">
-                ${grandSlamText}
+                <span class="grand-slam-star" aria-hidden="true">★</span>
+                <span class="grand-slam-lines">
+                    ${this.getCutPlayerNameHTML(player_id)}
+                    <span class="grand-slam-title">${_('Grand Slam!')}</span>
+                </span>
+                <span class="grand-slam-star" aria-hidden="true">★</span>
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'grand-slam-log');

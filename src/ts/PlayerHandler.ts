@@ -288,7 +288,6 @@ export class PlayerHandler{
     }
 
     public setGrandSlam(): void {
-        this.playerBoardContainer.classList.add('grand-slam-player-board');
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
 

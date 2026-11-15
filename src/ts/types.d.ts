@@ -242,11 +242,14 @@ interface CrashAnimationArgs {
 
 interface AutoGrandSlamAnnouncedArgs {
     player_id: number;
-    others_choosing: boolean;
 }
 
 interface LastChanceUsedArgs {
     player_id: number;
+}
+
+interface GrandSlamAnimationArgs {
+    player_ids: number[]; //every player who made a Grand Slam in this reveal, clockwise from the Start token holder
 }
 
 interface LastChanceAnimationArgs {

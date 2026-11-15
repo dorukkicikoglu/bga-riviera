@@ -107,7 +107,9 @@ class PlayCard {
                 this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         }
         else {
-            if (this.pendingChoice.choice === 'card') {
+            if (this.autoGrandSlam) //[BGA] the server played my last card for me: no card icon, since I didn't choose it
+                this.bga.statusBar.setTitle(_('${you} go for a Grand Slam. Waiting for other players'));
+            else if (this.pendingChoice.choice === 'card') {
                 //each chosen card with its power icon, like "Play [card]?"
                 const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardWithPowerHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players'), { card: cardsIcons || _('a card') });
@@ -197,9 +199,11 @@ class PlayCard {
         if (this.game.getGameStateName() === 'PlayCard')
             this.updateStatusBar(this.bga.players.isCurrentPlayerActive());
     }
-    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card
+    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card: the Undo button goes
+    //and the title says it is a Grand Slam
     onAutoGrandSlam() {
         this.autoGrandSlam = true;
+        this.refresh();
     }
     onChoiceConfirmed(args) {
         this.chainCardIDs = args.chainCardIDs_POWER1;
@@ -1341,7 +1345,6 @@ class PlayerHandler {
         this.clippedScoreAncestors = [];
     }
     setGrandSlam() {
-        this.playerBoardContainer.classList.add('grand-slam-player-board');
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
     }
     //data-round-status shows one stamp at most. In: nothing. Stopped: the hand area greys out under the STOPPED stamp.
@@ -2456,14 +2459,17 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'crash-log');
     }
+    //"★ name / GRAND SLAM! ★": the name on the first line (cut like the reveal rows', full name in its title), "Grand Slam!" (the
+    //spotlight banner's string) on the second, a star on each side, out of the translated strings
     createLogGrandSlam(player_id) {
-        const playerNameHTML = this.game.divColoredPlayer(player_id, { class: 'playername' });
-        const grandSlamText = player_id === this.game.getMyPlayerID()
-            ? _('${you} do a Grand Slam!').replace('${you}', playerNameHTML)
-            : _('${player_name} does a Grand Slam!').replace('${player_name}', playerNameHTML);
         let logHTML = `
             <div class="grand-slam-row">
-                ${grandSlamText}
+                <span class="grand-slam-star" aria-hidden="true">★</span>
+                <span class="grand-slam-lines">
+                    ${this.getCutPlayerNameHTML(player_id)}
+                    <span class="grand-slam-title">${_('Grand Slam!')}</span>
+                </span>
+                <span class="grand-slam-star" aria-hidden="true">★</span>
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'grand-slam-log');
     }
@@ -3652,6 +3658,219 @@ CrashSpotlight.MIN_VISIBLE_SHARE = 0.4; //a column with less than this share of 
 CrashSpotlight.GLOW_COLOR = 'rgba(217, 72, 59, 0.9)'; //the banner's red (#d9483b)
 CrashSpotlight.GLOW_HALO_COLOR = 'rgba(217, 72, 59, 0.6)';
 
+//[BGA] every Grand Slam of a reveal (Game.notif_grandSlamAnimation), under a gold "Grand Slam!" banner (.grand-slam-spotlight):
+//the banner settles in from a little oversized, then each winner's avatar, ringed in gold, pops in in the middle of the play
+//area with their name on a gold-rimmed pill below, over a slowly turning sunburst of gold rays. Gold confetti bursts out of
+//the avatars and falls, then rains gently from the top of the screen; everything fades out. Several winners side by side, laid
+//out like the Last Chance cards. The confetti is one canvas, drawn on requestAnimationFrame and stopped in cleanUp().
+//Each entry's element is the winner's played column: nothing moves from it, the overlay only needs the player
+class GrandSlamSpotlight extends PlayerSpotlightOverlay {
+    constructor(game, entries) {
+        super(game, entries, _('Grand Slam!'), 'grand-slam-spotlight');
+        this.confettiCanvas = null;
+        this.confettiFrame = null;
+    }
+    start() {
+        const slots = this.entries.map(entry => this.createWinnerSlot(entry.playerID));
+        this.layOutSlots(slots);
+        //measured before anything scales: the avatars' centres and size, for the rays and the burst
+        const avatarRects = slots.map(slot => slot.querySelector('.grand-slam-avatar').getBoundingClientRect());
+        const done = this.animateOverlay(GrandSlamSpotlight.OVERLAY_FADE_IN_DURATION, GrandSlamSpotlight.FADE_OUT_START, GrandSlamSpotlight.FADE_OUT_DURATION);
+        this.animateRays(avatarRects);
+        slots.forEach((slot, index) => this.popWinner(slot.querySelector('.grand-slam-winner'), index));
+        this.startConfetti(avatarRects.map(rect => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })));
+        return { done: done, duration: GrandSlamSpotlight.TOTAL_DURATION };
+    }
+    //the winner's avatar in its gold ring, their name on a gold-rimmed pill below
+    createWinnerSlot(playerID) {
+        const slot = this.createSlot(playerID);
+        slot.innerHTML = `
+            <div class="grand-slam-winner">
+                <span class="player-spotlight-avatar grand-slam-avatar"></span>
+                <div class="grand-slam-name-pill">
+                    ${this.game.divColoredPlayer(playerID, { class: 'playername player-spotlight-name' }, false)}
+                </div>
+            </div>
+        `;
+        this.game.fillPlayerAvatar(slot.querySelector('.grand-slam-avatar'), playerID, 'player-spotlight-avatar-image', 'player-spotlight-avatar-initial');
+        return slot;
+    }
+    //nothing → WINNER_POP_SCALE → full size
+    popWinner(winner, index) {
+        this.animations.push(winner.animate([
+            { scale: 0, offset: 0, easing: 'ease-out' },
+            { scale: GrandSlamSpotlight.WINNER_POP_SCALE, offset: GrandSlamSpotlight.WINNER_POP_PEAK, easing: 'ease-in-out' },
+            { scale: 1, offset: 1 },
+        ], { duration: GrandSlamSpotlight.WINNER_POP_DURATION, delay: GrandSlamSpotlight.WINNER_DELAY + index * GrandSlamSpotlight.WINNER_STAGGER, fill: 'backwards' }));
+    }
+    //a sunburst behind each avatar, in a layer under the banner and the slots (so a neighbour's rays never cover an avatar). It
+    //fades in with the first pop and turns RAYS_ROTATION degrees over the whole animation; the overlay's fade takes it out
+    animateRays(avatarRects) {
+        const layer = document.createElement('div');
+        layer.className = 'grand-slam-rays-layer';
+        this.overlay.prepend(layer);
+        const total = GrandSlamSpotlight.TOTAL_DURATION;
+        for (let rect of avatarRects) {
+            const rays = document.createElement('div');
+            rays.className = 'grand-slam-rays';
+            rays.style.setProperty('--rays-center-x', `${rect.left + rect.width / 2}px`);
+            rays.style.setProperty('--rays-center-y', `${rect.top + rect.height / 2}px`);
+            rays.style.setProperty('--rays-avatar-size', `${rect.width}px`);
+            layer.appendChild(rays);
+            this.animations.push(rays.animate([
+                { opacity: 0, rotate: '0deg', offset: 0 },
+                { opacity: 0, offset: GrandSlamSpotlight.WINNER_DELAY / total },
+                { opacity: 1, offset: (GrandSlamSpotlight.WINNER_DELAY + GrandSlamSpotlight.RAYS_FADE_IN_DURATION) / total },
+                { opacity: 1, rotate: `${GrandSlamSpotlight.RAYS_ROTATION}deg`, offset: 1 },
+            ], { duration: total, fill: 'both' }));
+        }
+    }
+    //the confetti: one canvas over the whole overlay, the viewport's size in device px (sharp on a phone), drawn on
+    //requestAnimationFrame until the end. The burst comes out of the avatars at BURST_START, the rain from the top of the
+    //screen from RAIN_START for RAIN_DURATION. Fewer pieces on a smaller screen
+    startConfetti(origins) {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const pixelRatio = window.devicePixelRatio || 1;
+        const canvas = document.createElement('canvas');
+        canvas.className = 'grand-slam-confetti';
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        const context = canvas.getContext('2d');
+        if (!context)
+            return;
+        this.overlay.appendChild(canvas);
+        this.confettiCanvas = canvas;
+        const share = Math.min(1, Math.max(GrandSlamSpotlight.CONFETTI_MIN_SHARE, (width * height) / GrandSlamSpotlight.CONFETTI_REFERENCE_AREA));
+        const burstPerOrigin = Math.round(GrandSlamSpotlight.BURST_COUNT * share / Math.max(1, origins.length));
+        const rainTimes = Array.from({ length: Math.round(GrandSlamSpotlight.RAIN_COUNT * share) }, () => GrandSlamSpotlight.RAIN_START + Math.random() * GrandSlamSpotlight.RAIN_DURATION).sort((a, b) => a - b);
+        let pieces = [];
+        let burstDone = false;
+        let rainIndex = 0;
+        let startTime = null;
+        let lastTime = 0;
+        const drawFrame = (now) => {
+            if (startTime === null) {
+                startTime = now;
+                lastTime = now;
+            }
+            const elapsed = now - startTime;
+            const step = Math.min(GrandSlamSpotlight.MAX_FRAME_STEP, (now - lastTime) / 1000);
+            lastTime = now;
+            if (!burstDone && elapsed >= GrandSlamSpotlight.BURST_START) {
+                burstDone = true;
+                for (let origin of origins)
+                    for (let index = 0; index < burstPerOrigin; index++)
+                        pieces.push(GrandSlamSpotlight.createBurstPiece(origin.x, origin.y));
+            }
+            while (rainIndex < rainTimes.length && rainTimes[rainIndex] <= elapsed) {
+                pieces.push(GrandSlamSpotlight.createRainPiece(width));
+                rainIndex++;
+            }
+            pieces = pieces.filter(piece => GrandSlamSpotlight.movePiece(piece, step, height));
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            for (let piece of pieces) {
+                //device px, then the piece's place, turn and flip
+                context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+                context.translate(piece.x, piece.y);
+                context.rotate(piece.rotation);
+                context.scale(1, Math.cos(piece.flipPhase));
+                context.fillStyle = piece.color;
+                context.fillRect(-piece.width / 2, -piece.height / 2, piece.width, piece.height);
+            }
+            this.confettiFrame = (elapsed < GrandSlamSpotlight.TOTAL_DURATION) ? requestAnimationFrame(drawFrame) : null;
+        };
+        this.confettiFrame = requestAnimationFrame(drawFrame);
+    }
+    static createPiece(x, y, vx, vy) {
+        const width = GrandSlamSpotlight.random(GrandSlamSpotlight.PIECE_MIN_WIDTH, GrandSlamSpotlight.PIECE_MAX_WIDTH);
+        const colors = GrandSlamSpotlight.CONFETTI_COLORS;
+        return {
+            x: x, y: y, vx: vx, vy: vy,
+            width: width,
+            height: width * GrandSlamSpotlight.random(GrandSlamSpotlight.PIECE_MIN_HEIGHT_RATIO, GrandSlamSpotlight.PIECE_MAX_HEIGHT_RATIO),
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * Math.PI * 2,
+            spin: GrandSlamSpotlight.random(-GrandSlamSpotlight.MAX_SPIN, GrandSlamSpotlight.MAX_SPIN),
+            flipPhase: Math.random() * Math.PI * 2,
+            flipSpeed: GrandSlamSpotlight.random(GrandSlamSpotlight.MIN_FLIP_SPEED, GrandSlamSpotlight.MAX_FLIP_SPEED),
+            swayPhase: Math.random() * Math.PI * 2,
+            swaySpeed: GrandSlamSpotlight.random(1.5, 3.5),
+            swayAmplitude: Math.random() * GrandSlamSpotlight.MAX_SWAY_AMPLITUDE,
+        };
+    }
+    //out of an avatar, in any direction, a little upwards
+    static createBurstPiece(x, y) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = GrandSlamSpotlight.random(GrandSlamSpotlight.BURST_MIN_SPEED, GrandSlamSpotlight.BURST_MAX_SPEED);
+        return GrandSlamSpotlight.createPiece(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - GrandSlamSpotlight.BURST_UPWARD_BOOST);
+    }
+    //from just above the top of the screen, anywhere across it
+    static createRainPiece(width) {
+        return GrandSlamSpotlight.createPiece(Math.random() * width, -GrandSlamSpotlight.PIECE_MAX_WIDTH, GrandSlamSpotlight.random(-30, 30), GrandSlamSpotlight.random(GrandSlamSpotlight.RAIN_MIN_SPEED, GrandSlamSpotlight.RAIN_MAX_SPEED));
+    }
+    //one frame of gravity, drag, sway, spin and flip; false once the piece has fallen below the screen
+    static movePiece(piece, step, height) {
+        const drag = Math.exp(-GrandSlamSpotlight.DRAG * step);
+        piece.vx *= drag;
+        piece.vy = Math.min(GrandSlamSpotlight.MAX_FALL_SPEED, (piece.vy + GrandSlamSpotlight.GRAVITY * step) * drag);
+        piece.swayPhase += piece.swaySpeed * step;
+        piece.x += (piece.vx + Math.sin(piece.swayPhase) * piece.swayAmplitude) * step;
+        piece.y += piece.vy * step;
+        piece.rotation += piece.spin * step;
+        piece.flipPhase += piece.flipSpeed * step;
+        return piece.y < height + GrandSlamSpotlight.PIECE_MAX_WIDTH * 2;
+    }
+    static random(min, max) { return min + Math.random() * (max - min); }
+    //the confetti loop stops and its canvas goes (the overlay, with the rays and the slots, is already gone)
+    cleanUp() {
+        if (this.confettiFrame !== null)
+            cancelAnimationFrame(this.confettiFrame);
+        this.confettiFrame = null;
+        this.confettiCanvas?.remove();
+        this.confettiCanvas = null;
+    }
+}
+//timeline, in ms from the start (the banner's settle and its lines are in Game.scss)
+GrandSlamSpotlight.OVERLAY_FADE_IN_DURATION = 250; //ms the dim and the banner take to appear
+GrandSlamSpotlight.WINNER_DELAY = 300; //ms after the banner the first winner pops in
+GrandSlamSpotlight.WINNER_STAGGER = 120; //ms between two winners popping in
+GrandSlamSpotlight.WINNER_POP_DURATION = 550; //ms from nothing to the peak and back to full size
+GrandSlamSpotlight.WINNER_POP_SCALE = 1.12; //the pop's peak
+GrandSlamSpotlight.WINNER_POP_PEAK = 0.6; //share of the pop at which it peaks
+GrandSlamSpotlight.RAYS_FADE_IN_DURATION = 600; //ms the sunburst takes to appear, from the first winner's pop
+GrandSlamSpotlight.RAYS_ROTATION = 200; //degrees the sunburst turns over the whole animation (it fades out with the overlay)
+GrandSlamSpotlight.FADE_OUT_START = 3500; //ms: everything fades out from here
+GrandSlamSpotlight.FADE_OUT_DURATION = 500;
+GrandSlamSpotlight.TOTAL_DURATION = GrandSlamSpotlight.FADE_OUT_START + GrandSlamSpotlight.FADE_OUT_DURATION;
+//confetti
+GrandSlamSpotlight.CONFETTI_COLORS = ['#e0a840', '#f5d27a', '#b8862b', '#fff2c4', '#d99a2b'];
+GrandSlamSpotlight.BURST_START = GrandSlamSpotlight.WINNER_DELAY + GrandSlamSpotlight.WINNER_POP_DURATION * GrandSlamSpotlight.WINNER_POP_PEAK; //ms: at the first avatar's peak
+GrandSlamSpotlight.BURST_COUNT = 135; //pieces bursting out of the avatars (shared between them), on a CONFETTI_REFERENCE_AREA screen
+GrandSlamSpotlight.BURST_MIN_SPEED = 220; //px per second, each piece's start speed at random between these
+GrandSlamSpotlight.BURST_MAX_SPEED = 720;
+GrandSlamSpotlight.BURST_UPWARD_BOOST = 260; //px per second added upwards, so the burst rises before it falls
+GrandSlamSpotlight.RAIN_START = 900; //ms: the gentle rain from the top of the screen
+GrandSlamSpotlight.RAIN_DURATION = 2000;
+GrandSlamSpotlight.RAIN_COUNT = 90; //pieces over the whole rain, on a CONFETTI_REFERENCE_AREA screen
+GrandSlamSpotlight.RAIN_MIN_SPEED = 60; //px per second downwards at the start, at random between these
+GrandSlamSpotlight.RAIN_MAX_SPEED = 140;
+GrandSlamSpotlight.CONFETTI_REFERENCE_AREA = 1920 * 1080; //px²: the counts above are for a screen this big, scaled by the viewport's area
+GrandSlamSpotlight.CONFETTI_MIN_SHARE = 0.35; //a small screen still gets this share of the counts
+GrandSlamSpotlight.GRAVITY = 900; //px per second²
+GrandSlamSpotlight.DRAG = 1.6; //per second: the velocity decays as exp(-DRAG * t), so the pieces float
+GrandSlamSpotlight.MAX_FALL_SPEED = 320; //px per second
+GrandSlamSpotlight.PIECE_MIN_WIDTH = 6; //px, at random between these
+GrandSlamSpotlight.PIECE_MAX_WIDTH = 11;
+GrandSlamSpotlight.PIECE_MIN_HEIGHT_RATIO = 0.4; //its height, a share of its width, at random between these
+GrandSlamSpotlight.PIECE_MAX_HEIGHT_RATIO = 0.7;
+GrandSlamSpotlight.MAX_SPIN = 9; //radians per second, either way
+GrandSlamSpotlight.MIN_FLIP_SPEED = 6; //radians per second
+GrandSlamSpotlight.MAX_FLIP_SPEED = 14;
+GrandSlamSpotlight.MAX_SWAY_AMPLITUDE = 60; //px per second
+GrandSlamSpotlight.MAX_FRAME_STEP = 0.05; //s: a longer frame (a stall) moves the pieces this much at most
+
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
@@ -4286,47 +4505,11 @@ class Game {
         await new LastChanceSpotlight(this, entries).play();
         players.forEach(player => player.setLastChanceUsed(true));
     }
-    //[BGA] the player's last card was playable, so the server played it. While others choose, only that player gets this (the
-    //others still see them choosing), and their status bar goes back to the waiting title after the hold
+    //[BGA] my last card was playable, so the server played it (only I get this): no Undo, and the status bar says it is a Grand
+    //Slam while the others choose. No hold: the reveal's grandSlamAnimation shows it
     async notif_autoGrandSlamAnnounced(args) {
         if (args.player_id === this.myPlayerID)
             this.playCard.onAutoGrandSlam();
-        await this.announceAutoChoice(args.player_id, _('${you} go for a Grand Slam'), _('${player_name} goes for a Grand Slam'));
-        if (args.others_choosing)
-            this.playCard.refresh();
-    }
-    //a choice the server made for a player (the automatic Grand Slam): no buttons or selectable cards, the status bar says it
-    //with looping dots, then the queue holds (not in a replay or with no animations). An automatic crash has no announcement:
-    //the reveal's crash animation shows it
-    async announceAutoChoice(playerID, myTitle, othersTitle) {
-        this.bga.statusBar.removeActionButtons();
-        this.handHandler?.clearSelectableCards();
-        //the dots stay out of the translated text. All of them are there from the start, hidden, so the text never moves
-        const dotsHTML = '<span class="auto-choice-dots">' + '<span>.</span>'.repeat(Game.AUTO_CHOICE_DOT_COUNT) + '</span>';
-        if (playerID === this.myPlayerID)
-            this.bga.statusBar.setTitle(myTitle + dotsHTML);
-        else
-            this.bga.statusBar.setTitle(othersTitle + dotsHTML, { player_name: this.bga.players.getFormattedPlayerName(playerID) });
-        const dots = Array.from(document.querySelectorAll('#pagemaintitletext .auto-choice-dots > span'));
-        //no hold in a replay, or with no animations (fast forward, instantaneous mode, hidden tab): the whole "..." at once
-        if (this.isReplay() || !this.bga.gameui.bgaAnimationsActive()) {
-            dots.forEach(dot => dot.classList.add('shown-dot'));
-            return;
-        }
-        //"." at once, then a step every AUTO_CHOICE_DOT_STEP_TIME, back to "." after "...", for the whole hold
-        let shownDotCount = 0;
-        const showNextDots = () => {
-            shownDotCount = shownDotCount % dots.length + 1;
-            dots.forEach((dot, index) => dot.classList.toggle('shown-dot', index < shownDotCount));
-        };
-        showNextDots();
-        const dotsTimer = setInterval(showNextDots, Game.AUTO_CHOICE_DOT_STEP_TIME);
-        try {
-            await this.bga.gameui.wait(Game.AUTO_CHOICE_HOLD_TIME);
-        }
-        finally {
-            clearInterval(dotsTimer);
-        }
     }
     //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
     async notif_playerCrashed(args) {
@@ -4355,6 +4538,15 @@ class Game {
     async notif_grandSlam(args) {
         this.players[args.player_id]?.setScore(args.score);
         this.players[args.player_id]?.setGrandSlam();
+    }
+    //[BGA] every Grand Slam of the reveal at once, for everyone (players and spectators): a gold "Grand Slam!" banner, each
+    //winner's avatar popping in over a turning sunburst, gold confetti. The queue waits for the whole animation (or a click on
+    //the overlay that skips it), so the end-game table and the game end come after it. No animation in a replay or with
+    //animations off. Nothing to apply after it: the grandSlam rows already set the scores and the boards
+    async notif_grandSlamAnimation(args) {
+        const players = args.player_ids.map(playerID => this.players[playerID]).filter(player => !!player);
+        const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getPlayedColumn().getColumnContainer() }));
+        await new GrandSlamSpotlight(this, entries).play();
     }
     //the flight doesn't block: the card 2 and 11 notifications (no animation) and the roll play while it flies, and
     //diceRolled (or newRound, when the round ends) waits for it
@@ -4464,9 +4656,6 @@ Game.CARD_REJECT_SHAKE_DURATION = 400; //ms of the short horizontal shake of an 
 Game.REJECTED_CARD_POPUP_DURATION = 2000; //ms the "Can't play [card]" popup stays before it has faded out
 Game.CARD_SWEEP_ANGLE = 10; //degrees above horizontal of the sweeps' and deals' straight path: cards leave towards, and come in from, the top-left
 Game.OFF_SCREEN_MARGIN = 20; //px past the screen's left edge a card goes to (or comes from), for its drop shadow
-Game.AUTO_CHOICE_HOLD_TIME = 1500; //the status bar announces an automatic crash or Grand Slam this long
-Game.AUTO_CHOICE_DOT_STEP_TIME = 250; //its dots loop "." → ".." → "..." → ".", one step this often
-Game.AUTO_CHOICE_DOT_COUNT = 3;
 Game.AVATAR_SIZE_SUFFIX = '_184'; //BGA serves avatars at _32, _50, _92 and _184 px: the board's _32 would blur in a bigger circle
 
 export { Game };
