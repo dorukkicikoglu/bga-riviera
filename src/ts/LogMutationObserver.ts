@@ -114,10 +114,13 @@ export class LogMutationObserver{
     }
 
     //create specific log types
+    //styled like the spotlight banners: the text between two gold lines ending in diamonds
     public createLogNewRound(roundNumber: number): LogRowData {
         let logHTML = `
             <div class="new-round-row">
-                ${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}
+                <span class="new-round-ornament" aria-hidden="true"></span>
+                <span class="new-round-text">${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}</span>
+                <span class="new-round-ornament" aria-hidden="true"></span>
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'new-round-log', roundNumber > 1); //Round 1 is the game's first row

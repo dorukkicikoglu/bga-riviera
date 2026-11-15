@@ -2398,10 +2398,13 @@ class LogMutationObserver {
         return { log_html: logHTML + `<div log-class-tag="${logClass}"></div>` + gapTagHTML, log_class: logClass };
     }
     //create specific log types
+    //styled like the spotlight banners: the text between two gold lines ending in diamonds
     createLogNewRound(roundNumber) {
         let logHTML = `
             <div class="new-round-row">
-                ${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}
+                <span class="new-round-ornament" aria-hidden="true"></span>
+                <span class="new-round-text">${_('Round ${roundNumber}').replace('${roundNumber}', roundNumber.toString())}</span>
+                <span class="new-round-ornament" aria-hidden="true"></span>
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'new-round-log', roundNumber > 1); //Round 1 is the game's first row
     }

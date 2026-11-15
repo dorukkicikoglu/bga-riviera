@@ -1625,7 +1625,7 @@ body .start-token.flying-start-token {
   background: var(--bg-log-game-end);
 }
 .log.new-round-log .roundedbox, .log.new-round-log.roundedbox, .log.gamelogreview.new-round-log, .gamelogreview.new-round-log .roundedbox, .gamelogreview.new-round-log.roundedbox, .gamelogreview.gamelogreview.new-round-log {
-  color: #ffff89;
+  color: #e0a840;
   border: 1px solid rgba(242, 214, 140, 0.45);
 }
 .log.grand-slam-log .roundedbox, .log.grand-slam-log.roundedbox, .log.gamelogreview.grand-slam-log, .gamelogreview.grand-slam-log .roundedbox, .gamelogreview.grand-slam-log.roundedbox, .gamelogreview.gamelogreview.grand-slam-log {
@@ -1687,12 +1687,52 @@ body .start-token.flying-start-token {
   font-size: 15px;
 }
 .log .new-round-row, .gamelogreview .new-round-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6em;
+  padding: 1px 30px;
   font-weight: bold;
-  font-size: 24px;
-  letter-spacing: 0.06em;
-  color: #ffff89;
-  text-shadow: 3px 0 #2d4f4a, -3px 0 #2d4f4a, 0 3px #2d4f4a, 0 -3px #2d4f4a, 1.5px 1.5px #2d4f4a, -1.5px -1.5px #2d4f4a, 1.5px -1.5px #2d4f4a, -1.5px 1.5px #2d4f4a;
-  padding: 1px 0px;
+  font-size: 17px;
+  color: #e0a840;
+}
+.log .new-round-row .new-round-text, .gamelogreview .new-round-row .new-round-text {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-left: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #e0a840;
+  background: linear-gradient(180deg, #f7d785 0%, #e0a840 55%, #b47a24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.log .new-round-row .new-round-ornament, .gamelogreview .new-round-row .new-round-ornament {
+  display: flex;
+  align-items: center;
+  flex: 0 1 46px;
+  min-width: 16px;
+  height: 10.5px;
+}
+.log .new-round-row .new-round-ornament::before, .gamelogreview .new-round-row .new-round-ornament::before {
+  content: "";
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: 0 2px;
+  rotate: 45deg;
+  background-color: #e0a840;
+}
+.log .new-round-row .new-round-ornament::after, .gamelogreview .new-round-row .new-round-ornament::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: #e0a840;
+}
+.log .new-round-row .new-round-text + .new-round-ornament, .gamelogreview .new-round-row .new-round-text + .new-round-ornament {
+  flex-direction: row-reverse;
 }
 .log .game-end-row, .gamelogreview .game-end-row {
   text-align: center;
@@ -2228,12 +2268,12 @@ body .start-token.flying-start-token {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
 }
 .player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament {
+  animation: player-spotlight-banner-lines-left 450ms ease-out 120ms both;
   display: flex;
   align-items: center;
   flex: 0 1 clamp(22px, 7vw, 90px);
   min-width: 16px;
   height: 10.5px;
-  animation: player-spotlight-banner-lines-left 450ms ease-out 120ms both;
 }
 .player-spotlight-overlay .player-spotlight-banner .player-spotlight-banner-ornament::before {
   content: "";
