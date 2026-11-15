@@ -20,6 +20,7 @@ export class PlayerHandler{
     private static readonly END_GAME_SCORE_INTRO_CLASS = 'end-game-score-intro'; //on the score counter: the two big beats when the score crosses WINNING_SCORE, once (Game.scss)
     private static readonly END_GAME_SCORE_LOOP_CLASS = 'end-game-score-loop'; //on the score counter: the gentle pulse after the intro, until the game ends
     private static readonly BURNING_CLASS = 'burning-player-board'; //on the board: the flamy background, exactly while the score's intro or loop runs
+    private static readonly SWAP_TARGET_HIGHLIGHT_CLASS_POWER10 = 'swap-target-player-board-power10'; //card 10: a hovered target's column or button lights up its board
 
     private playerBoardContainer: HTMLDivElement;
     private cardsRow: HTMLDivElement;
@@ -28,7 +29,8 @@ export class PlayerHandler{
     private boardElement: HTMLDivElement;
     private startTokenAnchor: HTMLElement;
     private scoreElement: HTMLElement | null = null; //BGA's score counter span, through getScoreElement()
-    private scoreTargetElement: HTMLSpanElement; //"/40" right after BGA's score counter, never inside it (updateScoreTarget)
+    private scoreTargetElement: HTMLSpanElement; //"/40" after the column points chip, never inside BGA's score counter (updateScoreTarget)
+    private columnPointsChip: HTMLSpanElement; //"+N" right after BGA's score counter: the column stars not banked yet (updateScoreDisplays)
     private clippedScoreAncestors: { element: HTMLElement; overflow: string; }[] = []; //overflow made visible while the score scales
     private playedColumn: PlayedColumnHandler;
 
@@ -78,9 +80,16 @@ export class PlayerHandler{
         this.scoreTargetElement.classList.add('score-target');
         this.scoreTargetElement.textContent = '/' + this.game.getWinningScore();
 
+        this.columnPointsChip = document.createElement('span');
+        this.columnPointsChip.classList.add('column-points-chip');
+        this.columnPointsChip.style.setProperty('--column-points-chip-color', '#' + this.playerColor);
+        this.columnPointsChip.setAttribute('data-light-color', PlayedColumnHandler.isLightColor(this.playerColor) ? 'true' : 'false');
+        this.columnPointsChip.hidden = true; //filled by updateScoreDisplays once the column exists
+
         //ids for TooltipHandler
         this.handCountBacks.id = 'hand-count-backs-' + this.playerID;
         this.scoreTargetElement.id = 'score-target-' + this.playerID;
+        this.columnPointsChip.id = 'column-points-chip-' + this.playerID;
 
         const lastChanceCard = this.game.createLastChanceDiv();
         lastChanceCard.classList.add('mini-card');
@@ -188,6 +197,7 @@ export class PlayerHandler{
         this.score = score;
         this.game.bga.playerPanels.getScoreCounter(this.playerID)?.toValue(score);
         this.updateScoreTarget();
+        this.updateScoreDisplays();
 
         const winningScore = this.game.getWinningScore();
         const crossed = previousScore < winningScore && score >= winningScore;
@@ -196,16 +206,45 @@ export class PlayerHandler{
         else this.updateEndGameScoreHighlight();
     }
 
-    //the "/40" after the score: kept right after BGA's score counter (put back if BGA has replaced the counter) and hidden once
-    //the score is past WINNING_SCORE. Setup and setScore (every score notification, replays, the end-game table) call it
+    //the score row reads "0 +4 /40 ★": the column points chip right after BGA's score counter, then the "/40" (both put back if
+    //BGA has replaced the counter), the "/40" hidden once the score is past WINNING_SCORE. The DOM order is the display order.
+    //Setup and setScore (every score notification, replays, the end-game table) call it
     private updateScoreTarget(): void {
         const scoreElement = this.getScoreElement();
         if(!scoreElement)
             return;
 
-        if(scoreElement.nextElementSibling !== this.scoreTargetElement)
-            scoreElement.after(this.scoreTargetElement);
+        if(scoreElement.nextElementSibling !== this.columnPointsChip)
+            scoreElement.after(this.columnPointsChip);
+        if(this.columnPointsChip.nextElementSibling !== this.scoreTargetElement)
+            this.columnPointsChip.after(this.scoreTargetElement);
         this.scoreTargetElement.hidden = this.score > this.game.getWinningScore();
+    }
+
+    //[BGA] the column stars not in the score yet: the whole column while in; none once stopped (banked at the Stop reveal,
+    //already in the score) or crashed (lost)
+    public getUnbankedStars(): number {
+        return (this.roundStatus === 'in' && this.playedColumn) ? this.playedColumn.getStarsTotal() : 0;
+    }
+
+    //[BGA] the one place that shows the banked score and the unbanked column stars outside BGA's counter: the "+N" chip on this
+    //board (hidden at 0) and the column header ("★23" and the "+7" pill, PlayedColumnHandler.updateScoreHeader), from the same two
+    //numbers, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
+    //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows
+    public updateScoreDisplays(): void {
+        if(!this.playedColumn)
+            return;
+
+        const unbankedStars = this.getUnbankedStars();
+        this.columnPointsChip.textContent = '+' + unbankedStars;
+        this.columnPointsChip.hidden = unbankedStars === 0;
+        this.playedColumn.updateScoreHeader(this.score, unbankedStars);
+    }
+
+    //card 10: while choosing whom to swap with, hovering a target's column or its status bar button lights up this board
+    public setSwapTargetHighlightPOWER10(highlighted: boolean): void {
+        this.boardElement.style.setProperty('--swap-target-color', '#' + this.playerColor);
+        this.boardElement.classList.toggle(PlayerHandler.SWAP_TARGET_HIGHLIGHT_CLASS_POWER10, highlighted);
     }
 
     //the one place that decides the score's end-game look, from the score and the game's progress. Safe to call any time
@@ -298,7 +337,7 @@ export class PlayerHandler{
 
         this.playerBoardContainer.setAttribute('data-round-status', roundStatus);
         this.boardElement.classList.toggle(PlayerHandler.STOPPED_CLASS, roundStatus === 'stopped');
-        this.playedColumn.setRoundStatus(roundStatus);
+        this.playedColumn.setRoundStatus(roundStatus); //updates the score displays (updateScoreDisplays), with this.roundStatus already set
     }
 
     public getPlayerID(): number { return this.playerID; }

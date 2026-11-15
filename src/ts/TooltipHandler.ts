@@ -182,6 +182,8 @@ export class TooltipHandler{
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltip('score-target-' + player_id, _('First to ${points} ★ wins').replace('${points}', `${this.game.getWinningScore()}`), '', TooltipHandler.TOOLTIP_DELAY);
             this.updateColumnStarsTooltip(parseInt(player_id));
+            this.game.bga.gameui.addTooltip('column-score-' + player_id, _('Score: stars banked so far'), '', TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltip('column-points-chip-' + player_id, _('Stars in this round\'s column, not banked yet'), '', TooltipHandler.TOOLTIP_DELAY);
             //the column header's avatar or name: the full name (the avatar has none, and a long name is cut)
             this.game.bga.gameui.addTooltip('column-player-' + player_id, this.game.players[player_id].getPlayerName(), '', TooltipHandler.TOOLTIP_DELAY);
         }

@@ -1164,8 +1164,8 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   min-width: calc(var(--card-width) + 28px);
   border: 1px solid var(--column-owner-color);
   border-radius: 10px;
-  padding: 24px 14px 14px 14px;
-  min-height: calc(var(--card-width) * 1.4740566038 + 38px);
+  padding: 30px 14px 14px 14px;
+  min-height: calc(var(--card-width) * 1.4740566038 + 30px + 14px);
 }
 #played-columns-container .a-played-column .played-column-title {
   left: 10px;
@@ -1208,6 +1208,27 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
 #played-columns-container .a-played-column .played-column-title .played-column-player .played-column-avatar {
   display: none;
 }
+#played-columns-container .a-played-column .played-column-title .played-column-score {
+  position: absolute;
+  z-index: 20;
+  left: calc(var(--column-avatar-size) - 10px);
+  top: calc(50% + var(--column-avatar-size) / 2 - 13px);
+  padding: 2px 4px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1;
+  text-shadow: none;
+  pointer-events: none;
+}
+#played-columns-container .a-played-column .played-column-title .played-column-score .played-column-score-star {
+  font-size: 0.85em;
+  margin-right: 1px;
+}
+#played-columns-container .a-played-column .played-column-title .played-column-score[data-zero=true] {
+  display: none;
+}
 #played-columns-container .a-played-column .played-column-title .played-column-stars {
   position: relative;
   z-index: 1;
@@ -1225,11 +1246,12 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   padding: 3px 7px 2px 7px;
   margin: -3px -15px -3px -4px;
 }
-#played-columns-container .a-played-column .played-column-title .played-column-stars .played-column-star {
-  font-size: 0.55em;
-}
 #played-columns-container .a-played-column[data-light-owner-color=true] .played-column-stars {
   color: #1d1d1d;
+}
+#played-columns-container .a-played-column[data-light-owner-color=true] .played-column-score {
+  color: #1d1d1d;
+  background-color: var(--column-owner-color);
 }
 #played-columns-container .a-played-column .played-column-stars, #played-columns-container .a-played-column .cards-column {
   transition: opacity 0.4s ease, background-color 0.4s ease, border-color 0.4s ease;
@@ -1278,6 +1300,30 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   box-shadow: 0 0 14px 4px #e9c45a;
   border-color: #e0b228;
 }
+#played-columns-container .a-played-column.swap-target-column-power10 {
+  outline: 2px dashed var(--column-owner-color);
+  outline-offset: 4px;
+  transition: box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body:not(.lockedInterface) #played-columns-container .a-played-column.swap-target-column-power10 {
+  cursor: pointer;
+}
+body:not(.lockedInterface) #played-columns-container .a-played-column.swap-target-column-power10 .played-column-player {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  body:not(.lockedInterface) #played-columns-container .a-played-column.swap-target-column-power10:hover {
+    outline-style: solid;
+    box-shadow: 0 0 14px 4px var(--column-owner-color);
+  }
+}
+body:not(.lockedInterface) #played-columns-container .a-played-column.swap-target-column-power10:focus-visible {
+  outline: 2px solid #ffd700;
+  box-shadow: 0 0 14px 4px var(--column-owner-color);
+}
+
 #played-columns-container[data-players-display=avatar] .a-played-column .played-column-title .played-column-player .played-column-name {
   display: none;
 }
@@ -1314,6 +1360,16 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
 }
 #played-columns-container[data-players-display=avatar] .a-played-column[data-light-owner-color=true] .played-column-avatar-initial {
   color: #1d1d1d;
+}
+
+.mobile_version #played-columns-container .a-played-column .played-column-title .played-column-score {
+  font-size: 19px;
+  top: calc(50% + var(--column-avatar-size) / 2 - 20px);
+}
+
+#played-columns-container[data-players-display=name] .a-played-column .played-column-title .played-column-score {
+  top: calc(100% - 5px);
+  font-size: 13px;
 }
 
 .riviera-player-board {
@@ -1450,6 +1506,85 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   font-weight: normal;
   opacity: 0.6;
   vertical-align: baseline;
+}
+
+.column-points-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  font-size: 0.65em;
+  font-weight: bold;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: none;
+  background-color: var(--column-points-chip-color, #555555);
+}
+.column-points-chip[data-light-color=true] {
+  color: #1d1d1d;
+}
+.column-points-chip[hidden] {
+  display: none;
+}
+
+@property --player-score-font-size {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 14px;
+}
+.player-board:has(.riviera-player-board) .player_score {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  white-space: nowrap;
+  --player-score-font-size: 1em;
+}
+.player-board:has(.riviera-player-board) .player_score .column-points-chip, .player-board:has(.riviera-player-board) .player_score .score-target, .player-board:has(.riviera-player-board) .player_score i.fa-star, .player-board:has(.riviera-player-board) .player_score .player_elo_wrap, .player-board:has(.riviera-player-board) .player_score .player_elo_wrap .gamerank {
+  vertical-align: baseline;
+  top: auto;
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+.player-board:has(.riviera-player-board) .player_score .column-points-chip, .player-board:has(.riviera-player-board) .player_score .score-target, .player-board:has(.riviera-player-board) .player_score .player_elo_wrap, .player-board:has(.riviera-player-board) .player_score .player_elo_wrap .gamerank {
+  margin-left: 0px;
+  margin-right: 0px;
+}
+.player-board:has(.riviera-player-board) .player_score i.fa-star {
+  margin-left: -2px;
+  margin-right: 0px;
+}
+.player-board:has(.riviera-player-board) .player_score .column-points-chip, .player-board:has(.riviera-player-board) .player_score .column-points-chip[hidden] + .score-target {
+  margin-left: -2px;
+}
+.player-board:has(.riviera-player-board) .player_score .player_elo_wrap {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0px;
+}
+.player-board:has(.riviera-player-board) .player_score .player_elo_wrap .gamerank {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--player-score-font-size);
+}
+.player-board:has(.riviera-player-board) .player_score .player_elo_wrap .gamerank .icon20, .player-board:has(.riviera-player-board) .player_score .player_elo_wrap .gamerank .gamerank_value {
+  top: 0px;
+  vertical-align: baseline;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  line-height: 1;
+}
+.player-board:has(.riviera-player-board) .player_score .timeToThink {
+  float: none;
+  margin-left: auto;
+}
+
+.player-board.swap-target-player-board-power10 {
+  outline: 3px solid var(--swap-target-color, #ffd700);
+  outline-offset: -1px;
+  box-shadow: 0 0 12px 3px var(--swap-target-color, #ffd700);
 }
 
 .player-board.burning-player-board {

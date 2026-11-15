@@ -17,6 +17,8 @@ import { Game } from "../Game";
  * round with at least 2 cards can be chosen.
  * With none, the owner discards and draws instead; when only 1 card can be drawn, a confirmation explains it first.
  * Everyone else sees the power prompt ("<name> may use [10]") throughout.
+ * [BGA] Each target's played column is clickable too, doing the same as its button (never for spectators or in replays),
+ * and hovering either lights up that player's board.
  */
 export class SwapCards {
     private args: SwapCardsArgs | null = null;
@@ -44,6 +46,7 @@ export class SwapCards {
      */
     onLeavingState(args: SwapCardsArgs, isCurrentPlayerActive: boolean) {
         this.game.handHandler?.clearSelectableCards();
+        this.clearSwapTargets();
         this.args = null;
     }
 
@@ -60,6 +63,7 @@ export class SwapCards {
             return;
 
         this.bga.statusBar.removeActionButtons();
+        this.clearSwapTargets();
         const selectedCardIDs = this.game.handHandler.getSelectedCardIDs();
         const isSwap = this.args.mode === 'swap';
 
@@ -76,7 +80,16 @@ export class SwapCards {
                 this.bga.statusBar.setTitle(_('Choose an opponent to swap ${cards}'), { cards: cardsIcons });
                 for(let target of this.args.targets){
                     const label = _('Swap with ${player_name}').replace('${player_name}', '<b>' + this.game.getPlayerName(target.player_id) + '</b>');
-                    this.game.addPlayerChoiceButton(target.player_id, label, () => this.swapClicked(target, selectedCardIDs), {id: 'swap-with-' + target.player_id + '-button'});
+                    const onSwap = () => this.swapClicked(target, selectedCardIDs); //the button and the column do exactly the same
+                    const button = this.game.addPlayerChoiceButton(target.player_id, label, onSwap, {id: 'swap-with-' + target.player_id + '-button'});
+
+                    const targetPlayer = this.game.players[target.player_id];
+                    if(!targetPlayer)
+                        continue;
+                    button.addEventListener('mouseenter', () => targetPlayer.setSwapTargetHighlightPOWER10(true));
+                    button.addEventListener('mouseleave', () => targetPlayer.setSwapTargetHighlightPOWER10(false));
+                    if(this.canClickColumns())
+                        targetPlayer.getPlayedColumn().setSwapTargetPOWER10(onSwap);
                 }
             } else {
                 this.bga.statusBar.setTitle((this.args.maxCards === 1) ? _('Discard ${cards} and draw 1?') : _('Discard ${cards} and draw 2?'), { cards: cardsIcons });
@@ -86,6 +99,20 @@ export class SwapCards {
         this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
 
         this.bga.statusBar.addActionButton(_('Skip'), () => this.bga.actions.performAction('actSkip_POWER10'), {id: 'skip-power-button', color: 'secondary'});
+    }
+
+    //the targets' columns are buttons for the active owner only: never for a spectator or in a replay
+    private canClickColumns(): boolean {
+        return !this.game.isReplay() && !this.bga.players.isCurrentPlayerSpectator();
+    }
+
+    //every column back to normal and every board unlit: on each status bar rebuild, on leaving the state, and once the swap
+    //has been sent and is animating (Game.notif_cardsSwapped_POWER10)
+    public clearSwapTargets(): void {
+        for(const playerID in this.game.players){
+            this.game.players[playerID].getPlayedColumn().setSwapTargetPOWER10(null);
+            this.game.players[playerID].setSwapTargetHighlightPOWER10(false);
+        }
     }
 
     private swapClicked(target: SwapTargetPOWER10, cardIDs: number[]): void {

@@ -14,11 +14,14 @@ import { PlayerHandler } from "./PlayerHandler";
 
 export class PlayedColumnHandler{
     private static readonly LIGHT_COLOR_LUMINANCE = 0.3; //relative luminance above which white text on the color falls under a 3:1 contrast: the score badge gets dark text instead
+    private static readonly SWAP_TARGET_CLASS_POWER10 = 'swap-target-column-power10'; //card 10: a column that can be clicked to swap with its owner (Game.scss)
 
     private columnContainer: HTMLDivElement;
     private cardsColumn: HTMLDivElement;
     private starsText: HTMLSpanElement;
+    private bankedScoreText: HTMLSpanElement;
     private roundStatus: RoundStatus = 'in';
+    private swapTargetClickedPOWER10: (() => void) | null = null; //card 10: set while this column is a swap target (setSwapTargetPOWER10)
 
     constructor(private game: Game, private owner: PlayerHandler, private playedCardsData: PlayedCard[]) {
         const parent = document.querySelector('#played-columns-container');
@@ -38,6 +41,7 @@ export class PlayedColumnHandler{
                         <span class="played-column-avatar"></span>
                         <span class="played-column-name"></span>
                     </span>
+                    <span class="played-column-score"></span>
                     <span class="played-column-stars"></span>
                 </div>
                 <div class="cards-column"></div>
@@ -45,14 +49,31 @@ export class PlayedColumnHandler{
             this.columnContainer.querySelector('.played-column-name').textContent = this.owner.getPlayerName(); //full name in the tooltip (TooltipHandler)
             this.fillAvatar(this.columnContainer.querySelector('.played-column-avatar') as HTMLSpanElement);
 
+            //while the column is a card 10 swap target, a click or key on the header goes to the column (the swap) instead
             const playerButton = this.columnContainer.querySelector('.played-column-player') as HTMLSpanElement;
-            playerButton.addEventListener('click', () => this.game.prefHandler?.togglePlayersDisplay());
+            playerButton.addEventListener('click', () => {
+                if(!this.swapTargetClickedPOWER10)
+                    this.game.prefHandler?.togglePlayersDisplay();
+            });
             playerButton.addEventListener('keydown', (event: KeyboardEvent) => {
-                if(event.key !== 'Enter' && event.key !== ' ')
+                if((event.key !== 'Enter' && event.key !== ' ') || this.swapTargetClickedPOWER10)
                     return;
                 event.preventDefault(); //no page scroll on Space
                 this.game.prefHandler?.togglePlayersDisplay();
             });
+
+            this.columnContainer.addEventListener('click', () => this.swapTargetClickedPOWER10?.());
+            this.columnContainer.addEventListener('keydown', (event: KeyboardEvent) => {
+                if((event.key !== 'Enter' && event.key !== ' ') || !this.swapTargetClickedPOWER10)
+                    return;
+                event.preventDefault(); //no page scroll on Space
+                this.swapTargetClickedPOWER10();
+            });
+            this.columnContainer.addEventListener('mouseenter', () => {
+                if(this.swapTargetClickedPOWER10)
+                    this.owner.setSwapTargetHighlightPOWER10(true);
+            });
+            this.columnContainer.addEventListener('mouseleave', () => this.owner.setSwapTargetHighlightPOWER10(false));
 
             parent.appendChild(this.columnContainer);
         }
@@ -60,6 +81,8 @@ export class PlayedColumnHandler{
         this.cardsColumn = this.columnContainer.querySelector('.cards-column') as HTMLDivElement;
         this.starsText = this.columnContainer.querySelector('.played-column-stars') as HTMLSpanElement;
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
+        this.bankedScoreText = this.columnContainer.querySelector('.played-column-score') as HTMLSpanElement;
+        this.bankedScoreText.id = 'column-score-' + this.owner.getPlayerID(); //for TooltipHandler
 
         this.displayColumn();
     }
@@ -76,7 +99,7 @@ export class PlayedColumnHandler{
         for(let cardData of sortedCards)
             this.insertCardToColumn(cardData);
 
-        this.updateStarsTotal();
+        this.owner.updateScoreDisplays();
     }
 
     //cards are stacked top to bottom in play order, each later card covering all but the star strip of the one before
@@ -89,7 +112,7 @@ export class PlayedColumnHandler{
     public addCard(cardData: PlayedCard): void{
         this.playedCardsData.push(cardData);
         this.insertCardToColumn(cardData);
-        this.updateStarsTotal();
+        this.owner.updateScoreDisplays();
     }
 
     //a revealed card slides in from fromElement: my hand card, at its full size the whole way, or (fromBoard) another player's
@@ -102,7 +125,7 @@ export class PlayedColumnHandler{
         aCard.setAttribute('data-location-in-column', cardData.location_in_column.toString());
 
         await this.game.animateSlide(aCard, fromElement, this.cardsColumn, Game.CARD_SLIDE_DURATION, fromBoard ? { boardEnd: true } : { keepSize: true });
-        this.updateStarsTotal();
+        this.owner.updateScoreDisplays();
     }
 
     //a new round empties the column: its cards sweep off-screen up-left, the bottom (fully shown) card first, like
@@ -122,7 +145,7 @@ export class PlayedColumnHandler{
     public removeAllCards(): void{
         this.playedCardsData = [];
         this.cardsColumn.innerHTML = '';
-        this.updateStarsTotal();
+        this.owner.updateScoreDisplays();
     }
 
     public getCardElements(): HTMLDivElement[]{ return Array.from(this.cardsColumn.querySelectorAll('.a-card')) as HTMLDivElement[]; } //top to bottom, in play order
@@ -131,22 +154,27 @@ export class PlayedColumnHandler{
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
 
-    //a stopped column's stars are already in the score (banked at the Stop reveal) and can't change: the badge shows the
-    //bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's
-    //badge shows a bomb (the crash log row's icon), also with no number
-    private updateStarsTotal(): void{
+    //[BGA] the header's numbers, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the owner's
+    //banked score ("★23") on its pill over the avatar or under the name, hidden at 0 (data-zero), and the pill with the column stars not banked yet ("+7"). A stopped
+    //column's stars are already in the score (banked at the Stop reveal) and can't change: the pill shows the bank icon with
+    //no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's pill shows a bomb
+    //(the crash log row's icon), also with no number
+    public updateScoreHeader(bankedScore: number, unbankedStars: number): void{
+        this.bankedScoreText.innerHTML = `<span class="played-column-score-star">★</span>${bankedScore}`;
+        this.bankedScoreText.setAttribute('data-zero', (bankedScore === 0) ? 'true' : 'false'); //no pill until the owner has points (Game.scss)
+
         if(this.isBanked())
             this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if(this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
-        else this.starsText.innerHTML = `<span class="played-column-star">★</span>${this.getStarsTotal()}`;
+        else this.starsText.textContent = '+' + unbankedStars;
     }
 
     public isBanked(): boolean{ return this.roundStatus === 'stopped'; }
     public isCrashed(): boolean{ return this.roundStatus === 'crashed'; }
 
     //hexColor without the #, as BGA gives player colors
-    private static isLightColor(hexColor: string): boolean{
+    public static isLightColor(hexColor: string): boolean{
         const channels = [0, 2, 4].map(offset => parseInt(hexColor.substring(offset, offset + 2), 16) / 255);
         const [red, green, blue] = channels.map(channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
         return 0.2126 * red + 0.7152 * green + 0.0722 * blue > PlayedColumnHandler.LIGHT_COLOR_LUMINANCE;
@@ -162,8 +190,25 @@ export class PlayedColumnHandler{
     public setRoundStatus(roundStatus: RoundStatus): void{
         this.roundStatus = roundStatus;
         this.columnContainer.setAttribute('data-round-status', roundStatus);
-        this.updateStarsTotal();
+        this.owner.updateScoreDisplays();
         this.game.tooltipHandler?.updateColumnStarsTooltip(this.owner.getPlayerID());
     }
     public getColumnContainer(): HTMLDivElement{ return this.columnContainer; }
+
+    //card 10, while the active owner chooses whom to swap with (SwapCards): onClick makes the whole column a button doing the
+    //same as its "Swap with <name>" button, with a selectable look (Game.scss) and the owner's board lit up on hover. null
+    //takes all of it away
+    public setSwapTargetPOWER10(onClick: (() => void) | null): void{
+        this.swapTargetClickedPOWER10 = onClick;
+        this.columnContainer.classList.toggle(PlayedColumnHandler.SWAP_TARGET_CLASS_POWER10, !!onClick);
+        if(onClick){
+            this.columnContainer.setAttribute('role', 'button');
+            this.columnContainer.setAttribute('tabindex', '0');
+        }
+        else{
+            this.columnContainer.removeAttribute('role');
+            this.columnContainer.removeAttribute('tabindex');
+            this.owner.setSwapTargetHighlightPOWER10(false); //no mouseleave comes if the pointer is still on it
+        }
+    }
 }

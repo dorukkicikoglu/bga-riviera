@@ -923,6 +923,7 @@ export class Game {
         //the owner is still active in SwapCards until the state changes: once BGA unlocks the interface at the end of the
         //animation, cards left selectable would glow until onLeavingState clears them
         this.handHandler.clearSelectableCards();
+        this.swapCards.clearSwapTargets(); //the same for the targets' clickable columns
         await this.handHandler.swapCards(cardsILose.map(card => card.card_id), cardsIGet, boardRect);
         this.tooltipHandler.addTooltipsToCards();
         this.bouncePlayerBoards([args.owner_id, args.target_id]);
