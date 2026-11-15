@@ -53,26 +53,28 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
     --die-combo-glow-peak-color: var(--card-glow-peak-color);
     --die-combo-transition-duration: 150ms;
 
-    //one background per log type, translucent so the page background shows through, light enough for the default dark log
-    //text. "Round N" is the only dark row (its own light text and border, .new-round-log). The reveal and Stop/More rows go
-    //from white to teal, left to right. Every card power row shares one background (--bg-log-power)
+    //one background per log type, translucent so the page background shows through. Every pale row has the same shape: left to
+    //right (90deg), light to dark in its own color, stops at 0% / 45% / 100%, alphas about 0.94 / 0.9 / 0.88, so the default
+    //dark log text sits on the light left part. The reveal and Stop/More rows go white to teal, the dice rows white to a bluer
+    //teal. Exceptions: "Round N", the only dark row (its own light text and border, .new-round-log), Grand Slam (a diagonal
+    //gold) and the plain fallback. Every card power row shares one background (--bg-log-power)
     --bg-log-default: linear-gradient(135deg, #f4f4f2, #e8e8e4);
     --bg-log-new-round: linear-gradient(135deg, rgba(18, 98, 100, 0.95), rgba(6, 52, 56, 0.75));
-    --bg-log-dice-rolled: linear-gradient(135deg, rgba(252, 246, 232, 0.94), rgba(236, 220, 184, 0.78));
+    --bg-log-dice-rolled: linear-gradient(90deg, rgba(228, 236, 242, 0.94) 0%, rgba(180, 204, 222, 0.9) 45%, rgba(62, 104, 138, 0.88) 100%);
     --bg-log-cards-revealed: linear-gradient(90deg, rgba(226, 236, 235, 0.94) 0%, rgba(178, 208, 205, 0.9) 45%, rgba(66, 128, 130, 0.88) 100%);
-    --bg-log-last-chance: linear-gradient(135deg, rgba(255, 226, 222, 0.94), rgba(236, 160, 148, 0.8)); //lighter than a crash
-    --bg-log-crash: linear-gradient(135deg, rgba(255, 214, 204, 0.95), rgba(226, 140, 124, 0.82)); //the reddest row: player names get a light outline on it (crash-log)
+    --bg-log-last-chance: linear-gradient(90deg, rgba(252, 234, 230, 0.94) 0%, rgba(238, 190, 180, 0.9) 45%, rgba(176, 96, 84, 0.88) 100%); //lighter than a crash
+    --bg-log-crash: linear-gradient(90deg, rgba(255, 222, 214, 0.95) 0%, rgba(236, 160, 146, 0.9) 45%, rgba(160, 60, 48, 0.88) 100%); //the reddest row: player names get a light outline on it (crash-log)
     --bg-log-grand-slam: linear-gradient(135deg, rgba(255, 244, 200, 0.96), rgba(232, 192, 90, 0.85));
-    --bg-log-start-token: linear-gradient(135deg, rgba(246, 242, 234, 0.94), rgba(222, 214, 200, 0.78));
+    --bg-log-start-token: linear-gradient(90deg, rgba(246, 243, 238, 0.94) 0%, rgba(224, 217, 205, 0.9) 45%, rgba(150, 140, 124, 0.88) 100%);
     --bg-log-stop-or-more: linear-gradient(90deg, rgba(226, 235, 238, 0.94) 0%, rgba(176, 204, 212, 0.9) 45%, rgba(60, 118, 132, 0.88) 100%);
-    --bg-log-power: linear-gradient(135deg, rgba(240, 236, 250, 0.94), rgba(204, 192, 236, 0.78));
+    --bg-log-power: linear-gradient(90deg, rgba(242, 238, 250, 0.94) 0%, rgba(210, 200, 236, 0.9) 45%, rgba(120, 100, 170, 0.88) 100%);
     --bg-log-die-reserved-power2: var(--bg-log-power);
     --bg-log-golden-die-power11: var(--bg-log-power);
     --bg-log-die-modified-power9: var(--bg-log-power);
     --bg-log-cards-swapped-power10: var(--bg-log-power);
     --bg-log-cards-redrawn-power10: var(--bg-log-power);
     --bg-log-power-skipped: var(--bg-log-power);
-    --bg-log-game-end: linear-gradient(135deg, rgba(255, 247, 214, 0.95), rgba(236, 206, 120, 0.8));
+    --bg-log-game-end: linear-gradient(90deg, rgba(255, 248, 222, 0.95) 0%, rgba(240, 214, 140, 0.9) 45%, rgba(178, 138, 40, 0.88) 100%);
 
     //power tooltips: a pale take on the sea
     --bg-gradient-tooltip: linear-gradient(120deg, #e8f4fb, #bfe0ef);
