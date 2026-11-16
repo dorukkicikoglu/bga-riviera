@@ -1025,7 +1025,6 @@ class PlayedColumnHandler {
                         <span class="played-column-avatar"></span>
                         <span class="played-column-name"></span>
                     </span>
-                    <span class="played-column-score"></span>
                     <span class="played-column-stars"></span>
                 </div>
                 <div class="cards-column"></div>
@@ -1061,8 +1060,6 @@ class PlayedColumnHandler {
         this.cardsColumn = this.columnContainer.querySelector('.cards-column');
         this.starsText = this.columnContainer.querySelector('.played-column-stars');
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
-        this.bankedScoreText = this.columnContainer.querySelector('.played-column-score');
-        this.bankedScoreText.id = 'column-score-' + this.owner.getPlayerID(); //for TooltipHandler
         this.displayColumn();
     }
     //the owner's BGA avatar (Game.fillPlayerAvatar), or the name's initial on the owner's color, so every header can show a circle
@@ -1118,20 +1115,17 @@ class PlayedColumnHandler {
     getStarsTotal() {
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
-    //[BGA] the header's numbers, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the owner's
-    //banked score ("★23") on its pill over the avatar or under the name, hidden at 0 (data-zero), and the pill with the column stars not banked yet ("+7"). A stopped
-    //column's stars are already in the score (banked at the Stop reveal) and can't change: the pill shows the bank icon with
-    //no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's pill shows a bomb
-    //(the crash log row's icon), also with no number
-    updateScoreHeader(bankedScore, unbankedStars) {
-        this.bankedScoreText.innerHTML = `<span class="played-column-score-star">★</span>${bankedScore}`;
-        this.bankedScoreText.setAttribute('data-zero', (bankedScore === 0) ? 'true' : 'false'); //no pill until the owner has points (Game.scss)
+    //[BGA] the header's badge, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the column
+    //stars not banked yet ("★7"). A stopped column's stars are already in the score (banked at the Stop reveal) and can't
+    //change: the badge shows the bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the
+    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number
+    updateStarsBadge(unbankedStars) {
         if (this.isBanked())
             this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if (this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
         else
-            this.starsText.textContent = '+' + unbankedStars;
+            this.starsText.innerHTML = `<span class="played-column-star">★</span>${unbankedStars}`;
     }
     isBanked() { return this.roundStatus === 'stopped'; }
     isCrashed() { return this.roundStatus === 'crashed'; }
@@ -1353,9 +1347,8 @@ class PlayerHandler {
     getUnbankedStars() {
         return (this.roundStatus === 'in' && this.playedColumn) ? this.playedColumn.getStarsTotal() : 0;
     }
-    //[BGA] the one place that shows the banked score and the unbanked column stars outside BGA's counter: the "+N" chip on this
-    //board (hidden at 0) and the column header ("★23" and the "+7" pill, PlayedColumnHandler.updateScoreHeader), from the same two
-    //numbers, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
+    //[BGA] the one place that shows the unbanked column stars: the "+N" chip on this board (hidden at 0) and the column header's
+    //badge ("★7", PlayedColumnHandler.updateStarsBadge), from the same number, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
     //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows
     updateScoreDisplays() {
         if (!this.playedColumn)
@@ -1363,7 +1356,7 @@ class PlayerHandler {
         const unbankedStars = this.getUnbankedStars();
         this.columnPointsChip.textContent = '+' + unbankedStars;
         this.columnPointsChip.hidden = unbankedStars === 0;
-        this.playedColumn.updateScoreHeader(this.score, unbankedStars);
+        this.playedColumn.updateStarsBadge(unbankedStars);
     }
     //card 10: while choosing whom to swap with, hovering a target's column or its status bar button lights up this board
     setSwapTargetHighlightPOWER10(highlighted) {
@@ -1621,7 +1614,6 @@ class TooltipHandler {
             this.game.bga.gameui.addTooltip('hand-count-backs-' + player_id, _('Cards in hand'), '', TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltip('score-target-' + player_id, _('First to ${points} ★ wins').replace('${points}', `${this.game.getWinningScore()}`), '', TooltipHandler.TOOLTIP_DELAY);
             this.updateColumnStarsTooltip(parseInt(player_id));
-            this.game.bga.gameui.addTooltip('column-score-' + player_id, _('Score: stars banked so far'), '', TooltipHandler.TOOLTIP_DELAY);
             this.game.bga.gameui.addTooltip('column-points-chip-' + player_id, _('Stars in this round\'s column, not banked yet'), '', TooltipHandler.TOOLTIP_DELAY);
             //the column header's avatar or name: the full name (the avatar has none, and a long name is cut)
             this.game.bga.gameui.addTooltip('column-player-' + player_id, this.game.players[player_id].getPlayerName(), '', TooltipHandler.TOOLTIP_DELAY);

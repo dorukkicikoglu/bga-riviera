@@ -227,9 +227,8 @@ export class PlayerHandler{
         return (this.roundStatus === 'in' && this.playedColumn) ? this.playedColumn.getStarsTotal() : 0;
     }
 
-    //[BGA] the one place that shows the banked score and the unbanked column stars outside BGA's counter: the "+N" chip on this
-    //board (hidden at 0) and the column header ("★23" and the "+7" pill, PlayedColumnHandler.updateScoreHeader), from the same two
-    //numbers, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
+    //[BGA] the one place that shows the unbanked column stars: the "+N" chip on this board (hidden at 0) and the column header's
+    //badge ("★7", PlayedColumnHandler.updateStarsBadge), from the same number, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
     //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows
     public updateScoreDisplays(): void {
         if(!this.playedColumn)
@@ -238,7 +237,7 @@ export class PlayerHandler{
         const unbankedStars = this.getUnbankedStars();
         this.columnPointsChip.textContent = '+' + unbankedStars;
         this.columnPointsChip.hidden = unbankedStars === 0;
-        this.playedColumn.updateScoreHeader(this.score, unbankedStars);
+        this.playedColumn.updateStarsBadge(unbankedStars);
     }
 
     //card 10: while choosing whom to swap with, hovering a target's column or its status bar button lights up this board

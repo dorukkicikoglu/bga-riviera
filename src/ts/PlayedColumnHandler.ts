@@ -19,7 +19,6 @@ export class PlayedColumnHandler{
     private columnContainer: HTMLDivElement;
     private cardsColumn: HTMLDivElement;
     private starsText: HTMLSpanElement;
-    private bankedScoreText: HTMLSpanElement;
     private roundStatus: RoundStatus = 'in';
     private swapTargetClickedPOWER10: (() => void) | null = null; //card 10: set while this column is a swap target (setSwapTargetPOWER10)
 
@@ -41,7 +40,6 @@ export class PlayedColumnHandler{
                         <span class="played-column-avatar"></span>
                         <span class="played-column-name"></span>
                     </span>
-                    <span class="played-column-score"></span>
                     <span class="played-column-stars"></span>
                 </div>
                 <div class="cards-column"></div>
@@ -81,8 +79,6 @@ export class PlayedColumnHandler{
         this.cardsColumn = this.columnContainer.querySelector('.cards-column') as HTMLDivElement;
         this.starsText = this.columnContainer.querySelector('.played-column-stars') as HTMLSpanElement;
         this.starsText.id = 'column-stars-' + this.owner.getPlayerID(); //for TooltipHandler
-        this.bankedScoreText = this.columnContainer.querySelector('.played-column-score') as HTMLSpanElement;
-        this.bankedScoreText.id = 'column-score-' + this.owner.getPlayerID(); //for TooltipHandler
 
         this.displayColumn();
     }
@@ -154,20 +150,16 @@ export class PlayedColumnHandler{
         return this.playedCardsData.reduce((total, cardData) => total + this.game.getStarsForValue(cardData.value), 0);
     }
 
-    //[BGA] the header's numbers, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the owner's
-    //banked score ("★23") on its pill over the avatar or under the name, hidden at 0 (data-zero), and the pill with the column stars not banked yet ("+7"). A stopped
-    //column's stars are already in the score (banked at the Stop reveal) and can't change: the pill shows the bank icon with
-    //no number, so it doesn't read as stars still to come. Its tooltip gives the amount. A crashed column's pill shows a bomb
-    //(the crash log row's icon), also with no number
-    public updateScoreHeader(bankedScore: number, unbankedStars: number): void{
-        this.bankedScoreText.innerHTML = `<span class="played-column-score-star">★</span>${bankedScore}`;
-        this.bankedScoreText.setAttribute('data-zero', (bankedScore === 0) ? 'true' : 'false'); //no pill until the owner has points (Game.scss)
-
+    //[BGA] the header's badge, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the column
+    //stars not banked yet ("★7"). A stopped column's stars are already in the score (banked at the Stop reveal) and can't
+    //change: the badge shows the bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the
+    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number
+    public updateStarsBadge(unbankedStars: number): void{
         if(this.isBanked())
             this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if(this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
-        else this.starsText.textContent = '+' + unbankedStars;
+        else this.starsText.innerHTML = `<span class="played-column-star">★</span>${unbankedStars}`;
     }
 
     public isBanked(): boolean{ return this.roundStatus === 'stopped'; }

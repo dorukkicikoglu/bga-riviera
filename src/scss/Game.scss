@@ -484,16 +484,8 @@ html.riviera-expert-mode #my-hand-container .cards-container .a-card.chosen-card
 //changes: no hover effect, and nothing that touches the card's transform or transition (its glow already shows it is chosen)
 body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-card.undoable-chosen-card{ cursor: pointer; }
 
-//[BGA] the banked score pill on a column header (.played-column-score): placed from the avatar's bottom-right corner, so it follows
-//--column-avatar-size (at 31px these give the mock-up's 21px left, 18px top). The avatar is centred on the title's height
-$column-score-avatar-inset-x: 10px; //the pill's left edge sits this far inside the avatar's right edge
-$column-score-avatar-inset-y: 13px; //the pill's top edge sits this far above the avatar's bottom edge
-$column-score-avatar-inset-y-mobile: 20px; //mobile's taller pill (19px text) rises further, so it ends 1px above the first card instead of covering its top
-$column-score-name-inset-y: 5px; //name mode: the pill's top edge sits this far above the title's bottom edge, under the name's baseline (only descenders
-//touch it) and clear of the first card
-$played-column-padding-top: 30px; //room under the header for the banked score pill (it was 24px before the pill, which then nearly touched the first card)
 #played-columns-container{ display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px 20px; margin-top: 34px;
-    .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: $played-column-padding-top 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + #{$played-column-padding-top} + 14px);
+    .a-played-column{ position: relative; box-sizing: border-box; min-width: calc(var(--card-width) + 28px); border: 1px solid var(--column-owner-color); border-radius: 10px; padding: 24px 14px 14px 14px; min-height: calc(var(--card-width) * #{$card-aspect} + 38px);
         //name docked top-left (shrinks with an ellipsis), stars docked top-right (never shrink)
         .played-column-title{ left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--column-owner-color); font-size: 16px;
             //the avatar or the name (the "Show players as" preference): one button, a click switches every column's header.
@@ -506,26 +498,17 @@ $played-column-padding-top: 30px; //room under the header for the banked score p
                 .played-column-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px; margin: -2px; } //padding keeps the text shade from being clipped
                 .played-column-avatar{ display: none; }
             }
-            //[BGA] the owner's banked score ("★23"): a small white pill over the avatar's bottom-right corner, star and number in the
-            //owner's color. Out of the title's flow (the title, absolutely placed, is its containing block), so the stars badge stays
-            //docked right. pointer-events none: clicks reach the avatar or name button and the column (card 10's swap targets)
-            .played-column-score{ position: absolute; z-index: 20; left: calc(var(--column-avatar-size) - #{$column-score-avatar-inset-x}); top: calc(50% + var(--column-avatar-size) / 2 - #{$column-score-avatar-inset-y});
-                padding: 2px 4px; border-radius: 10px; background-color: #ffffff; font-size: 13px; font-weight: bold; line-height: 1; text-shadow: none; pointer-events: none;
-                .played-column-score-star{ font-size: 0.85em; margin-right: 1px; }
-                &[data-zero="true"]{ display: none; } //no points banked yet (PlayedColumnHandler.updateScoreHeader)
-            }
             //bigger than the name (16px) for readability; line-height 1 keeps the star's taller fallback-font metrics from growing the title.
             //A pill in the player's color, no outline: its border and padding sit in negative margins, so the score stays where it was
             //without it (the pill reaches into the title's inset after it). On the left, only 4px of the 8px go into the 6px gap,
             //so the pill stays 2px clear of the name: the other 4px come out of the name's room (a long name gets its ellipsis sooner)
-            //[BGA] its number is the column stars not banked yet, "+7" (PlayedColumnHandler.updateScoreHeader)
+            //[BGA] its number is the column stars not banked yet, "★7" (PlayedColumnHandler.updateStarsBadge)
             .played-column-stars{ position: relative; z-index: 1; flex-shrink: 0; display: flex; align-items: center; gap: 2px; color: #ffffff; font-size: 22px; line-height: 1; text-shadow: none; background-color: var(--column-owner-color); border: 1px solid color-mix(in srgb, var(--column-owner-color) 75%, #000000); border-radius: 999px; padding: 3px 7px 2px 7px; margin: -3px -15px -3px -4px;
+                .played-column-star{ font-size: 0.55em; } //about the height of the number's lowercase letters
             }
         }
         //white, yellow, orange, teal, lime (PlayedColumnHandler.isLightColor): dark star and number on the pill
         &[data-light-owner-color="true"] .played-column-stars{ color: #1d1d1d; }
-        //same approach for the banked score pill: the owner's color behind dark text, since the color on white would vanish
-        &[data-light-owner-color="true"] .played-column-score{ color: #1d1d1d; background-color: var(--column-owner-color); }
 
         //stopped: the stars are banked (in the score), so the badge is a muted grey bank icon and the cards dim a little.
         //Same 0.4s fade as a crashed column, both ways (the next round's 'in' fades them back)
@@ -585,11 +568,6 @@ body:not(.lockedInterface) #played-columns-container .a-played-column.swap-targe
         }
     }
 }
-//BGA scales the 740px layout down on a phone: a bigger banked score, like the bigger avatar, risen to stay clear of the first card
-.mobile_version #played-columns-container .a-played-column .played-column-title .played-column-score{ font-size: 19px; top: calc(50% + var(--column-avatar-size) / 2 - #{$column-score-avatar-inset-y-mobile}); }
-//name mode: no avatar, so the pill hangs from the title's bottom edge (the title is as tall as the stars badge) under the start of
-//the name. 13px on mobile too, like the name itself: a taller pill would cover the name or the first card
-#played-columns-container[data-players-display="name"] .a-played-column .played-column-title .played-column-score{ top: calc(100% - #{$column-score-name-inset-y}); font-size: 13px; }
 
 //player board
 $hand-back-width: 20px; //the hand count's card backs; their overlap and staircase step scale with it
