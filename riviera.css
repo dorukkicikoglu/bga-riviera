@@ -508,6 +508,14 @@ body .sliding-clone {
   width: calc(calc(1.6em * 0.7) * 1.2063492063);
 }
 
+@keyframes finishing-button-shimmer {
+  0% {
+    left: -140%;
+  }
+  100% {
+    left: 105%;
+  }
+}
 #stop-button {
   background: var(--button-color-green);
   border-color: var(--button-color-green);
@@ -553,17 +561,8 @@ body .sliding-clone {
   height: 100%;
   background: linear-gradient(100deg, transparent, rgba(75, 138, 28, 0.85), transparent);
   transform: skewX(-20deg);
-  animation: stop-finishing-shimmer 3.1s ease-in-out infinite;
+  animation: finishing-button-shimmer 3.1s ease-in-out infinite;
   pointer-events: none;
-}
-
-@keyframes stop-finishing-shimmer {
-  0% {
-    left: -140%;
-  }
-  100% {
-    left: 105%;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   #stop-button.stop-button-finishing::after {
@@ -571,6 +570,43 @@ body .sliding-clone {
     display: none;
   }
 }
+
+#confirm-selected-card-button.play-button-grand-slam, #add-chain-card-button.play-button-grand-slam {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+#confirm-selected-card-button.play-button-grand-slam, #confirm-selected-card-button.play-button-grand-slam:hover, #confirm-selected-card-button.play-button-grand-slam:active, #confirm-selected-card-button.play-button-grand-slam:focus, #confirm-selected-card-button.play-button-grand-slam:focus-visible, #add-chain-card-button.play-button-grand-slam, #add-chain-card-button.play-button-grand-slam:hover, #add-chain-card-button.play-button-grand-slam:active, #add-chain-card-button.play-button-grand-slam:focus, #add-chain-card-button.play-button-grand-slam:focus-visible {
+  background: #f2c21b;
+  border-color: #f2c21b;
+  box-shadow: 0 2px 0 #a8820a;
+  color: #3a2a00;
+  text-shadow: none;
+}
+#confirm-selected-card-button.play-button-grand-slam:hover, #add-chain-card-button.play-button-grand-slam:hover {
+  background: #e8b80f;
+  border-color: #e8b80f;
+}
+#confirm-selected-card-button.play-button-grand-slam::after, #add-chain-card-button.play-button-grand-slam::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: -140%;
+  width: 140%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(75, 138, 28, 0.85), transparent);
+  transform: skewX(-20deg);
+  animation: finishing-button-shimmer 3.1s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #confirm-selected-card-button.play-button-grand-slam::after, #add-chain-card-button.play-button-grand-slam::after {
+    animation: none;
+    display: none;
+  }
+}
+
 #more-button .button-forward-icon {
   font-size: 1.4827586207em;
   line-height: 0;

@@ -804,13 +804,6 @@ export class Game {
         players.forEach(player => player.setLastChanceUsed(true));
     }
 
-    //[BGA] my last card was playable, so the server played it (only I get this): no Undo, and the status bar says it is a Grand
-    //Slam while the others choose. No hold: the reveal's grandSlamAnimation shows it
-    public async notif_autoGrandSlamAnnounced(args: AutoGrandSlamAnnouncedArgs) {
-        if(args.player_id === this.myPlayerID)
-            this.playCard.onAutoGrandSlam();
-    }
-
     //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
     public async notif_playerCrashed(args: PlayerCrashedArgs) {
     }

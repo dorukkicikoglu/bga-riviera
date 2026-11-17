@@ -424,8 +424,8 @@ class Game extends \Bga\GameFramework\Table
 
     // Grand Slam (the grandSlamAnimation overlay): $winners players still in (me first, then clockwise) are left with one card in
     // hand, a 3 to 6 with no power, each of its own color, and that color's die shows its value (not reserved), so it is their
-    // only card and playable: the server plays it for them, and the reveal makes them all win at once. The other players keep
-    // their hands and choose as usual
+    // only card and playable: once they play it, the reveal makes them all win at once. The other players keep their hands
+    // and choose as usual
     #[Debug(reload: true)]
     public function debug_grandSlam(int $winners = 1) {
         $currentPlayerID = (int) $this->getCurrentPlayerId();
@@ -446,7 +446,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         self::DbQuery("UPDATE `player` SET `play_choice` = NULL, `play_choice_card_id` = NULL");
-        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards (and the automatic Grand Slam) are recomputed
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
     }
 
     // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies (if the option is on); each re-roll writes a "First roll re-rolled" line in the Studio server log

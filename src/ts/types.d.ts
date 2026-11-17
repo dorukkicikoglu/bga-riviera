@@ -100,7 +100,6 @@ interface PlayCardArgs {
         playableCardDice: Record<number, DieColor[]>; //every playable card (chosen ones included) => the dice that make it playable, leftmost combination
         hasNoPlayableCard: boolean;
         canUseLastChance: boolean;
-        autoGrandSlam: boolean;
         pendingPlayChoice: PendingPlayChoice | null;
         chainCardIDs_POWER1: number[];
         chainOpen_POWER1: boolean;
@@ -238,10 +237,6 @@ interface PlayerCrashedArgs {
 
 interface CrashAnimationArgs {
     player_ids: number[]; //every player who crashed in this reveal, clockwise from the Start token holder
-}
-
-interface AutoGrandSlamAnnouncedArgs {
-    player_id: number;
 }
 
 interface LastChanceUsedArgs {
