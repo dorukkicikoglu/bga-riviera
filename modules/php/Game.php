@@ -229,11 +229,12 @@ class Game extends \Bga\GameFramework\Table
             self::DbQuery("UPDATE `dice` SET `die_location` = 'returned_to_box' WHERE `die_color` = '$removedColor'");
         }
 
-        // Init game statistics. lastChanceRound is left out on purpose: it is only set when a Last Chance is used,
-        // so games without one don't drag its average down
+        // Init game statistics. lastChanceRound and lastChanceOpponentScore are left out on purpose: they are only set when
+        // a Last Chance is used, so games without one don't drag their averages down
         $this->bga->tableStats->init(['rounds', 'turns'], 0);
         $this->bga->playerStats->init(['roundsPlayed', 'roundsStopped', 'crashes', 'starsBanked', 'bestRound', 'cardsPlayed',
-            'powerUsed_POWER1', 'powerUsed_POWER2', 'powerUsed_POWER9', 'powerUsed_POWER10', 'powerUsed_POWER11'], 0);
+            'powerUsed_POWER1', 'powerUsed_POWER2', 'powerUsed_POWER9', 'powerUsed_POWER10', 'powerUsed_POWER11',
+            'starsLostToCrashes', 'biggestCrash', 'lastChanceSaves'], 0);
         $this->bga->playerStats->init(['lastChanceUsed', 'grandSlam'], false);
 
         // Init global values with their initial values.
@@ -248,6 +249,24 @@ class Game extends \Bga\GameFramework\Table
 
     public function getPlayerIDsInRound(): array {
         return array_map('intval', $this->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'in'", true));
+    }
+
+    //a player stat that may have no value: one added after this table was created (never initialised here), or one only set
+    //when used (lastChanceRound). Returns $default when it has none or can't be read, so a stats read never breaks the game.
+    //get() is typed non-null, so a missing row may throw or fail that return type (a TypeError): hence \Throwable
+    public function getPlayerStatOrDefault(string $name, int $playerID, int $default = 0): int {
+        try {
+            $value = $this->bga->playerStats->get($name, $playerID);
+        } catch(\Throwable $e) {
+            return $default;
+        }
+
+        return $value === null ? $default : (int) $value;
+    }
+
+    //inc() for a stat a table in progress may not have initialised: a safe read, then set(), which works without an init
+    public function incPlayerStatSafely(string $name, int $delta, int $playerID): void {
+        $this->bga->playerStats->set($name, $this->getPlayerStatOrDefault($name, $playerID) + $delta, $playerID);
     }
 
     //plain text for a card in the server-side fallback of a log string; the client always replaces it with a card icon
