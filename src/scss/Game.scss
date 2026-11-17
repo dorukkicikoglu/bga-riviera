@@ -227,6 +227,22 @@ $log-bank-icon-color: var(--button-color-green);
 //many times the coins' font size, the forward icon looks as tall as the coins
 $forward-icon-to-bank-icon-scale: math.div(1, 0.754);
 
+//a button whose click would most likely end the game in my favour: the Stop button when banking reaches the end-game target
+//(.stop-button-finishing, StopOrMore) and the Play card button when the selected card is a Grand Slam (.play-button-grand-slam,
+//PlayCard). Gold with dark text and icon, in every state, so it never flashes back to BGA's color, and a wide green shimmer
+//sweeping left to right behind the label (none with reduced motion). The shimmer's z-index -1 inside the button's own
+//stacking context (isolation) puts it over the button's background and under its content, bare text node included, which a
+//z-index on the children couldn't reach. Included under an id selector, which outranks BGA's .bgabutton_* rules in every state
+@mixin finishing-button-look(){ position: relative; overflow: hidden; isolation: isolate;
+    &, &:hover, &:active, &:focus, &:focus-visible{ background: #f2c21b; border-color: #f2c21b; box-shadow: 0 2px 0 #a8820a; color: #3a2a00; text-shadow: none; }
+    &:hover{ background: #e8b80f; border-color: #e8b80f; } //a touch darker, like a colored button's hover
+    &::after{ content: ""; position: absolute; z-index: -1; top: 0; left: -140%; width: 140%; height: 100%; background: linear-gradient(100deg, transparent, rgba(75, 138, 28, 0.85), transparent); transform: skewX(-20deg); animation: finishing-button-shimmer 3.1s ease-in-out infinite; pointer-events: none; }
+    @media (prefers-reduced-motion: reduce){
+        &::after{ animation: none; display: none; } //the static gold button
+    }
+}
+@keyframes finishing-button-shimmer{ 0%{ left: -140%; } 100%{ left: 105%; } }
+
 //keeps BGA's .bgabutton padding, so it is as tall as every other action button. The ★ comes from a fallback font with taller
 //metrics, which grew the button: its span gets line-height 0 so it can't. The bank icon (Game.getBankIconHtml) is white like
 //the text
@@ -241,19 +257,13 @@ $button-bank-icon-size: 1.118em;
     //1px further left than the forward icon (-5px, and 1px more on its right), so the label doesn't move
     .button-bank-icon{ display: inline-block; font-size: $button-bank-icon-size; line-height: 0; margin: 0px calc(#{math.div(0.3em, math.div($button-bank-icon-size, 1em))} + 1px) 0px -5px; vertical-align: -0.145em; }
 
-    //banking would reach the end-game target ("Stop and reach T ★", StopOrMore): gold with dark text and icon, in every
-    //state, so it never flashes back to green, and a wide green shimmer sweeping left to right behind the label. The
-    //shimmer's z-index -1 inside the button's own stacking context (isolation) puts it over the button's background and
-    //under its content, bare text node included, which a z-index on the children couldn't reach
-    &.stop-button-finishing{ position: relative; overflow: hidden; isolation: isolate;
-        &, &:hover, &:active, &:focus, &:focus-visible{ background: #f2c21b; border-color: #f2c21b; box-shadow: 0 2px 0 #a8820a; color: #3a2a00; text-shadow: none; }
-        &:hover{ background: #e8b80f; border-color: #e8b80f; } //a touch darker, like the green button's hover
-        &::after{ content: ""; position: absolute; z-index: -1; top: 0; left: -140%; width: 140%; height: 100%; background: linear-gradient(100deg, transparent, rgba(75, 138, 28, 0.85), transparent); transform: skewX(-20deg); animation: stop-finishing-shimmer 3.1s ease-in-out infinite; pointer-events: none; }
-    }
+    //banking would reach the end-game target ("Stop and reach T ★", StopOrMore)
+    &.stop-button-finishing{ @include finishing-button-look(); }
 }
-@keyframes stop-finishing-shimmer{ 0%{ left: -140%; } 100%{ left: 105%; } }
-@media (prefers-reduced-motion: reduce){
-    #stop-button.stop-button-finishing::after{ animation: none; display: none; } //the static gold button
+//[BGA] the selected card is my last one, so playing it is a Grand Slam ("Play card to Grand Slam!", PlayCard): the first card's
+//Confirm, or a card-1 chain's Add card
+#confirm-selected-card-button, #add-chain-card-button{
+    &.play-button-grand-slam{ @include finishing-button-look(); }
 }
 //"Keep Going" starts with the logs' forward icon, white like its label, as tall as the Stop button's bank icon and as far
 //from the text. line-height 0 (like .button-star) so the bigger glyph can't make the button taller; the right margin is the

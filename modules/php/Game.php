@@ -229,8 +229,8 @@ class Game extends \Bga\GameFramework\Table
             self::DbQuery("UPDATE `dice` SET `die_location` = 'returned_to_box' WHERE `die_color` = '$removedColor'");
         }
 
-        // Init game statistics. lastChanceRound and lastChanceOpponentScore are left out on purpose: they are only set when
-        // a Last Chance is used, so games without one don't drag their averages down
+        // Init game statistics. lastChanceRound and grandSlamOpponentScore are left out on purpose: they are only set when a
+        // Last Chance is used or a Grand Slam is scored, so games without one don't drag their averages down
         $this->bga->tableStats->init(['rounds', 'turns'], 0);
         $this->bga->playerStats->init(['roundsPlayed', 'roundsStopped', 'crashes', 'starsBanked', 'bestRound', 'cardsPlayed',
             'powerUsed_POWER1', 'powerUsed_POWER2', 'powerUsed_POWER9', 'powerUsed_POWER10', 'powerUsed_POWER11',
@@ -257,7 +257,7 @@ class Game extends \Bga\GameFramework\Table
     public function getPlayerStatOrDefault(string $name, int $playerID, int $default = 0): int {
         try {
             $value = $this->bga->playerStats->get($name, $playerID);
-        } catch(\Throwable $e) {
+        } catch(\Throwable) {
             return $default;
         }
 
@@ -303,6 +303,11 @@ class Game extends \Bga\GameFramework\Table
         foreach($playerIDs as $playerID){
             $this->bga->playerScore->set($playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
             $this->bga->playerStats->set('grandSlam', true, $playerID);
+            //only set on a Grand Slam (never initialised, like lastChanceRound). Every other player, co-winners included,
+            //from $scores, read before any Grand Slam score was set
+            $opponentScores = $scores;
+            unset($opponentScores[$playerID]);
+            $this->bga->playerStats->set('grandSlamOpponentScore', empty($opponentScores) ? 0 : (int) max($opponentScores), $playerID);
 
             $this->bga->notify->all('grandSlam', '${GRAND_SLAM_LOG_STR}', [
                 'preserve' => ['player_id', 'score'],
@@ -419,8 +424,8 @@ class Game extends \Bga\GameFramework\Table
 
     // Grand Slam (the grandSlamAnimation overlay): $winners players still in (me first, then clockwise) are left with one card in
     // hand, a 3 to 6 with no power, each of its own color, and that color's die shows its value (not reserved), so it is their
-    // only card and playable: the server plays it for them, and the reveal makes them all win at once. The other players keep
-    // their hands and choose as usual
+    // only card and playable: once they play it, the reveal makes them all win at once. The other players keep their hands
+    // and choose as usual
     #[Debug(reload: true)]
     public function debug_grandSlam(int $winners = 1) {
         $currentPlayerID = (int) $this->getCurrentPlayerId();
@@ -441,7 +446,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         self::DbQuery("UPDATE `player` SET `play_choice` = NULL, `play_choice_card_id` = NULL");
-        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards (and the automatic Grand Slam) are recomputed
+        $this->gamestate->jumpToState(20); //PlayCard, so the playable cards are recomputed
     }
 
     // each player keeps $count random hand cards, then the dice are rolled as a round's first roll, so the silent re-roll applies (if the option is on); each re-roll writes a "First roll re-rolled" line in the Studio server log

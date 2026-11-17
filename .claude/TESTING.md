@@ -210,11 +210,11 @@ Statistics (play a game to the end, then the Statistics tab):
 - [ ] A Grand Slam sets Grand Slam to yes.
 
 Statistics added after M4 (2026-11-17), on a table created after the deploy (the new counters are initialised at setup):
-- [ ] Use the Last Chance while the others have 12 and 20: best opponent score 20. A player who never used it shows no value.
 - [ ] Use the Last Chance, then stop in that round: rounds stopped after Last Chance 1. Use it, then crash in that round: 0.
 - [ ] Use the Last Chance, `debug_redeal()`, then stop in the new round: still 0.
 - [ ] Crash with 7 stars in your column, then with 4: stars lost to crashes 11, most stars lost in one crash 7. Crashing with an empty column adds 0.
 - [ ] Win with a Grand Slam: best round doesn't change.
+- [ ] Grand Slam with the opponents on known scores (`debug_setScoresVsOthers(10, 25)` gives me 10 and every other player 25, then `debug_grandSlam(1)`): my best opponent score when the Grand Slam was scored shows 25, the score before the Grand Slam. Every other player shows no value. To check it picks the highest, at 3+ players, give the opponents different scores first (`debug_setScoresVsOthers(10, 25)`, then one opponent stops with stars before the Grand Slam): the stat shows that opponent's new, higher score. With `debug_grandSlam(2)`, each winner shows the highest score among everyone else, the other winner included.
 - [ ] On a table created before the deploy (in progress, no new counters): crash with stars in your column, and use the Last Chance then stop. No error, the game goes on, and the new stats show the values from after the deploy.
 
 End-game display:

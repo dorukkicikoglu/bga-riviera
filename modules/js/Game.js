@@ -26,7 +26,6 @@ class PlayCard {
         this.playableCardDice = {}; //from the server, fixed for the whole state: the dice that make each card playable
         this.hasNoPlayableCard = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
         this.canUseLastChance = false;
-        this.autoGrandSlam = false; //[BGA] the server played my last card for me: nothing to undo
         this.canUndoDieChange = false;
     }
     /**
@@ -38,7 +37,6 @@ class PlayCard {
         this.playableCardDice = privateArgs?.playableCardDice ?? {};
         this.hasNoPlayableCard = privateArgs?.hasNoPlayableCard ?? false;
         this.canUseLastChance = privateArgs?.canUseLastChance ?? false;
-        this.autoGrandSlam = privateArgs?.autoGrandSlam ?? false;
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
         this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
@@ -76,7 +74,7 @@ class PlayCard {
         }
         //clicking a set-aside card is the Undo button only while waiting for the others (set once per rebuild, so the cards' tooltips aren't redone)
         const isWaiting = !isCurrentPlayerActive || !this.chainOpen;
-        handHandler.setChosenCardsUndoable(isWaiting && !!this.pendingChoice && !this.autoGrandSlam && !this.game.isReplay());
+        handHandler.setChosenCardsUndoable(isWaiting && !!this.pendingChoice && !this.game.isReplay());
         //in the two choosing branches, selectionChanged() sets the title (no card is selected yet)
         if (isCurrentPlayerActive && this.pendingChoice && this.chainOpen) {
             this.setSelectableCards();
@@ -107,9 +105,7 @@ class PlayCard {
                 this.game.undoHandler.addUndoButton('actUndoDieChange_POWER9');
         }
         else {
-            if (this.autoGrandSlam) //[BGA] the server played my last card for me: no card icon, since I didn't choose it
-                this.bga.statusBar.setTitle(_('${you} go for a Grand Slam. Waiting for other players'));
-            else if (this.pendingChoice.choice === 'card') {
+            if (this.pendingChoice.choice === 'card') {
                 //each chosen card with its power icon, like "Play [card]?"
                 const cardsIcons = this.getChosenCardIDs().map(cardID => this.game.getStatusCardWithPowerHTML(handHandler.getCardData(cardID))).join('');
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players'), { card: cardsIcons || _('a card') });
@@ -122,8 +118,7 @@ class PlayCard {
                 };
                 this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
             }
-            if (!this.autoGrandSlam)
-                this.game.undoHandler.addUndoButton('actUndoPlayCard');
+            this.game.undoHandler.addUndoButton('actUndoPlayCard');
         }
     }
     //the playable cards glow (power cards cream); in Expert mode every card not chosen yet is selectable, none glows, and
@@ -143,7 +138,7 @@ class PlayCard {
     }
     //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
     chosenCardClicked() {
-        if (this.game.isReplay() || !this.pendingChoice || this.autoGrandSlam)
+        if (this.game.isReplay() || !this.pendingChoice)
             return;
         this.game.undoHandler.undo('actUndoPlayCard');
     }
@@ -154,6 +149,7 @@ class PlayCard {
         const selectedCard = this.game.handHandler?.getSelectedCardData();
         const oneClickPlay = this.game.prefHandler?.isOneClickPlay() ?? false;
         this.confirmButton.style.display = (selectedCard && !oneClickPlay) ? null : 'none';
+        this.updateConfirmButtonLook(selectedCard);
         //"One-click card play" preference: the click that selected the card plays it
         if (selectedCard && oneClickPlay) {
             this.confirmClicked(this.confirmActionName);
@@ -162,7 +158,11 @@ class PlayCard {
         //the dice that make the selected card playable, so it is clear why it glows. Not in Expert mode, where players find their own plays
         this.game.diceHandler.setComboHighlight((selectedCard && !this.game.isExpertMode()) ? (this.playableCardDice[selectedCard.card_id] ?? []) : []);
         const isAddingToChain = this.pendingChoice !== null;
-        if (selectedCard) {
+        //[BGA] my first card can only be a Grand Slam: the same title for the whole turn, selected card or not. Not in a
+        //card-1 chain, where adding the last card is optional (its power prompt stays), and not in a replay
+        if (!isAddingToChain && this.isGrandSlamTurn() && !this.game.isReplay())
+            this.bga.statusBar.setTitle(_('${you} must GRAND SLAM!'));
+        else if (selectedCard) {
             this.bga.statusBar.setTitle(isAddingToChain ? _('Add ${card}?') : _('Play ${card}?'), { card: this.game.getStatusCardWithPowerHTML(selectedCard) });
             this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
         }
@@ -174,6 +174,30 @@ class PlayCard {
         }
         else
             this.bga.statusBar.setTitle(_('${you} must choose a card to play'));
+    }
+    //[BGA] the selected card is the last one in hand not chosen yet, so playing it empties my hand: a Grand Slam at the reveal.
+    //The button then gets the finishing look (.play-button-grand-slam in Game.scss) and its own label; any other selection, or
+    //none, gets the usual ones back. In Expert mode an unplayable card can't be selected, so this never hints at playability
+    updateConfirmButtonLook(selectedCard) {
+        const isGrandSlam = !!selectedCard && this.isGrandSlamCard(selectedCard.card_id);
+        const normalLabel = (this.confirmActionName === 'actAddChainCard_POWER1') ? _('Add card') : _('Confirm');
+        this.confirmButton.innerHTML = isGrandSlam ? _('Play card to Grand Slam!') : normalLabel;
+        this.confirmButton.classList.toggle('play-button-grand-slam', isGrandSlam);
+    }
+    //[BGA] the one Grand Slam check: this card is the last one in my hand not chosen yet, so playing it empties my hand
+    isGrandSlamCard(cardID) {
+        const handHandler = this.game.handHandler;
+        if (!handHandler)
+            return false;
+        const chosenCardIDs = this.getChosenCardIDs();
+        const remainingCardIDs = handHandler.getHandCardIDs().filter(handCardID => !chosenCardIDs.includes(handCardID));
+        return remainingCardIDs.length === 1 && remainingCardIDs[0] === cardID;
+    }
+    //[BGA] every card I can play now is a Grand Slam (in practice: my last card is playable), so it doesn't depend on the selection
+    isGrandSlamTurn() {
+        const chosenCardIDs = this.getChosenCardIDs();
+        const playableCardIDs = this.playableCardIDs.filter(cardID => !chosenCardIDs.includes(cardID));
+        return playableCardIDs.length > 0 && playableCardIDs.every(cardID => this.isGrandSlamCard(cardID));
     }
     confirmClicked(actionName) {
         const selectedCardID = this.game.handHandler?.getSelectedCardID();
@@ -198,12 +222,6 @@ class PlayCard {
     refresh() {
         if (this.game.getGameStateName() === 'PlayCard')
             this.updateStatusBar(this.bga.players.isCurrentPlayerActive());
-    }
-    //Game.notif_autoGrandSlamAnnounced, in case the state args came before the server played the card: the Undo button goes
-    //and the title says it is a Grand Slam
-    onAutoGrandSlam() {
-        this.autoGrandSlam = true;
-        this.refresh();
     }
     onChoiceConfirmed(args) {
         this.chainCardIDs = args.chainCardIDs_POWER1;
@@ -4596,12 +4614,6 @@ class Game {
         const entries = players.map(player => ({ playerID: player.getPlayerID(), element: player.getLastChanceCardElement() }));
         await new LastChanceSpotlight(this, entries).play();
         players.forEach(player => player.setLastChanceUsed(true));
-    }
-    //[BGA] my last card was playable, so the server played it (only I get this): no Undo, and the status bar says it is a Grand
-    //Slam while the others choose. No hold: the reveal's grandSlamAnimation shows it
-    async notif_autoGrandSlamAnnounced(args) {
-        if (args.player_id === this.myPlayerID)
-            this.playCard.onAutoGrandSlam();
     }
     //the log row only, at once: crashAnimation, after every crash row of the reveal, discards the cards
     async notif_playerCrashed(args) {

@@ -86,12 +86,7 @@
         "name": "Grand Slam",
         "type": "bool"
       },
-      // only set when the Last Chance is used, like lastChanceRound
-      "lastChanceOpponentScore": {
-        "id": 24,
-        "name": "Best opponent score when the Last Chance was used",
-        "type": "int"
-      },
+      // id 24 is retired (it was lastChanceOpponentScore in beta): never reuse it, so old beta data can't take a new meaning
       "starsLostToCrashes": {
         "id": 25,
         "name": "Stars lost to crashes",
@@ -105,6 +100,12 @@
       "lastChanceSaves": {
         "id": 27,
         "name": "Rounds stopped after using the Last Chance",
+        "type": "int"
+      },
+      // only set for a player who scores a Grand Slam, like lastChanceRound
+      "grandSlamOpponentScore": {
+        "id": 28,
+        "name": "Best opponent score when the Grand Slam was scored",
         "type": "int"
       }
     }
