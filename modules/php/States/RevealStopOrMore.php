@@ -53,6 +53,8 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
         foreach($this->game->tableManager->getPlayerIDsInTurnOrderFrom($startPlayerID) as $playerID){
             if(isset($choicesDB[$playerID]) && $choicesDB[$playerID] === 'stop'){
                 $this->game->bga->playerStats->inc('roundsStopped', 1, $playerID);
+                if($this->usedLastChanceInRound($playerID, $roundNumber))
+                    $this->game->incPlayerStatSafely('lastChanceSaves', 1, $playerID); //added after tables already in progress
                 $banked = $this->bankStars($playerID, $roundNumber);
                 $rows[] = ['player_id' => $playerID, 'choice' => 'stop', 'stars' => $banked['stars'], 'score' => $banked['score']];
                 $logParts['stop'][] = $this->game->getPlayerNameById($playerID).' ('.$banked['stars'].' stars)';
@@ -88,9 +90,17 @@ class RevealStopOrMore extends \Bga\GameFramework\States\GameState
 
         $this->game->tableManager->saveRoundScore($roundNumber, $playerID, 'stopped', $stars);
         $this->game->bga->playerStats->inc('starsBanked', $stars, $playerID);
-        if($stars > (int) $this->game->bga->playerStats->get('bestRound', $playerID))
+        if($stars > $this->game->getPlayerStatOrDefault('bestRound', $playerID))
             $this->game->bga->playerStats->set('bestRound', $stars, $playerID);
 
         return ['stars' => $stars, 'score' => $score];
+    }
+
+    //lastChanceRound is only set once lastChanceUsed is, so it is read only then (and safely: unset reads 0, never a round).
+    //Compared with the round number, so a debug_redeal (which starts a new round number) never counts a Last Chance from
+    //the round it cut short
+    private function usedLastChanceInRound(int $playerID, int $roundNumber): bool {
+        return $this->game->getPlayerStatOrDefault('lastChanceUsed', $playerID) !== 0
+            && $this->game->getPlayerStatOrDefault('lastChanceRound', $playerID) === $roundNumber;
     }
 }

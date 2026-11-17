@@ -48,7 +48,7 @@
       },
       "bestRound": {
         "id": 16,
-        "name": "Most stars banked in one round",
+        "name": "Most stars banked in one round (Grand Slam not counted)",
         "type": "int"
       },
       "cardsPlayed": {
@@ -85,6 +85,27 @@
         "id": 23,
         "name": "Grand Slam",
         "type": "bool"
+      },
+      // only set when the Last Chance is used, like lastChanceRound
+      "lastChanceOpponentScore": {
+        "id": 24,
+        "name": "Best opponent score when the Last Chance was used",
+        "type": "int"
+      },
+      "starsLostToCrashes": {
+        "id": 25,
+        "name": "Stars lost to crashes",
+        "type": "int"
+      },
+      "biggestCrash": {
+        "id": 26,
+        "name": "Most stars lost in one crash",
+        "type": "int"
+      },
+      "lastChanceSaves": {
+        "id": 27,
+        "name": "Rounds stopped after using the Last Chance",
+        "type": "int"
       }
     }
 }
