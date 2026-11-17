@@ -229,8 +229,8 @@ class Game extends \Bga\GameFramework\Table
             self::DbQuery("UPDATE `dice` SET `die_location` = 'returned_to_box' WHERE `die_color` = '$removedColor'");
         }
 
-        // Init game statistics. lastChanceRound and lastChanceOpponentScore are left out on purpose: they are only set when
-        // a Last Chance is used, so games without one don't drag their averages down
+        // Init game statistics. lastChanceRound and grandSlamOpponentScore are left out on purpose: they are only set when a
+        // Last Chance is used or a Grand Slam is scored, so games without one don't drag their averages down
         $this->bga->tableStats->init(['rounds', 'turns'], 0);
         $this->bga->playerStats->init(['roundsPlayed', 'roundsStopped', 'crashes', 'starsBanked', 'bestRound', 'cardsPlayed',
             'powerUsed_POWER1', 'powerUsed_POWER2', 'powerUsed_POWER9', 'powerUsed_POWER10', 'powerUsed_POWER11',
@@ -257,7 +257,7 @@ class Game extends \Bga\GameFramework\Table
     public function getPlayerStatOrDefault(string $name, int $playerID, int $default = 0): int {
         try {
             $value = $this->bga->playerStats->get($name, $playerID);
-        } catch(\Throwable $e) {
+        } catch(\Throwable) {
             return $default;
         }
 
@@ -303,6 +303,11 @@ class Game extends \Bga\GameFramework\Table
         foreach($playerIDs as $playerID){
             $this->bga->playerScore->set($playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
             $this->bga->playerStats->set('grandSlam', true, $playerID);
+            //only set on a Grand Slam (never initialised, like lastChanceRound). Every other player, co-winners included,
+            //from $scores, read before any Grand Slam score was set
+            $opponentScores = $scores;
+            unset($opponentScores[$playerID]);
+            $this->bga->playerStats->set('grandSlamOpponentScore', empty($opponentScores) ? 0 : (int) max($opponentScores), $playerID);
 
             $this->bga->notify->all('grandSlam', '${GRAND_SLAM_LOG_STR}', [
                 'preserve' => ['player_id', 'score'],

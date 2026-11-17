@@ -226,9 +226,9 @@ Power prompts (cards 1, 9, 10, 11) keep the status bar short: "You may use [card
 ## Statistics (stats.jsonc)
 
 Per player: rounds played, rounds stopped, crashes, Last Chance used (bool) and the round it was used in (set only when used, so unused games don't skew the average), stars banked, best round, cards played (chain cards included), powers used per value, counted when they resolve (1: extra cards added; 2, 9, 11: uses; 10: cards swapped or redrawn), grand slam (bool).
-Added after M4 (2026-11-17): the best opponent score when the Last Chance was used (`lastChanceOpponentScore`, the highest other player's score at that reveal, set only when used, like the round), stars lost to crashes (`starsLostToCrashes`, the crashed columns' stars), most stars lost in one crash (`biggestCrash`), and rounds stopped after using the Last Chance (`lastChanceSaves`: a Stop revealed in the same round number as the Last Chance). Best round (`bestRound`) counts banked stars only, so a Grand Slam round never counts; its name says so.
+Added after M4 (2026-11-17): the best opponent score when the Grand Slam was scored (`grandSlamOpponentScore`, id 28: the highest score among the winner's other players, co-winners included, read before any Grand Slam score is set; set only for a Grand Slam winner, like the Last Chance round), stars lost to crashes (`starsLostToCrashes`, the crashed columns' stars), most stars lost in one crash (`biggestCrash`), and rounds stopped after using the Last Chance (`lastChanceSaves`: a Stop revealed in the same round number as the Last Chance). Best round (`bestRound`) counts banked stars only, so a Grand Slam round never counts; its name says so.
 Table: rounds, turns (dice rolls).
-Full list with ids: `.claude/plans/milestone-4.md` (ids 24 to 27 added since: see `stats.jsonc`).
+Full list with ids: `.claude/plans/milestone-4.md` (ids 25 to 28 added since: see `stats.jsonc`). Id 24 is retired, never reused: it was `lastChanceOpponentScore` in beta, dropped for `grandSlamOpponentScore`.
 
 ## Milestones
 
@@ -271,7 +271,7 @@ Full list with ids: `.claude/plans/milestone-4.md` (ids 24 to 27 added since: se
      - Progression: highest banked score plus column stars of players not crashed, out of 40, capped at 99; recomputed in `RoundSetup` and `RevealCards` (no longer in `EndRound`).
      - Alpha items: copyright header on every PHP and TS file, `console.log` removed, log text color forced dark for BGA's dark mode, `estimated_duration` 20. The Grand Slam glow now survives F5 (M2 known limit fixed).
      - Differs from the plan: `clickOrTap()` is not ported (the fast-forward hint is two whole translatable strings, since Fugu's `_()` of a built string can't be translated); the card-9 zombie builds its choices in `ModifyDie` (no shared helper, it is the only user); log rows get their card tooltips through `LogMutationObserver` (`addTooltipsToCardsIn`) instead of whole-page passes.
-     - Verified in beta (2026-11-17): `playerStats->set` on the never-initialized `lastChanceRound` works, so `lastChanceOpponentScore` follows the same pattern.
+     - Verified in beta (2026-11-17): `playerStats->set` on the never-initialized `lastChanceRound` works, so `grandSlamOpponentScore` follows the same pattern.
      - Unverified until Studio: `getBestZombieChoice` (fallback: pick the max with `bga_rand` tie-breaks); BGA's dark mode selectors (only the log text color is forced).
      - After M4: game-area cards show the power reference (see Power reference) instead of a per-card power tooltip; log mini cards keep the per-card one. Icons from `img/power_icons_sprite.webp`.
      - Power timing settled with Helvetiq (2026-10-14): cards 2, 10 and 11 resolve after Stop or More, only for owners who chose More, clockwise from the new Start token holder (`RevealStopOrMore` starts the walk, `RevealCards` goes straight to `PassStartToken`). This replaces M3's cancel-on-Stop: `added_golden_die_POWER11`, the `powerCancelled` notification, the `power-cancelled-log` row and the stat decrements are gone. A second 11 in the same turn is skipped silently.
