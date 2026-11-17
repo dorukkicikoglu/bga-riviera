@@ -91,15 +91,24 @@ class RevealCards extends \Bga\GameFramework\States\GameState
                 $this->game->DbQuery("UPDATE `player` SET `last_chance_used` = 'yes' WHERE `player_id` = $playerID");
                 $this->game->bga->playerStats->set('lastChanceUsed', true, $playerID);
                 $this->game->bga->playerStats->set('lastChanceRound', (int) $this->game->bga->globals->get('roundNumber'), $playerID);
+                //like lastChanceRound, only set when used. Scores don't change during the reveal (a Grand Slam scores after it)
+                $otherScores = $this->game->bga->playerScore->getAll();
+                unset($otherScores[$playerID]);
+                $this->game->bga->playerStats->set('lastChanceOpponentScore', empty($otherScores) ? 0 : (int) max($otherScores), $playerID);
 
                 $reveals[] = ['player_id' => $playerID, 'choice' => 'last_chance', 'card' => null, 'extra_cards_POWER1' => []];
                 $revealLogParts[] = $playerName.': Last Chance';
                 $lastChancePlayerIDs[] = $playerID;
             } else if($playChoice === 'crash'){
                 $this->game->DbQuery("UPDATE `player` SET `round_status` = 'crashed' WHERE `player_id` = $playerID");
+                $starsLost = $this->game->tableManager->getStarsInColumn($playerID); //read before the column is discarded
                 $this->game->tableManager->discardPlayerCards($playerID);
                 $this->game->tableManager->saveRoundScore((int) $this->game->bga->globals->get('roundNumber'), $playerID, 'crashed', 0);
                 $this->game->bga->playerStats->inc('crashes', 1, $playerID);
+                //added after tables already in progress, which never initialised them: safe read, then set
+                $this->game->incPlayerStatSafely('starsLostToCrashes', $starsLost, $playerID);
+                if($starsLost > $this->game->getPlayerStatOrDefault('biggestCrash', $playerID))
+                    $this->game->bga->playerStats->set('biggestCrash', $starsLost, $playerID);
 
                 $crashedPlayerIDs[] = $playerID;
             }

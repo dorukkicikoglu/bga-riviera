@@ -203,11 +203,19 @@ Tooltips:
 Statistics (play a game to the end, then the Statistics tab):
 - [ ] Rounds and turns (dice rolls) are right.
 - [ ] A player who crashed once, used the Last Chance in round 2 and stopped the other rounds: crashes 1, Last Chance used yes, round 2, stars banked equal to their score.
-- [ ] A player who never used the Last Chance shows no Last Chance round (if the end of the game fails with a stats error on `lastChanceRound`, paste it: it then needs an init to 0).
+- [x] A player who never used the Last Chance shows no Last Chance round (if the end of the game fails with a stats error on `lastChanceRound`, paste it: it then needs an init to 0).
 - [ ] Best round, rounds stopped and rounds played are right.
 - [ ] A chain of three cards counts 3 cards played and 2 extra cards (card 1).
 - [ ] Cards 2 and 11 count only when they resolve (owner chose More): a 2 played before a Stop adds nothing. Card 10 counts when it resolves, before Stop or More, so a swap followed by a Stop still counts. Card 9 counts each die turned, card 10 the cards swapped or redrawn (2 per use).
 - [ ] A Grand Slam sets Grand Slam to yes.
+
+Statistics added after M4 (2026-11-17), on a table created after the deploy (the new counters are initialised at setup):
+- [ ] Use the Last Chance while the others have 12 and 20: best opponent score 20. A player who never used it shows no value.
+- [ ] Use the Last Chance, then stop in that round: rounds stopped after Last Chance 1. Use it, then crash in that round: 0.
+- [ ] Use the Last Chance, `debug_redeal()`, then stop in the new round: still 0.
+- [ ] Crash with 7 stars in your column, then with 4: stars lost to crashes 11, most stars lost in one crash 7. Crashing with an empty column adds 0.
+- [ ] Win with a Grand Slam: best round doesn't change.
+- [ ] On a table created before the deploy (in progress, no new counters): crash with stars in your column, and use the Last Chance then stop. No error, the game goes on, and the new stats show the values from after the deploy.
 
 End-game display:
 - [ ] `debug_setScores(38)`, then finish a round with someone banking 2 ★ or more: a gold "<name> wins with N ★" log row, then the table fades in cell by cell. Clicking anywhere fast-forwards. The winners' names jump.
