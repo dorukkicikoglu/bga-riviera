@@ -204,8 +204,8 @@ export class DiceHandler{
     }
 
     //card 11, the dice area's golden die only: the avatars of the owners who may still add it, side by side and centred
-    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with its player's name
-    //as a tooltip. They sit in the die's slot, not in the die: hovering one doesn't also bring up the die's tooltip, and
+    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with the golden die's
+    //own tooltip. They sit in the die's slot, not in the die: hovering one doesn't bring up a second tooltip, and
     //the roll's copies of the die (fading out, rolling in) never carry them. Rebuilt only when the owners change; gone
     //with the faded look (added, skipped, owner stopped, rolled)
     private applyAdderAvatarsPOWER11(aDie: HTMLDivElement, dieData: RivieraDie): void {
@@ -240,7 +240,7 @@ export class DiceHandler{
         dieSlot.appendChild(adderAvatars);
 
         //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
-        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11();
+        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11(dieData);
     }
 
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,

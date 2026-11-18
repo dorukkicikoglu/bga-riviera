@@ -481,8 +481,8 @@ class DiceHandler {
         this.applyReservationRingPOWER2(aDie, withRing ? dieData : null, !isRoll);
     }
     //card 11, the dice area's golden die only: the avatars of the owners who may still add it, side by side and centred
-    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with its player's name
-    //as a tooltip. They sit in the die's slot, not in the die: hovering one doesn't also bring up the die's tooltip, and
+    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with the golden die's
+    //own tooltip. They sit in the die's slot, not in the die: hovering one doesn't bring up a second tooltip, and
     //the roll's copies of the die (fading out, rolling in) never carry them. Rebuilt only when the owners change; gone
     //with the faded look (added, skipped, owner stopped, rolled)
     applyAdderAvatarsPOWER11(aDie, dieData) {
@@ -513,7 +513,7 @@ class DiceHandler {
         }
         dieSlot.appendChild(adderAvatars);
         //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
-        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11();
+        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11(dieData);
     }
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,
     //reserved (closed padlock, solid ring) from then. null: none (a die rolling in gets its padlock once it has landed). The
@@ -1570,16 +1570,36 @@ class TooltipHandler {
         const logs = document.getElementById('logs');
         if (logs)
             this.addTooltipsToCardsIn(logs);
-        for (let dieData of this.game.diceHandler.getDiceData())
+        for (let dieData of this.game.diceHandler.getDiceData()) {
             this.updateDieTooltip(dieData);
-        this.addDieAdderAvatarTooltipsPOWER11();
+            this.addDieAdderAvatarTooltipsPOWER11(dieData);
+        }
     }
-    //card 11: each avatar under the golden die that may be added (DiceHandler.applyAdderAvatarsPOWER11) shows its player's name
-    addDieAdderAvatarTooltipsPOWER11() {
+    //card 11: each avatar under the golden die that may be added (DiceHandler.applyAdderAvatarsPOWER11) shows the golden
+    //die's own tooltip (getAdditionTooltipHTMLPOWER11), so hovering the die or any avatar reads the same. DiceHandler calls
+    //this whenever it rebuilds the avatars, which it does whenever the owners (the tooltip's only content) change
+    addDieAdderAvatarTooltipsPOWER11(dieData) {
+        const additionTooltipHTML = this.getAdditionTooltipHTMLPOWER11(dieData);
+        if (!additionTooltipHTML)
+            return;
         document.querySelectorAll('.die-adder-avatar-power11[id]').forEach((avatar) => {
-            const playerID = parseInt(avatar.id.replace('die-adder-avatar-power11-', ''));
-            this.game.bga.gameui.addTooltip(avatar.id, this.game.getPlayerName(playerID), '', TooltipHandler.TOOLTIP_DELAY);
+            this.game.bga.gameui.addTooltipHtml(avatar.id, additionTooltipHTML, TooltipHandler.TOOLTIP_DELAY);
         });
+    }
+    //card 11: the golden die that may be added (DiceHandler.applyDieData), one line per owner who may still add it; null
+    //for any other die or state
+    getAdditionTooltipHTMLPOWER11(dieData) {
+        const pendingAdders = dieData.pending_in_use_by_POWER11 ?? [];
+        if (dieData.color !== 'gold' || dieData.value !== null || pendingAdders.length === 0)
+            return null;
+        const additionLines = pendingAdders.map(pendingAdder => {
+            const isMine = pendingAdder.player_id === this.game.getMyPlayerID();
+            const additionText = isMine ? _('${you} may add the golden die with ${card_icon}') : _('${player_name} may add the golden die with ${card_icon}');
+            return additionText
+                .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(pendingAdder.player_id, { class: 'playername tooltip-playername' }))
+                .replace('${card_icon}', this.game.getInlineCardIconHTML(pendingAdder.card_color, 11));
+        });
+        return this.getDieTooltipHTML(additionLines.join('<br>'), 'die-addition-tooltip-power11');
     }
     //every card in the game area (my hand, every played column) shows the power reference, with the hovered card's power
     //on top. Tooltips only reach the cards already on the page, so this runs again whenever cards are created
@@ -1748,18 +1768,11 @@ class TooltipHandler {
             this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
             return;
         }
-        //card 11: the golden die that may be added (DiceHandler.applyDieData) gets one line per owner who may still add it
-        //instead of its default text, like a pending card 2
-        const pendingAdders = dieData.pending_in_use_by_POWER11 ?? [];
-        if (dieData.value === null && pendingAdders.length > 0) {
-            const additionLines = pendingAdders.map(pendingAdder => {
-                const isMine = pendingAdder.player_id === this.game.getMyPlayerID();
-                const additionText = isMine ? _('${you} may add the golden die with ${card_icon}') : _('${player_name} may add the golden die with ${card_icon}');
-                return additionText
-                    .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(pendingAdder.player_id, { class: 'playername tooltip-playername' }))
-                    .replace('${card_icon}', this.game.getInlineCardIconHTML(pendingAdder.card_color, 11));
-            });
-            this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(additionLines.join('<br>'), 'die-addition-tooltip-power11'), TooltipHandler.TOOLTIP_DELAY);
+        //card 11: the golden die that may be added gets one line per owner who may still add it instead of its default
+        //text, like a pending card 2. Its avatars show the same (addDieAdderAvatarTooltipsPOWER11)
+        const additionTooltipHTML = this.getAdditionTooltipHTMLPOWER11(dieData);
+        if (additionTooltipHTML) {
+            this.game.bga.gameui.addTooltipHtml(dieID, additionTooltipHTML, TooltipHandler.TOOLTIP_DELAY);
             return;
         }
         const lines = [dieData.color === 'gold'
