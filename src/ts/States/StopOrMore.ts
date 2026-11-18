@@ -65,10 +65,13 @@ export class StopOrMore {
             //after the label, the card whose power only resolves if I keep going (nothing when there is none)
             const moreLabel = '<i class="fa6 fa-forward button-forward-icon" aria-hidden="true"></i>' + _('Keep Going') + this.game.getStatusCardIconHTML(this.powerCardNeedingMore);
             const moreButton = this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
-            const powerIcon = moreButton.querySelector('.status-card-icon') as HTMLElement | null;
-            if(powerIcon){
-                this.powerIconID = powerIcon.id;
-                this.game.tooltipHandler?.addPowerNeedingMoreTooltip(powerIcon);
+            const powerDisc = moreButton.querySelector('.status-card-icon') as HTMLElement | null;
+            if(powerDisc){
+                this.powerIconID = powerDisc.id;
+                this.game.tooltipHandler?.addPowerNeedingMoreTooltip(powerDisc);
+                //that card's power icon (the power reference's .power-icon), hanging under the disc: only ever inside it, so it
+                //shows exactly when the disc does. Game.scss takes it out of the flow (#more-button .more-button-power-icon)
+                powerDisc.insertAdjacentHTML('beforeend', `<span class="power-icon more-button-power-icon" data-power-value="${this.powerCardNeedingMore.value}" aria-hidden="true"></span>`);
             }
         } else if(this.pendingChoice){
             const pendingChoiceTitles: Record<StopOrMoreChoice, string> = {
