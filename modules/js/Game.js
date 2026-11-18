@@ -256,7 +256,7 @@ class StopOrMore {
         this.bga = bga;
         this.pendingChoice = null;
         this.powerCardNeedingMore = null; //kept: the args only arrive on entering the state, and Undo rebuilds the buttons
-        this.powerIconID = null;
+        this.powerTooltipIDs = []; //the disc's and its power icon's, removed before the buttons go
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
@@ -298,11 +298,24 @@ class StopOrMore {
             const moreButton = this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), { id: 'more-button' });
             const powerDisc = moreButton.querySelector('.status-card-icon');
             if (powerDisc) {
-                this.powerIconID = powerDisc.id;
-                this.game.tooltipHandler?.addPowerNeedingMoreTooltip(powerDisc);
-                //that card's power icon (the power reference's .power-icon), hanging under the disc: only ever inside it, so it
-                //shows exactly when the disc does. Game.scss takes it out of the flow (#more-button .more-button-power-icon)
-                powerDisc.insertAdjacentHTML('beforeend', `<span class="power-icon more-button-power-icon" data-power-value="${this.powerCardNeedingMore.value}" aria-hidden="true"></span>`);
+                //that card's power icon (the power reference's .power-icon), hanging under the disc, added with it, so it shows
+                //exactly when the disc does. Beside the disc, not in it, in an anchor with the disc's box (Game.scss,
+                //#more-button .more-button-power-icon-anchor): the disc's tooltip can open below the disc, over the icon, and BGA
+                //closes a tooltip as soon as the pointer enters it, so the icon gets its own tooltip, placed around the icon.
+                //BGA's single tooltip popup means only one of the two is ever open
+                powerDisc.insertAdjacentHTML('afterend', `<span class="more-button-power-icon-anchor"><span id="${StopOrMore.POWER_ICON_ID}" class="power-icon more-button-power-icon" data-power-value="${this.powerCardNeedingMore.value}" aria-hidden="true"></span></span>`);
+                const powerIcon = document.getElementById(StopOrMore.POWER_ICON_ID);
+                //it mostly hangs below the button, so a click on it never reaches the button: no Keep Going from a misclick.
+                //In the capture phase, and stopped there, so BGA's own click listener on the icon (which closes its tooltip)
+                //doesn't run either, and a tap can open the tooltip like a hover
+                powerIcon.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }, true);
+                for (const element of [powerDisc, powerIcon]) {
+                    this.powerTooltipIDs.push(element.id);
+                    this.game.tooltipHandler?.addPowerNeedingMoreTooltip(element);
+                }
             }
         }
         else if (this.pendingChoice) {
@@ -331,18 +344,18 @@ class StopOrMore {
             return totalAfterBanking > bestTotal;
         });
     }
-    //the icon is inside the button, so the pointer is on it when it is clicked, and no mouseleave comes once the button is
-    //gone: without this, its tooltip would stay on screen
+    //the disc is inside the button, so the pointer is on it when it is clicked, and no mouseleave comes once the button is
+    //gone: without this, its tooltip would stay on screen. The same for the power icon under it
     removePowerIconTooltip() {
-        if (this.powerIconID !== null)
-            this.bga.gameui.removeTooltip(this.powerIconID);
-        this.powerIconID = null;
+        this.powerTooltipIDs.forEach(id => this.bga.gameui.removeTooltip(id));
+        this.powerTooltipIDs = [];
     }
     //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange
     setPendingChoice(pendingChoice) {
         this.pendingChoice = pendingChoice;
     }
 }
+StopOrMore.POWER_ICON_ID = 'more-button-power-icon';
 
 class DiceHandler {
     constructor(game, diceData) {
@@ -362,6 +375,7 @@ class DiceHandler {
             dieSlot.setAttribute('data-color', dieData.color);
             dieSlot.appendChild(aDie);
             this.diceContainer.appendChild(dieSlot);
+            this.applyAdderAvatarsPOWER11(aDie, dieData); //in its slot now (createDieDiv ran before)
         }
         this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
     }
@@ -447,15 +461,59 @@ class DiceHandler {
     }
     //a die with no value is never displayed (Game.scss hides data-value=""). Only a roll ($isRoll) or a new die takes a
     //face away: any other update without a value (the golden die expiring after the reveal) keeps the last roll's face up,
-    //so the dice area shows the last roll until the next one, where it fades out with the others
+    //so the dice area shows the last roll until the next one, where it fades out with the others.
+    //Card 11: the golden die with no value shows blank ("blank": no pips, but shown) from the reveal of a card 11 until the
+    //roll it joins, faded while it may be added (ADDITION_PENDING_CLASS_POWER11), at full opacity once added; a blank golden
+    //die no card 11 may add any more (skipped, owner stopped) goes
     applyDieData(aDie, dieData, isRoll = false, withRing = true) {
+        const isAdditionPendingPOWER11 = (dieData.pending_in_use_by_POWER11?.length ?? 0) > 0;
+        const currentValue = aDie.getAttribute('data-value');
         if (dieData.value !== null)
             aDie.setAttribute('data-value', dieData.value.toString());
-        else if (isRoll || !aDie.getAttribute('data-value'))
+        else if (dieData.color === 'gold' && (isAdditionPendingPOWER11 || dieData.in_use_by_POWER11))
+            aDie.setAttribute('data-value', 'blank');
+        else if (isRoll || !currentValue || currentValue === 'blank')
             aDie.setAttribute('data-value', '');
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
+        aDie.classList.toggle(DiceHandler.ADDITION_PENDING_CLASS_POWER11, isAdditionPendingPOWER11 && dieData.value === null);
+        this.applyAdderAvatarsPOWER11(aDie, dieData);
         this.applyReservationRingPOWER2(aDie, withRing ? dieData : null, !isRoll);
+    }
+    //card 11, the dice area's golden die only: the avatars of the owners who may still add it, side by side and centred
+    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with its player's name
+    //as a tooltip. They sit in the die's slot, not in the die: hovering one doesn't also bring up the die's tooltip, and
+    //the roll's copies of the die (fading out, rolling in) never carry them. Rebuilt only when the owners change; gone
+    //with the faded look (added, skipped, owner stopped, rolled)
+    applyAdderAvatarsPOWER11(aDie, dieData) {
+        const dieSlot = aDie.parentElement;
+        if (dieData.color !== 'gold' || !dieSlot?.classList.contains('die-slot'))
+            return;
+        const adderIDs = (dieData.value === null) ? (dieData.pending_in_use_by_POWER11 ?? []).map(pendingAdder => pendingAdder.player_id) : [];
+        const shownAvatars = dieSlot.querySelector('.' + DiceHandler.ADDER_AVATARS_CLASS_POWER11);
+        if ((shownAvatars?.getAttribute('data-player-ids') ?? '') === adderIDs.join(','))
+            return;
+        if (shownAvatars) { //the pointer may be on one: its tooltip goes before it does
+            shownAvatars.querySelectorAll('[id]').forEach(avatar => this.game.bga.gameui.removeTooltip(avatar.id));
+            shownAvatars.remove();
+        }
+        if (adderIDs.length === 0)
+            return;
+        const adderAvatars = document.createElement('div');
+        adderAvatars.className = DiceHandler.ADDER_AVATARS_CLASS_POWER11;
+        adderAvatars.setAttribute('data-player-ids', adderIDs.join(','));
+        adderAvatars.style.setProperty('--adder-count', adderIDs.length.toString()); //Game.scss fits the row within the die's width
+        for (let adderID of adderIDs) {
+            const avatar = document.createElement('span');
+            avatar.id = 'die-adder-avatar-power11-' + adderID;
+            avatar.className = 'die-adder-avatar-power11';
+            avatar.style.setProperty('--adder-color', '#' + (this.game.getPlayerColor(adderID) ?? '000000'));
+            this.game.fillPlayerAvatar(avatar, adderID, 'die-adder-avatar-image-power11', 'die-adder-avatar-initial-power11', DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11);
+            adderAvatars.appendChild(avatar);
+        }
+        dieSlot.appendChild(adderAvatars);
+        //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
+        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11();
     }
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,
     //reserved (closed padlock, solid ring) from then. null: none (a die rolling in gets its padlock once it has landed). The
@@ -732,6 +790,9 @@ DiceHandler.MODIFIABLE_CLASS_POWER9 = 'modifiable-die-power9'; //the die shows i
 DiceHandler.SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
 DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
 DiceHandler.RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
+DiceHandler.ADDITION_PENDING_CLASS_POWER11 = 'die-addition-pending-power11'; //the golden die a revealed card 11 may add: blank, its face faded (fainter than a pending card 2's)
+DiceHandler.ADDER_AVATARS_CLASS_POWER11 = 'die-adder-avatars-power11'; //under that golden die, on the card 2 padlock's line: the avatars of the owners who may add it
+DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11 = '_32'; //BGA's small avatar, the player boards' own
 //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
 //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
 //lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). Both are 576 x
@@ -1511,6 +1572,14 @@ class TooltipHandler {
             this.addTooltipsToCardsIn(logs);
         for (let dieData of this.game.diceHandler.getDiceData())
             this.updateDieTooltip(dieData);
+        this.addDieAdderAvatarTooltipsPOWER11();
+    }
+    //card 11: each avatar under the golden die that may be added (DiceHandler.applyAdderAvatarsPOWER11) shows its player's name
+    addDieAdderAvatarTooltipsPOWER11() {
+        document.querySelectorAll('.die-adder-avatar-power11[id]').forEach((avatar) => {
+            const playerID = parseInt(avatar.id.replace('die-adder-avatar-power11-', ''));
+            this.game.bga.gameui.addTooltip(avatar.id, this.game.getPlayerName(playerID), '', TooltipHandler.TOOLTIP_DELAY);
+        });
     }
     //every card in the game area (my hand, every played column) shows the power reference, with the hovered card's power
     //on top. Tooltips only reach the cards already on the page, so this runs again whenever cards are created
@@ -1626,7 +1695,8 @@ class TooltipHandler {
         if (this.isSafariMobile())
             return;
         const noteHTML = `<div class="power-needing-more-note">${_('This power resolves only if you keep going')}</div>`;
-        this.game.bga.gameui.addTooltipHtml(icon.id, this.getPowerTooltipHTML(parseInt(icon.getAttribute('data-value')), 'status-bar-power-tooltip', noteHTML), TooltipHandler.TOOLTIP_DELAY);
+        const value = parseInt(icon.getAttribute('data-value') ?? icon.getAttribute('data-power-value')); //the disc, or the power icon under it
+        this.game.bga.gameui.addTooltipHtml(icon.id, this.getPowerTooltipHTML(value, 'status-bar-power-tooltip', noteHTML), TooltipHandler.TOOLTIP_DELAY);
     }
     //player boards and played columns: the parts that aren't self-explanatory
     addTooltipsToBoards() {
@@ -1676,6 +1746,20 @@ class TooltipHandler {
                 .replace('${die_color}', this.getDieColorName(dieData.color))
                 .replace('${card_icon}', this.game.getInlineCardIconHTML(dieData.color, 2));
             this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(reservationHTML, 'die-reservation-tooltip-power2'), TooltipHandler.TOOLTIP_DELAY);
+            return;
+        }
+        //card 11: the golden die that may be added (DiceHandler.applyDieData) gets one line per owner who may still add it
+        //instead of its default text, like a pending card 2
+        const pendingAdders = dieData.pending_in_use_by_POWER11 ?? [];
+        if (dieData.value === null && pendingAdders.length > 0) {
+            const additionLines = pendingAdders.map(pendingAdder => {
+                const isMine = pendingAdder.player_id === this.game.getMyPlayerID();
+                const additionText = isMine ? _('${you} may add the golden die with ${card_icon}') : _('${player_name} may add the golden die with ${card_icon}');
+                return additionText
+                    .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(pendingAdder.player_id, { class: 'playername tooltip-playername' }))
+                    .replace('${card_icon}', this.game.getInlineCardIconHTML(pendingAdder.card_color, 11));
+            });
+            this.game.bga.gameui.addTooltipHtml(dieID, this.getDieTooltipHTML(additionLines.join('<br>'), 'die-addition-tooltip-power11'), TooltipHandler.TOOLTIP_DELAY);
             return;
         }
         const lines = [dieData.color === 'gold'
@@ -2636,7 +2720,7 @@ class LogMutationObserver {
     //icons only: "name [plus] [die]", the golden die blank (it has no value until the next roll), as big as the card 2 row's
     //die but with no ring and a flat gold face (the server's GOLDEN_DIE_POWER11_LOG_STR is the plain-text fallback)
     createLogGoldenDiePOWER11(player_id) {
-        const goldenDie = { color: 'gold', value: null, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const goldenDie = { color: 'gold', value: null, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true, pending_in_use_by_POWER11: [] };
         let logHTML = `
             <div class="golden-die-row">
                 ${this.game.divColoredPlayer(player_id, { class: 'playername' })}
@@ -2649,7 +2733,7 @@ class LogMutationObserver {
     //DIE_MODIFIED_POWER9_LOG_STR is the plain-text fallback). moveID tags the row, so a card 9 undo can remove it
     //(removeDieModifiedLogPOWER9)
     createLogDieModifiedPOWER9(player_id, card, dieColor, oldValue, newValue, moveID) {
-        const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const oldDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true, pending_in_use_by_POWER11: [] };
         const newDie = { ...oldDie, value: newValue };
         //rows logged before the card was sent have no card: the colon goes with it
         const cardHTML = card ? `<span class="die-modified-card">${this.getCardIconsHTML([card])}<span class="die-modified-colon">:</span></span>` : '';
@@ -4434,7 +4518,7 @@ class Game {
     //fills container with the player's avatar from their BGA player board (#avatar_<id>, there on setup for players, spectators
     //and replays alike), at a bigger size so it stays sharp (an <img> with imageClass). If the bigger one fails, the board's own;
     //with no avatar at all, the name's initial, with initialClass on container (a played column's header, the spotlight overlay)
-    fillPlayerAvatar(container, playerID, imageClass, initialClass) {
+    fillPlayerAvatar(container, playerID, imageClass, initialClass, sizeSuffix = Game.AVATAR_SIZE_SUFFIX) {
         const showInitial = () => {
             container.classList.add(initialClass);
             container.textContent = Array.from(this.getPlayerName(playerID))[0]?.toUpperCase() ?? '';
@@ -4457,7 +4541,7 @@ class Game {
                 showInitial();
             }
         });
-        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, Game.AVATAR_SIZE_SUFFIX + '$2'));
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, sizeSuffix + '$2'));
         container.appendChild(image);
     }
     //card ids for an action's comma-separated cardIDs param, sorted numerically so the request is the same whatever order
@@ -4684,8 +4768,10 @@ class Game {
     async notif_dieReserved_POWER2(args) {
         this.diceHandler.updateDice(args.dice);
     }
-    //the log row only: the golden die appears with the next roll (diceRolled), once it has a value
+    //the golden die that may be added (faded) is now added: blank and at full opacity until the next roll gives it a value
     async notif_goldenDieAdded_POWER11(args) {
+        if (args.dice) //notifications logged before the dice were added to it carry none
+            this.diceHandler.updateDice(args.dice);
     }
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);

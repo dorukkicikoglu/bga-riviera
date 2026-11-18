@@ -81,6 +81,7 @@ interface RivieraDie {
     pending_reserved_by_POWER2: number | null; //a revealed card 2 not applied yet: its owner
     modified_by_POWER9: boolean;
     in_use_by_POWER11: boolean;
+    pending_in_use_by_POWER11: { player_id: number; card_color: CardColor; }[]; //golden die only, while not in use: the revealed card 11 owners who may still add it, clockwise from the Start token holder
 }
 
 type PlayChoice = 'card' | 'last_chance' | 'crash';
@@ -180,6 +181,7 @@ interface DieReservedPOWER2Args {
 
 interface GoldenDieAddedPOWER11Args {
     player_id: number;
+    dice: RivieraDie[];
 }
 
 interface DieModifiedPOWER9Args {

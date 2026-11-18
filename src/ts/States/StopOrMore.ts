@@ -18,7 +18,8 @@ import { Game } from "../Game";
 export class StopOrMore {
     private pendingChoice: StopOrMoreChoice | null = null;
     private powerCardNeedingMore: RivieraCard | null = null; //kept: the args only arrive on entering the state, and Undo rebuilds the buttons
-    private powerIconID: string | null = null;
+    private static readonly POWER_ICON_ID = 'more-button-power-icon';
+    private powerTooltipIDs: string[] = []; //the disc's and its power icon's, removed before the buttons go
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -67,11 +68,24 @@ export class StopOrMore {
             const moreButton = this.bga.statusBar.addActionButton(moreLabel, () => this.bga.actions.performAction('actMore'), {id: 'more-button'});
             const powerDisc = moreButton.querySelector('.status-card-icon') as HTMLElement | null;
             if(powerDisc){
-                this.powerIconID = powerDisc.id;
-                this.game.tooltipHandler?.addPowerNeedingMoreTooltip(powerDisc);
-                //that card's power icon (the power reference's .power-icon), hanging under the disc: only ever inside it, so it
-                //shows exactly when the disc does. Game.scss takes it out of the flow (#more-button .more-button-power-icon)
-                powerDisc.insertAdjacentHTML('beforeend', `<span class="power-icon more-button-power-icon" data-power-value="${this.powerCardNeedingMore.value}" aria-hidden="true"></span>`);
+                //that card's power icon (the power reference's .power-icon), hanging under the disc, added with it, so it shows
+                //exactly when the disc does. Beside the disc, not in it, in an anchor with the disc's box (Game.scss,
+                //#more-button .more-button-power-icon-anchor): the disc's tooltip can open below the disc, over the icon, and BGA
+                //closes a tooltip as soon as the pointer enters it, so the icon gets its own tooltip, placed around the icon.
+                //BGA's single tooltip popup means only one of the two is ever open
+                powerDisc.insertAdjacentHTML('afterend', `<span class="more-button-power-icon-anchor"><span id="${StopOrMore.POWER_ICON_ID}" class="power-icon more-button-power-icon" data-power-value="${this.powerCardNeedingMore.value}" aria-hidden="true"></span></span>`);
+                const powerIcon = document.getElementById(StopOrMore.POWER_ICON_ID);
+                //it mostly hangs below the button, so a click on it never reaches the button: no Keep Going from a misclick.
+                //In the capture phase, and stopped there, so BGA's own click listener on the icon (which closes its tooltip)
+                //doesn't run either, and a tap can open the tooltip like a hover
+                powerIcon.addEventListener('click', (event: Event) => {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }, true);
+                for(const element of [powerDisc, powerIcon]){
+                    this.powerTooltipIDs.push(element.id);
+                    this.game.tooltipHandler?.addPowerNeedingMoreTooltip(element);
+                }
             }
         } else if(this.pendingChoice){
             const pendingChoiceTitles: Record<StopOrMoreChoice, string> = {
@@ -101,12 +115,11 @@ export class StopOrMore {
         });
     }
 
-    //the icon is inside the button, so the pointer is on it when it is clicked, and no mouseleave comes once the button is
-    //gone: without this, its tooltip would stay on screen
+    //the disc is inside the button, so the pointer is on it when it is clicked, and no mouseleave comes once the button is
+    //gone: without this, its tooltip would stay on screen. The same for the power icon under it
     private removePowerIconTooltip(): void {
-        if(this.powerIconID !== null)
-            this.bga.gameui.removeTooltip(this.powerIconID);
-        this.powerIconID = null;
+        this.powerTooltipIDs.forEach(id => this.bga.gameui.removeTooltip(id));
+        this.powerTooltipIDs = [];
     }
 
     //stopOrMoreChoiceConfirmed / stopOrMoreChoiceReverted; the status bar follows through onPlayerActivationChange

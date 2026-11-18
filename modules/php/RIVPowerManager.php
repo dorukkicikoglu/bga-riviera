@@ -47,8 +47,9 @@ class RIVPowerManager{
                 $this->game->DbQuery("UPDATE `player` SET `pending_POWER$cardValue` = 'yes' WHERE `player_id` = $playerID");
         }
 
-        //a pending card 2 shows on its die until it is applied (getDice() pending_reserved_by_POWER2)
-        if(in_array(2, $lastCardValueByPlayer, true))
+        //a pending card 2 shows on its die until it is applied (getDice() pending_reserved_by_POWER2), and a pending card 11
+        //shows the golden die that may be added, faded (pending_in_use_by_POWER11)
+        if(in_array(2, $lastCardValueByPlayer, true) || in_array(11, $lastCardValueByPlayer, true))
             $this->notifyDiceUpdated();
     }
 
@@ -66,10 +67,10 @@ class RIVPowerManager{
      * Stops are applied, before any of them resolves: everyone still 'in' chose More. Card 10 has resolved already.
      */
     function clearPreRollPowersOfPlayersOut(): void{
-        $lostPOWER2Count = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `player` WHERE `pending_POWER2` = 'yes' AND `round_status` <> 'in'");
+        $lostPowerCount = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `player` WHERE (`pending_POWER2` = 'yes' OR `pending_POWER11` = 'yes') AND `round_status` <> 'in'");
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER2` = 'no', `pending_POWER11` = 'no' WHERE `round_status` <> 'in'");
 
-        if($lostPOWER2Count > 0) //their dice lose the pending card 2 look
+        if($lostPowerCount > 0) //their dice lose the pending card 2 look, and the golden die they may have added goes
             $this->notifyDiceUpdated();
     }
 
@@ -267,6 +268,9 @@ class RIVPowerManager{
             'reason' => $reason,
             'POWER_SKIPPED_LOG_STR' => $powerSkippedLogStr,
         ]);
+
+        if($cardValue === 11) //the golden die this owner may have added goes, unless another card 11 owner may still add it
+            $this->notifyDiceUpdated();
     }
 
     /**
@@ -294,11 +298,12 @@ class RIVPowerManager{
         $this->clearPendingPower($playerID, 11);
         $this->game->bga->playerStats->inc('powerUsed_POWER11', 1, $playerID);
 
-        //log row only, no dice: the golden die has no value until the next roll, which shows it with the colored dice
+        //the dice: the golden die that may be added turns into the added one, blank (no value until the next roll) at full opacity
         $goldenDieLogStr = $this->game->getPlayerNameById($playerID).' adds the golden die to the next roll';
         $this->game->bga->notify->all('goldenDieAdded_POWER11', '${GOLDEN_DIE_POWER11_LOG_STR}', [
             'preserve' => ['player_id'],
             'player_id' => $playerID,
+            'dice' => $this->game->tableManager->getDice(),
             'GOLDEN_DIE_POWER11_LOG_STR' => $goldenDieLogStr,
         ]);
     }

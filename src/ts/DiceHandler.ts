@@ -18,6 +18,9 @@ export class DiceHandler{
     private static readonly SELECTED_ARROW_CLASS_POWER9 = 'selected-die-arrow-power9';
     private static readonly PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the value it would become
     private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
+    private static readonly ADDITION_PENDING_CLASS_POWER11 = 'die-addition-pending-power11'; //the golden die a revealed card 11 may add: blank, its face faded (fainter than a pending card 2's)
+    private static readonly ADDER_AVATARS_CLASS_POWER11 = 'die-adder-avatars-power11'; //under that golden die, on the card 2 padlock's line: the avatars of the owners who may add it
+    private static readonly ADDER_AVATAR_SIZE_SUFFIX_POWER11 = '_32'; //BGA's small avatar, the player boards' own
     //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
     //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
     //lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). Both are 576 x
@@ -72,6 +75,7 @@ export class DiceHandler{
             dieSlot.setAttribute('data-color', dieData.color);
             dieSlot.appendChild(aDie);
             this.diceContainer.appendChild(dieSlot);
+            this.applyAdderAvatarsPOWER11(aDie, dieData); //in its slot now (createDieDiv ran before)
         }
 
         this.diceContainer.addEventListener('click', (event: Event) => { this.diceContainerClicked(event); });
@@ -178,16 +182,65 @@ export class DiceHandler{
 
     //a die with no value is never displayed (Game.scss hides data-value=""). Only a roll ($isRoll) or a new die takes a
     //face away: any other update without a value (the golden die expiring after the reveal) keeps the last roll's face up,
-    //so the dice area shows the last roll until the next one, where it fades out with the others
+    //so the dice area shows the last roll until the next one, where it fades out with the others.
+    //Card 11: the golden die with no value shows blank ("blank": no pips, but shown) from the reveal of a card 11 until the
+    //roll it joins, faded while it may be added (ADDITION_PENDING_CLASS_POWER11), at full opacity once added; a blank golden
+    //die no card 11 may add any more (skipped, owner stopped) goes
     private applyDieData(aDie: HTMLDivElement, dieData: RivieraDie, isRoll: boolean = false, withRing: boolean = true): void {
+        const isAdditionPendingPOWER11 = (dieData.pending_in_use_by_POWER11?.length ?? 0) > 0;
+        const currentValue = aDie.getAttribute('data-value');
         if(dieData.value !== null)
             aDie.setAttribute('data-value', dieData.value.toString());
-        else if(isRoll || !aDie.getAttribute('data-value'))
+        else if(dieData.color === 'gold' && (isAdditionPendingPOWER11 || dieData.in_use_by_POWER11))
+            aDie.setAttribute('data-value', 'blank');
+        else if(isRoll || !currentValue || currentValue === 'blank')
             aDie.setAttribute('data-value', '');
         aDie.setAttribute('data-modified-by-power9', dieData.modified_by_POWER9 ? 'true' : 'false');
         aDie.setAttribute('data-in-use-by-power11', dieData.in_use_by_POWER11 ? 'true' : 'false');
+        aDie.classList.toggle(DiceHandler.ADDITION_PENDING_CLASS_POWER11, isAdditionPendingPOWER11 && dieData.value === null);
+        this.applyAdderAvatarsPOWER11(aDie, dieData);
 
         this.applyReservationRingPOWER2(aDie, withRing ? dieData : null, !isRoll);
+    }
+
+    //card 11, the dice area's golden die only: the avatars of the owners who may still add it, side by side and centred
+    //as a group on the card 2 padlock's line under the die (Game.scss, die-bottom-badge-place), each with its player's name
+    //as a tooltip. They sit in the die's slot, not in the die: hovering one doesn't also bring up the die's tooltip, and
+    //the roll's copies of the die (fading out, rolling in) never carry them. Rebuilt only when the owners change; gone
+    //with the faded look (added, skipped, owner stopped, rolled)
+    private applyAdderAvatarsPOWER11(aDie: HTMLDivElement, dieData: RivieraDie): void {
+        const dieSlot = aDie.parentElement;
+        if(dieData.color !== 'gold' || !dieSlot?.classList.contains('die-slot'))
+            return;
+
+        const adderIDs = (dieData.value === null) ? (dieData.pending_in_use_by_POWER11 ?? []).map(pendingAdder => pendingAdder.player_id) : [];
+        const shownAvatars = dieSlot.querySelector('.' + DiceHandler.ADDER_AVATARS_CLASS_POWER11);
+        if((shownAvatars?.getAttribute('data-player-ids') ?? '') === adderIDs.join(','))
+            return;
+
+        if(shownAvatars){ //the pointer may be on one: its tooltip goes before it does
+            shownAvatars.querySelectorAll('[id]').forEach(avatar => this.game.bga.gameui.removeTooltip(avatar.id));
+            shownAvatars.remove();
+        }
+        if(adderIDs.length === 0)
+            return;
+
+        const adderAvatars = document.createElement('div');
+        adderAvatars.className = DiceHandler.ADDER_AVATARS_CLASS_POWER11;
+        adderAvatars.setAttribute('data-player-ids', adderIDs.join(','));
+        adderAvatars.style.setProperty('--adder-count', adderIDs.length.toString()); //Game.scss fits the row within the die's width
+        for(let adderID of adderIDs){
+            const avatar = document.createElement('span');
+            avatar.id = 'die-adder-avatar-power11-' + adderID;
+            avatar.className = 'die-adder-avatar-power11';
+            avatar.style.setProperty('--adder-color', '#' + (this.game.getPlayerColor(adderID) ?? '000000'));
+            this.game.fillPlayerAvatar(avatar, adderID, 'die-adder-avatar-image-power11', 'die-adder-avatar-initial-power11', DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11);
+            adderAvatars.appendChild(avatar);
+        }
+        dieSlot.appendChild(adderAvatars);
+
+        //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
+        this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11();
     }
 
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,

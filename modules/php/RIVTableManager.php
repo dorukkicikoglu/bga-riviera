@@ -118,6 +118,7 @@ class RIVTableManager{
 
         $pendingReserverIDsPOWER2 = $this->getPendingReserverIDsPOWER2();
         $isReservationAwaitingRollPOWER2 = $this->isReservationAwaitingRollPOWER2();
+        $pendingAddersPOWER11 = $this->getPendingAddersPOWER11();
 
         $dice = [];
         foreach($diceDB as $dieDB){
@@ -129,6 +130,8 @@ class RIVTableManager{
                 'pending_reserved_by_POWER2' => ($reservedByPOWER2 === null) ? ($pendingReserverIDsPOWER2[$dieDB['die_color']] ?? null) : ($isReservationAwaitingRollPOWER2 ? $reservedByPOWER2 : null),
                 'modified_by_POWER9' => $dieDB['modified_by_POWER9'] === 'yes',
                 'in_use_by_POWER11' => $dieDB['in_use_by_POWER11'] === 'yes',
+                //the golden die only, while it is not in use: the card 11 owners who may still add it
+                'pending_in_use_by_POWER11' => ($dieDB['die_color'] === 'gold' && $dieDB['in_use_by_POWER11'] !== 'yes') ? $pendingAddersPOWER11 : [],
             ];
         }
         return $dice;
@@ -149,6 +152,29 @@ class RIVTableManager{
                 $pendingReserverIDs[$card['color']] = (int) $ownerID;
         }
         return $pendingReserverIDs;
+    }
+
+    /**
+     * Card 11 revealed but not resolved yet (pending_POWER11, from the reveal until its owner adds the golden die, skips
+     * it or stops): one entry per owner still in whose column still ends with that 11, clockwise from the Start token
+     * holder, with the 11's color (the die tooltip's card icon). Derived from the DB like getPendingReserverIDsPOWER2(),
+     * so the dice area shows the golden die that may be added after F5, to spectators and in replays.
+     */
+    function getPendingAddersPOWER11(): array{
+        $ownerIDs = array_map('intval', $this->game->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `pending_POWER11` = 'yes' AND `round_status` = 'in'", true));
+        if(empty($ownerIDs))
+            return [];
+
+        $pendingAdders = [];
+        foreach($this->getPlayerIDsInTurnOrderFrom((int) $this->game->bga->globals->get('startPlayerId')) as $playerID){
+            if(!in_array($playerID, $ownerIDs, true))
+                continue;
+
+            $card = $this->getLastPlayedCard($playerID);
+            if($card && $card['value'] === 11)
+                $pendingAdders[] = ['player_id' => $playerID, 'card_color' => $card['color']];
+        }
+        return $pendingAdders;
     }
 
     /**

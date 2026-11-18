@@ -258,7 +258,7 @@ export class LogMutationObserver{
     //icons only: "name [plus] [die]", the golden die blank (it has no value until the next roll), as big as the card 2 row's
     //die but with no ring and a flat gold face (the server's GOLDEN_DIE_POWER11_LOG_STR is the plain-text fallback)
     public createLogGoldenDiePOWER11(player_id: number): LogRowData {
-        const goldenDie: RivieraDie = { color: 'gold', value: null, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const goldenDie: RivieraDie = { color: 'gold', value: null, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true, pending_in_use_by_POWER11: [] };
         let logHTML = `
             <div class="golden-die-row">
                 ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
@@ -273,7 +273,7 @@ export class LogMutationObserver{
     //DIE_MODIFIED_POWER9_LOG_STR is the plain-text fallback). moveID tags the row, so a card 9 undo can remove it
     //(removeDieModifiedLogPOWER9)
     public createLogDieModifiedPOWER9(player_id: number, card: RivieraCard | null, dieColor: DieColor, oldValue: number, newValue: number, moveID: number): LogRowData {
-        const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true };
+        const oldDie: RivieraDie = { color: dieColor, value: oldValue, reserved_by_POWER2: null, pending_reserved_by_POWER2: null, modified_by_POWER9: false, in_use_by_POWER11: true, pending_in_use_by_POWER11: [] };
         const newDie: RivieraDie = { ...oldDie, value: newValue };
         //rows logged before the card was sent have no card: the colon goes with it
         const cardHTML = card ? `<span class="die-modified-card">${this.getCardIconsHTML([card])}<span class="die-modified-colon">:</span></span>` : '';

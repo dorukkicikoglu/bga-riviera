@@ -629,10 +629,10 @@ body .sliding-clone {
   max-height: 1.9em;
   aspect-ratio: 1;
   margin: auto 0;
+  container-type: size;
   border: none;
   background: #ffffff;
   text-shadow: none;
-  container-type: size;
 }
 #more-button .status-card-icon .status-card-icon-number {
   width: auto;
@@ -942,6 +942,9 @@ body .sliding-clone {
 #dice-container .a-die[data-reservation=maybe-other] {
   --die-face-opacity: 0.7;
 }
+#dice-container .a-die.die-addition-pending-power11 {
+  --die-face-opacity: 0.5;
+}
 #dice-container .a-die[data-reservation=reserved-other] {
   --die-face-opacity: 0.4;
 }
@@ -984,6 +987,50 @@ body .sliding-clone {
 }
 #dice-container .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2 {
   display: block;
+}
+#dice-container .die-adder-avatars-power11 {
+  position: absolute;
+  z-index: 1;
+  width: var(--die-size);
+  height: var(--lock-badge-size);
+  left: calc(50% - var(--die-size) / 2);
+  bottom: calc(-1 * var(--lock-badge-below));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  --adder-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--adder-count) - 1) * 0.65)));
+}
+#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11 {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--adder-avatar-size);
+  height: var(--adder-avatar-size);
+  border: 1.5px solid var(--adder-color, #1b1b1b);
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--adder-color, #1b1b1b);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11 + .die-adder-avatar-power11 {
+  margin-left: min(0px, (var(--die-size) - var(--adder-count) * var(--adder-avatar-size)) / (var(--adder-count) - 1));
+}
+#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11.die-adder-avatar-initial-power11 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: calc(var(--adder-avatar-size) * 0.5);
+  font-weight: bold;
+  text-shadow: 0px 0px 2px #000000;
+}
+#dice-container .die-adder-avatars-power11 .die-adder-avatar-image-power11 {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 #dice-container .a-die.die-reservation-pending-power2 .die-lock-badge-power2 {
   display: block;
@@ -2935,7 +2982,7 @@ body .sliding-clone.player-spotlight-card {
   width: fit-content;
   max-width: min(340px, 100%);
 }
-.tooltip-wrapper.single-power-reference.die-tooltip.die-reservation-tooltip-power2 {
+.tooltip-wrapper.single-power-reference.die-tooltip.die-reservation-tooltip-power2, .tooltip-wrapper.single-power-reference.die-tooltip.die-addition-tooltip-power11 {
   width: max-content;
   max-width: 100%;
 }
@@ -3206,46 +3253,61 @@ body .sliding-clone.player-spotlight-card {
   overflow: visible;
 }
 
-#more-button .status-card-icon:has(.more-button-power-icon) {
+#more-button .more-button-power-icon-anchor {
+  position: absolute;
+  top: 3.5px;
+  bottom: 3.5px;
+  right: 5px;
+  width: auto;
+  height: auto;
+  max-height: 1.9em;
+  aspect-ratio: 1;
+  margin: auto 0;
+  container-type: size;
   z-index: 1;
+  pointer-events: none;
 }
 
-#more-button .status-card-icon .more-button-power-icon {
+.notouch-device #more-button.bgabutton_blue:has(.more-button-power-icon:hover), #more-button.bgabutton_blue:has(.more-button-power-icon:active) {
+  background: var(--game-bga-button-primary), var(--game-bga-button-primary-border);
+}
+
+#more-button .more-button-power-icon-anchor .more-button-power-icon {
   position: absolute;
-  z-index: 1;
   top: 98%;
   left: 52%;
   translate: -50% 0;
   float: none;
   margin: 0px;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: default;
   filter: drop-shadow(calc(100cqh * 0.06) 0px 0px #ffffff) drop-shadow(calc(-1 * calc(100cqh * 0.06)) 0px 0px #ffffff) drop-shadow(0px calc(100cqh * 0.06) 0px #ffffff) drop-shadow(0px calc(-1 * calc(100cqh * 0.06)) 0px #ffffff) drop-shadow(0px calc(100cqh * 0.08) calc(100cqh * 0.12) rgba(0, 0, 0, 0.6));
 }
-#more-button .status-card-icon .more-button-power-icon[data-power-value="1"] {
+#more-button .more-button-power-icon-anchor .more-button-power-icon[data-power-value="1"] {
   width: calc(calc(100cqh * 1) * 0.6984126984);
   height: calc(calc(100cqh * 1) * 1);
   background-size: calc(calc(100cqh * 1) * 6.0317460317) calc(calc(100cqh * 1) * 1);
   background-position: calc(calc(100cqh * 1) * -0.253968254) calc(calc(100cqh * 1) * 0);
 }
-#more-button .status-card-icon .more-button-power-icon[data-power-value="2"] {
+#more-button .more-button-power-icon-anchor .more-button-power-icon[data-power-value="2"] {
   width: calc(calc(100cqh * 1) * 1);
   height: calc(calc(100cqh * 1) * 1);
   background-size: calc(calc(100cqh * 1) * 6.0317460317) calc(calc(100cqh * 1) * 1);
   background-position: calc(calc(100cqh * 1) * -1.3015873016) calc(calc(100cqh * 1) * 0);
 }
-#more-button .status-card-icon .more-button-power-icon[data-power-value="9"] {
+#more-button .more-button-power-icon-anchor .more-button-power-icon[data-power-value="9"] {
   width: calc(calc(100cqh * 1) * 1);
   height: calc(calc(100cqh * 1) * 1);
   background-size: calc(calc(100cqh * 1) * 6.0317460317) calc(calc(100cqh * 1) * 1);
   background-position: calc(calc(100cqh * 1) * -2.5079365079) calc(calc(100cqh * 1) * 0);
 }
-#more-button .status-card-icon .more-button-power-icon[data-power-value="10"] {
+#more-button .more-button-power-icon-anchor .more-button-power-icon[data-power-value="10"] {
   width: calc(calc(100cqh * 1) * 1);
   height: calc(calc(100cqh * 1) * 0.6315789474);
   background-size: calc(calc(100cqh * 1) * 5) calc(calc(100cqh * 1) * 0.8289473684);
   background-position: calc(calc(100cqh * 1) * -3) calc(calc(100cqh * 1) * -0.0921052632);
 }
-#more-button .status-card-icon .more-button-power-icon[data-power-value="11"] {
+#more-button .more-button-power-icon-anchor .more-button-power-icon[data-power-value="11"] {
   width: calc(calc(100cqh * 1) * 1);
   height: calc(calc(100cqh * 1) * 1);
   background-size: calc(calc(100cqh * 1) * 6.0317460317) calc(calc(100cqh * 1) * 1);

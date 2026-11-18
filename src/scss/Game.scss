@@ -277,8 +277,10 @@ $button-bank-icon-size: 1.118em;
 //The number is text in the label's font, not the sprite: the sprite's drawn numbers have dark shapes cut into them, which
 //would need a dark disc behind them. No text shadow, which a button's text can pass down
 $more-button-badge-inset: 3.5px;
+//the disc's box, shared with its power icon's anchor (.more-button-power-icon-anchor), which must match it exactly
+@mixin more-button-disc-box(){ position: absolute; top: $more-button-badge-inset; bottom: $more-button-badge-inset; right: 5px; width: auto; height: auto; max-height: 1.9em; aspect-ratio: 1; margin: auto 0; container-type: size; }
 #more-button:has(.status-card-icon){ position: relative; padding-right: calc(2.6em - 6px); }
-#more-button .status-card-icon{ position: absolute; top: $more-button-badge-inset; bottom: $more-button-badge-inset; right: 5px; width: auto; height: auto; max-height: 1.9em; aspect-ratio: 1; margin: auto 0; border: none; background: #ffffff; text-shadow: none; container-type: size;
+#more-button .status-card-icon{ @include more-button-disc-box(); border: none; background: #ffffff; text-shadow: none;
     //sized from the disc's height (cqh), so it follows the button's height: 70% of a disc 3px bigger than this one
     .status-card-icon-number{ width: auto; height: auto; background: none; font-size: 1.1em; font-size: calc(70cqh + 2.1px); }
     @for $value from 1 through $card-icon-number-frames {
@@ -334,7 +336,7 @@ $more-button-badge-inset: 3.5px;
             &[data-value="#{$value}"] .die-pip:nth-child(#{$pip}){ visibility: inherit; } //inherit, not visible: a hidden die (waiting for its rolling copy) must hide its pips too
         }
     }
-    &[data-value=""]{ display: none; } //no value: never shown. DiceHandler only blanks a die on a roll, so the golden die stays up until the next roll
+    &[data-value=""]{ display: none; } //no value: never shown. DiceHandler only blanks a die on a roll, so the golden die stays up until the next roll. A golden die a card 11 may add or has added is "blank" instead: shown with no pips
 
     &[data-modified-by-power9="true"]::after{ content: "±"; position: absolute; top: -9px; right: -9px; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; background: #ffffff; color: #000000; font-size: 13px; font-weight: bold; text-align: center; box-shadow: 1px 1px 2px #000000; }
 
@@ -348,6 +350,14 @@ $more-button-badge-inset: 3.5px;
 //state, so the dice never move when the arrows appear or go. The die's drop shadow falls 2px below it, so the gap below
 //is 2px wider: the two gaps then look the same. Below, the space is also never shorter than the card 2 padlock badge's
 //reach under the die (two thirds of it) plus 3px for its shadow, so a badge never overlaps what follows the dice row
+//the card 2 padlock badge's place under a die (--lock-badge-size and --lock-badge-below, set on #dice-container): one
+//badge-sized line centred on the die's bottom edge, a third over the die and two thirds below, $width wide and centred on
+//the die. Shared with the card 11 adders' avatars under the golden die, which take the die's width and centre their row
+@mixin die-bottom-badge-place($width: var(--lock-badge-size)){ position: absolute; z-index: 1; width: $width; height: var(--lock-badge-size); left: calc(50% - #{$width} / 2); bottom: calc(-1 * var(--lock-badge-below)); }
+
+$golden-die-addition-pending-face-opacity: 0.5; //the golden die a card 11 may add: fainter than a pending card 2 (0.7), so it reads as "possible, not added yet"
+$die-adder-avatar-max-overlap: 0.35; //share of an avatar the next one may cover before the avatars shrink instead (3 or more under the golden die)
+
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
 #dice-container{ --die-arrow-width: calc(var(--die-size) * 0.442); --die-arrow-height: calc(var(--die-arrow-width) * 0.62); --die-arrow-gap: 3px; --die-arrow-gap-below: calc(var(--die-arrow-gap) + 2px);
@@ -359,6 +369,7 @@ $more-button-badge-inset: 3.5px;
     .die-slot{ position: relative; }
 
     //another player's card 2, from my side (data-reservation, DiceHandler.getReservationForMe): reserved 0.4, pending 0.7.
+    //The golden die a revealed card 11 may add (die-addition-pending-power11, blank) fades further, for everyone.
     //Only the face fades (its color, edge and drop shadow on ::before, and the pips), never the die itself, so its card 2
     //padlock, the card 9 preview glow and the ± badge stay fully visible
     //the combo highlight's glow transitions here, on every die, so it fades both when the class comes and when it goes
@@ -366,6 +377,7 @@ $more-button-badge-inset: 3.5px;
         &::before{ content: ""; position: absolute; inset: 0px; border-radius: inherit; background: var(--die-face); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 2px 2px 4px #000000; opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
         .die-pip{ opacity: var(--die-face-opacity); transition: opacity 0.3s ease; }
         &[data-reservation="maybe-other"]{ --die-face-opacity: 0.7; }
+        &.die-addition-pending-power11{ --die-face-opacity: #{$golden-die-addition-pending-face-opacity}; }
         &[data-reservation="reserved-other"]{ --die-face-opacity: 0.4; }
     }
     //the previous roll's dice fading out in place (DiceHandler.fadeOutShownDice), under the dice rolling in
@@ -382,7 +394,7 @@ $more-button-badge-inset: 3.5px;
     //child of the die, so the die's box-shadow glows (combo highlight, card 9 preview) paint under it and never on it, and
     //the face's fade (--die-face-opacity) leaves it alone. Absolutely placed and pointer-events none: no layout shift, no
     //blocked clicks. It inherits the die's visibility, so it hides with a die waiting for its rolling copy
-    .die-lock-badge-power2{ display: none; position: absolute; z-index: 1; width: var(--lock-badge-size); height: var(--lock-badge-size); left: calc(50% - var(--lock-badge-size) / 2); bottom: calc(-1 * var(--lock-badge-below)); box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff); pointer-events: none;
+    .die-lock-badge-power2{ display: none; @include die-bottom-badge-place; box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff); pointer-events: none;
         //both viewBoxes are 576 x 512 at the same scale: the closed one's is centered on the lock's body, the open one's
         //starts 64 units further right (so its shackle isn't clipped), so it moves right by 64/576 of its width and the
         //two bodies overlap exactly. The open padlock is then centered on its body, its shackle reaching out to the right
@@ -394,6 +406,20 @@ $more-button-badge-inset: 3.5px;
         .die-lock-closed-icon{ margin-left: 0.5px; }
     }
     .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2{ display: block; }
+
+    //card 11: under the golden die that may be added, the avatars of the owners who may add it (DiceHandler.applyAdderAvatarsPOWER11,
+    //in the die's slot), on the padlock's line. One avatar is the padlock's size; more sit side by side, centred as a group,
+    //overlapping (later ones on top) just enough to keep the row within the die's width, and shrinking once that would cover
+    //more than $die-adder-avatar-max-overlap of each. --adder-count is set inline. Each avatar takes the pointer for its tooltip
+    .die-adder-avatars-power11{ @include die-bottom-badge-place(var(--die-size)); display: flex; justify-content: center; align-items: center; pointer-events: none;
+        --adder-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--adder-count) - 1) * #{1 - $die-adder-avatar-max-overlap})));
+
+        .die-adder-avatar-power11{ position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--adder-avatar-size); height: var(--adder-avatar-size); border: 1.5px solid var(--adder-color, #1b1b1b); border-radius: 50%; overflow: hidden; background: var(--adder-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); pointer-events: auto;
+            & + .die-adder-avatar-power11{ margin-left: min(0px, calc((var(--die-size) - var(--adder-count) * var(--adder-avatar-size)) / (var(--adder-count) - 1))); }
+            &.die-adder-avatar-initial-power11{ display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: calc(var(--adder-avatar-size) * 0.5); font-weight: bold; text-shadow: 0px 0px 2px #000000; }
+        }
+        .die-adder-avatar-image-power11{ display: block; width: 100%; height: 100%; object-fit: cover; }
+    }
     .a-die.die-reservation-pending-power2 .die-lock-badge-power2{ display: block;
         .die-lock-open-icon{ opacity: 0.75; }
         .die-lock-closed-icon{ opacity: 0; }
@@ -1315,7 +1341,7 @@ $power-reference-text: #051121;
 //dice tooltips (TooltipHandler.updateDieTooltip): the single power look, as wide as their text up to the single power width.
 //A card 2 reservation is one line, as long as the screen has the room for it
 .tooltip-wrapper.single-power-reference.die-tooltip{ width: fit-content; max-width: min(340px, 100%);
-    &.die-reservation-tooltip-power2{ width: max-content; max-width: 100%; }
+    &.die-reservation-tooltip-power2, &.die-addition-tooltip-power11{ width: max-content; max-width: 100%; }
 }
 //the status bar's card icon and power icon tooltips (Game.getStatusCardWithPowerHTML): the plain tooltip background and arrow
 //behind the power row, which keeps its play-area look: the highlight's translucent white laid over the reference's teal
@@ -1427,16 +1453,22 @@ $card-power-badge-background: linear-gradient(#fff6dc, #f2d68c); //the power car
     }
 }
 
-//that card's power icon, hanging under the disc like a tag, horizontally centred on it (StopOrMore.onPlayerActivationChange
-//puts it inside the disc, #more-button .status-card-icon above), its top tip just over the disc's lower rim, clear of the
-//number, most of it below the button. Absolutely placed in the disc, so it never changes the button's size, the status
-//bar's height or where anything wraps. Sized from the disc's diameter: 100cqh resolves against the disc (the nearest size
-//container; the button is none), and the sprite's boxes are tight to each glyph (power-icon-fit fills its box with the drawn
-//shape), so the scale is the drawn width. pointer-events none: clicks reach the button, or whatever is under its part below it.
-//Stacking: the disc's container-type makes it a stacking context, so the icon's z-index 1 puts it over the disc and its
-//number, and the disc's own z-index 1 lifts the whole disc over the area under the status bar (#page-title has no z-index
-//until BGA fixes it at the top, at 948). Clipping: of the button's ancestors, only BGA's .bgabutton hides its overflow
-//(#overall-content does too, but only at the page's edges), so it is lifted on this button only, while the icon is there.
+//that card's power icon, hanging under the disc like a tag, horizontally centred on it, its top tip just over the disc's lower
+//rim, clear of the number, most of it below the button. StopOrMore.onPlayerActivationChange puts it beside the disc, not in
+//it, in an anchor with the disc's exact box (more-button-disc-box, #more-button .status-card-icon above): BGA opens the disc's
+//tooltip below the disc when there is no room above (the status bar is near the top), over the icon, and BGA closes a tooltip
+//when the pointer enters it, so an icon inside the disc only showed the tooltip on its first hover. Beside it, the icon has its
+//own tooltip, placed around the icon, which can't cover it. Absolutely placed in the anchor, so it never changes the button's
+//size, the status bar's height or where anything wraps. Sized from the disc's diameter: 100cqh resolves against the anchor
+//(the nearest size container; the button is none), and the sprite's boxes are tight to each glyph (power-icon-fit fills its
+//box with the drawn shape), so the scale is the drawn width. The anchor lets the pointer through to the disc; the icon takes
+//it, and StopOrMore stops its clicks, so a click or tap on it never plays Keep Going. A default cursor, and BGA's hover and
+//pressed looks held back on the button while the pointer is on it (both apply to every ancestor of the hovered element),
+//so it doesn't read as part of the button.
+//Stacking: the anchor's container-type makes it a stacking context, and its z-index 1 lifts the icon over the disc, which comes
+//before it, and over the area under the status bar (#page-title has no z-index until BGA fixes it at the top, at 948).
+//Clipping: of the button's ancestors, only BGA's .bgabutton hides its overflow (#overall-content does too, but only at the
+//page's edges), so it is lifted on this button only, while the icon is there.
 //Outline: a crisp white ring that follows the shape (drop-shadows of the drawn pixels, not a border or box-shadow, which
 //would draw the square box), four 0-blur copies shifted by the width each way, then one soft dark shadow under the whole
 //outlined shape, to lift it off the blue button and the dark status bar. Every length is a share of the disc's diameter
@@ -1449,8 +1481,11 @@ $more-button-power-icon-shadow-offset-y: 0.08; //the dark shadow's drop (2px on 
 $more-button-power-icon-shadow-blur: 0.12; //the dark shadow's blur (3px on a 25px disc)
 $more-button-power-icon-shadow-color: rgba(0, 0, 0, 0.6);
 #more-button:has(.more-button-power-icon){ overflow: visible; }
-#more-button .status-card-icon:has(.more-button-power-icon){ z-index: 1; }
-#more-button .status-card-icon .more-button-power-icon{ position: absolute; z-index: 1; top: (1 - $more-button-power-icon-overlap) * 100%; left: 52%; translate: -50% 0; float: none; margin: 0px; pointer-events: none;
+#more-button .more-button-power-icon-anchor{ @include more-button-disc-box(); z-index: 1; pointer-events: none; }
+.notouch-device #more-button.bgabutton_blue:has(.more-button-power-icon:hover), #more-button.bgabutton_blue:has(.more-button-power-icon:active){
+    background: var(--game-bga-button-primary), var(--game-bga-button-primary-border); //.bgabutton_blue's resting look (BGA's gameserver.css)
+}
+#more-button .more-button-power-icon-anchor .more-button-power-icon{ position: absolute; top: (1 - $more-button-power-icon-overlap) * 100%; left: 52%; translate: -50% 0; float: none; margin: 0px; pointer-events: auto; cursor: default;
     $outline: calc(100cqh * #{$more-button-power-icon-outline-width});
     $color: $more-button-power-icon-outline-color;
     filter: drop-shadow($outline 0px 0px $color) drop-shadow(calc(-1 * #{$outline}) 0px 0px $color) drop-shadow(0px $outline 0px $color) drop-shadow(0px calc(-1 * #{$outline}) 0px $color)

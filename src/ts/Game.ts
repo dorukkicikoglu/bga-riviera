@@ -585,7 +585,7 @@ export class Game {
     //fills container with the player's avatar from their BGA player board (#avatar_<id>, there on setup for players, spectators
     //and replays alike), at a bigger size so it stays sharp (an <img> with imageClass). If the bigger one fails, the board's own;
     //with no avatar at all, the name's initial, with initialClass on container (a played column's header, the spotlight overlay)
-    public fillPlayerAvatar(container: HTMLElement, playerID: number, imageClass: string, initialClass: string): void {
+    public fillPlayerAvatar(container: HTMLElement, playerID: number, imageClass: string, initialClass: string, sizeSuffix: string = Game.AVATAR_SIZE_SUFFIX): void {
         const showInitial = () => {
             container.classList.add(initialClass);
             container.textContent = Array.from(this.getPlayerName(playerID))[0]?.toUpperCase() ?? '';
@@ -610,7 +610,7 @@ export class Game {
                 showInitial();
             }
         });
-        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, Game.AVATAR_SIZE_SUFFIX + '$2'));
+        image.setAttribute('src', boardSource.replace(/_(32|50|92)(\.\w+)(?=$|\?)/, sizeSuffix + '$2'));
         container.appendChild(image);
     }
 
@@ -883,8 +883,10 @@ export class Game {
         this.diceHandler.updateDice(args.dice);
     }
 
-    //the log row only: the golden die appears with the next roll (diceRolled), once it has a value
+    //the golden die that may be added (faded) is now added: blank and at full opacity until the next roll gives it a value
     public async notif_goldenDieAdded_POWER11(args: GoldenDieAddedPOWER11Args) {
+        if(args.dice) //notifications logged before the dice were added to it carry none
+            this.diceHandler.updateDice(args.dice);
     }
 
     public async notif_dieModified_POWER9(args: DieModifiedPOWER9Args) {
