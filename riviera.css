@@ -3213,12 +3213,13 @@ body .sliding-clone.player-spotlight-card {
 #more-button .status-card-icon .more-button-power-icon {
   position: absolute;
   z-index: 1;
-  top: 88%;
-  left: 50%;
+  top: 98%;
+  left: 52%;
   translate: -50% 0;
   float: none;
   margin: 0px;
   pointer-events: none;
+  filter: drop-shadow(calc(100cqh * 0.06) 0px 0px #ffffff) drop-shadow(calc(-1 * calc(100cqh * 0.06)) 0px 0px #ffffff) drop-shadow(0px calc(100cqh * 0.06) 0px #ffffff) drop-shadow(0px calc(-1 * calc(100cqh * 0.06)) 0px #ffffff) drop-shadow(0px calc(100cqh * 0.08) calc(100cqh * 0.12) rgba(0, 0, 0, 0.6));
 }
 #more-button .status-card-icon .more-button-power-icon[data-power-value="1"] {
   width: calc(calc(100cqh * 1) * 0.6984126984);

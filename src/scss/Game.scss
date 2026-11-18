@@ -1436,12 +1436,25 @@ $card-power-badge-background: linear-gradient(#fff6dc, #f2d68c); //the power car
 //Stacking: the disc's container-type makes it a stacking context, so the icon's z-index 1 puts it over the disc and its
 //number, and the disc's own z-index 1 lifts the whole disc over the area under the status bar (#page-title has no z-index
 //until BGA fixes it at the top, at 948). Clipping: of the button's ancestors, only BGA's .bgabutton hides its overflow
-//(#overall-content does too, but only at the page's edges), so it is lifted on this button only, while the icon is there
+//(#overall-content does too, but only at the page's edges), so it is lifted on this button only, while the icon is there.
+//Outline: a crisp white ring that follows the shape (drop-shadows of the drawn pixels, not a border or box-shadow, which
+//would draw the square box), four 0-blur copies shifted by the width each way, then one soft dark shadow under the whole
+//outlined shape, to lift it off the blue button and the dark status bar. Every length is a share of the disc's diameter
+//(100cqh), so it scales with it: 0.06 is 1.5px on a 25px disc
 $more-button-power-icon-scale: 1; //the drawn icon's width, as a share of the disc's diameter
-$more-button-power-icon-overlap: 0.12; //how far its top tip reaches over the disc, as a share of the disc's diameter
+$more-button-power-icon-overlap: 0.02; //how far its top tip reaches over the disc, as a share of the disc's diameter
+$more-button-power-icon-outline-width: 0.06; //the white outline's width, as a share of the disc's diameter
+$more-button-power-icon-outline-color: #ffffff;
+$more-button-power-icon-shadow-offset-y: 0.08; //the dark shadow's drop (2px on a 25px disc)
+$more-button-power-icon-shadow-blur: 0.12; //the dark shadow's blur (3px on a 25px disc)
+$more-button-power-icon-shadow-color: rgba(0, 0, 0, 0.6);
 #more-button:has(.more-button-power-icon){ overflow: visible; }
 #more-button .status-card-icon:has(.more-button-power-icon){ z-index: 1; }
-#more-button .status-card-icon .more-button-power-icon{ position: absolute; z-index: 1; top: (1 - $more-button-power-icon-overlap) * 100%; left: 50%; translate: -50% 0; float: none; margin: 0px; pointer-events: none;
+#more-button .status-card-icon .more-button-power-icon{ position: absolute; z-index: 1; top: (1 - $more-button-power-icon-overlap) * 100%; left: 52%; translate: -50% 0; float: none; margin: 0px; pointer-events: none;
+    $outline: calc(100cqh * #{$more-button-power-icon-outline-width});
+    $color: $more-button-power-icon-outline-color;
+    filter: drop-shadow($outline 0px 0px $color) drop-shadow(calc(-1 * #{$outline}) 0px 0px $color) drop-shadow(0px $outline 0px $color) drop-shadow(0px calc(-1 * #{$outline}) 0px $color)
+        drop-shadow(0px calc(100cqh * #{$more-button-power-icon-shadow-offset-y}) calc(100cqh * #{$more-button-power-icon-shadow-blur}) $more-button-power-icon-shadow-color);
     @include power-icon-fit(calc(100cqh * #{$more-button-power-icon-scale}));
 }
 
