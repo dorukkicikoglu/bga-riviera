@@ -134,9 +134,10 @@ export class PlayCard {
                 this.bga.statusBar.setTitle(_('${you} chose ${card}. Waiting for other players'), { card: cardsIcons || _('a card') });
                 this.game.tooltipHandler?.addTooltipsToCardsIn(document.getElementById('pagemaintitletext'));
             } else {
+                //a crash is only a choice when Last Chance was there too: with no Last Chance left, Crash was the only button
                 const pendingChoiceTitles: Record<Exclude<PlayChoice, 'card'>, string> = {
                     last_chance: _('${you} chose your Last Chance. Waiting for other players'),
-                    crash: _('${you} chose to crash. Waiting for other players'),
+                    crash: this.canUseLastChance ? _('${you} chose to crash. Waiting for other players') : _('${you} will crash. Waiting for other players'),
                 };
                 this.bga.statusBar.setTitle(pendingChoiceTitles[this.pendingChoice.choice]);
             }
