@@ -23,6 +23,7 @@ interface RivieraGamedatas extends Gamedatas<RivieraPlayer> {
     cardsInMyHand: RivieraCard[];
     cardsPlayed: Record<number, PlayedCard[]>;
     dice: RivieraDie[];
+    pendingOwnersPOWER9: PendingOwnerPOWER9[];
     startPlayerId: number;
     roundNumber: number;
     cardColors: Record<number, CardColor>;
@@ -82,6 +83,12 @@ interface RivieraDie {
     modified_by_POWER9: boolean;
     in_use_by_POWER11: boolean;
     pending_in_use_by_POWER11: { player_id: number; card_color: CardColor; }[]; //golden die only, while not in use: the revealed card 11 owners who may still add it, clockwise from the Start token holder
+}
+
+//a revealed card 9 not resolved yet: its owner, still in, and the 9's color (RIVTableManager::getPendingOwnersPOWER9())
+interface PendingOwnerPOWER9 {
+    player_id: number;
+    card_color: CardColor;
 }
 
 type PlayChoice = 'card' | 'last_chance' | 'crash';
@@ -192,6 +199,11 @@ interface DieModifiedPOWER9Args {
     new_value: number;
     move_id: number;
     dice: RivieraDie[];
+}
+
+//clockwise from the Start token holder, [] once none is left
+interface PendingOwnersUpdatedPOWER9Args {
+    owners: PendingOwnerPOWER9[];
 }
 
 interface DieChangeUndonePOWER9Args {

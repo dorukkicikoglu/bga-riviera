@@ -178,6 +178,30 @@ class RIVTableManager{
     }
 
     /**
+     * Card 9 revealed but not resolved yet (pending_POWER9, from the reveal until its owner turns a die or skips after the
+     * next roll): one entry per owner still in whose column still ends with that 9, clockwise from the Start token holder,
+     * with the 9's color (the indicator's tooltip). The dice area shows them left of the dice (DiceHandler's card 9 owners
+     * indicator). An owner who stopped is left out at once, though their marker is only cleared at the roll
+     * (goToNextPOWER9Owner()). Derived from the DB like getPendingAddersPOWER11(): F5, spectators and replays match.
+     */
+    function getPendingOwnersPOWER9(): array{
+        $ownerIDs = array_map('intval', $this->game->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `pending_POWER9` = 'yes' AND `round_status` = 'in'", true));
+        if(empty($ownerIDs))
+            return [];
+
+        $pendingOwners = [];
+        foreach($this->getPlayerIDsInTurnOrderFrom((int) $this->game->bga->globals->get('startPlayerId')) as $playerID){
+            if(!in_array($playerID, $ownerIDs, true))
+                continue;
+
+            $card = $this->getLastPlayedCard($playerID);
+            if($card && $card['value'] === 9)
+                $pendingOwners[] = ['player_id' => $playerID, 'card_color' => $card['color']];
+        }
+        return $pendingOwners;
+    }
+
+    /**
      * A reservation applied in the walk after the Start token pass (PassStartToken 40, ResolvePowers 30) is for the next
      * roll: until that roll, the dice shown are the last roll's, so it still shows as pending (dashed) on them.
      */

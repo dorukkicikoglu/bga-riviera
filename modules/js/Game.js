@@ -359,9 +359,10 @@ class StopOrMore {
 StopOrMore.POWER_ICON_ID = 'more-button-power-icon';
 
 class DiceHandler {
-    constructor(game, diceData) {
+    constructor(game, diceData, pendingOwnersPOWER9) {
         this.game = game;
         this.diceData = diceData;
+        this.pendingOwnersPOWER9 = pendingOwnersPOWER9;
         this.previewedColorPOWER9 = null;
         this.diceContainer = document.querySelector('#dice-container');
         //each die sits in a slot; during card 9 the slot also gets the die's arrow hit containers (showModifyArrowsPOWER9),
@@ -378,6 +379,7 @@ class DiceHandler {
             this.diceContainer.appendChild(dieSlot);
             this.applyAdderAvatarsPOWER11(aDie, dieData); //in its slot now (createDieDiv ran before)
         }
+        this.applyPendingOwnersPOWER9();
         this.diceContainer.addEventListener('click', (event) => { this.diceContainerClicked(event); });
     }
     //card 9: an arrow's hit container (the triangle, the gap and that half of the die) picks that choice
@@ -494,27 +496,69 @@ class DiceHandler {
         const shownAvatars = dieSlot.querySelector('.' + DiceHandler.ADDER_AVATARS_CLASS_POWER11);
         if ((shownAvatars?.getAttribute('data-player-ids') ?? '') === adderIDs.join(','))
             return;
-        if (shownAvatars) { //the pointer may be on one: its tooltip goes before it does
-            shownAvatars.querySelectorAll('[id]').forEach(avatar => this.game.bga.gameui.removeTooltip(avatar.id));
-            shownAvatars.remove();
-        }
+        if (shownAvatars)
+            this.removeWithTooltips(shownAvatars);
         if (adderIDs.length === 0)
             return;
-        const adderAvatars = document.createElement('div');
-        adderAvatars.className = DiceHandler.ADDER_AVATARS_CLASS_POWER11;
-        adderAvatars.setAttribute('data-player-ids', adderIDs.join(','));
-        adderAvatars.style.setProperty('--adder-count', adderIDs.length.toString()); //Game.scss fits the row within the die's width
-        for (let adderID of adderIDs) {
-            const avatar = document.createElement('span');
-            avatar.id = 'die-adder-avatar-power11-' + adderID;
-            avatar.className = 'die-adder-avatar-power11';
-            avatar.style.setProperty('--adder-color', '#' + (this.game.getPlayerColor(adderID) ?? '000000'));
-            this.game.fillPlayerAvatar(avatar, adderID, 'die-adder-avatar-image-power11', 'die-adder-avatar-initial-power11', DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11);
-            adderAvatars.appendChild(avatar);
-        }
-        dieSlot.appendChild(adderAvatars);
+        dieSlot.appendChild(this.createAvatarRow(adderIDs, DiceHandler.ADDER_AVATARS_CLASS_POWER11, 'die-adder-avatar-power11-'));
         //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
         this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11(dieData);
+    }
+    //a row of player avatars in the dice area (.die-avatar-row in Game.scss): BGA's small avatar ringed in the player's color,
+    //one the card 2 padlock's size, more side by side, centred as a group, overlapping just enough to stay within a die's
+    //width and shrinking past $die-avatar-row-max-overlap. The one look of card 11's adders under the golden die and card 9's
+    //owners indicator; className places it. avatarIDPrefix: each avatar gets an id (prefix + player id), for its own tooltip
+    createAvatarRow(playerIDs, className, avatarIDPrefix = null) {
+        const avatarRow = document.createElement('div');
+        avatarRow.className = 'die-avatar-row ' + className;
+        avatarRow.setAttribute('data-player-ids', playerIDs.join(','));
+        avatarRow.style.setProperty('--avatar-count', playerIDs.length.toString()); //Game.scss fits the row within the die's width
+        for (let playerID of playerIDs) {
+            const avatar = document.createElement('span');
+            if (avatarIDPrefix !== null)
+                avatar.id = avatarIDPrefix + playerID;
+            avatar.className = 'die-avatar-row-avatar';
+            avatar.style.setProperty('--avatar-color', '#' + (this.game.getPlayerColor(playerID) ?? '000000'));
+            this.game.fillPlayerAvatar(avatar, playerID, 'die-avatar-row-image', 'die-avatar-row-initial', DiceHandler.AVATAR_ROW_SIZE_SUFFIX);
+            avatarRow.appendChild(avatar);
+        }
+        return avatarRow;
+    }
+    //the pointer may be on the element or one of its children: their tooltips go before they do (no mouseleave comes once they are gone)
+    removeWithTooltips(element) {
+        [element, ...Array.from(element.querySelectorAll('[id]'))].forEach(tooltipNode => { if (tooltipNode.id)
+            this.game.bga.gameui.removeTooltip(tooltipNode.id); });
+        element.remove();
+    }
+    updatePendingOwnersPOWER9(pendingOwners) {
+        this.pendingOwnersPOWER9 = pendingOwners;
+        this.applyPendingOwnersPOWER9();
+    }
+    //card 9: while a revealed card 9 hasn't resolved (from the reveal until its owner turns a die or skips after the next
+    //roll), its owners' avatars show left of the dice, between an up and a down arrow (the card 9 arrows' triangles, as
+    //decoration: nothing to click), clockwise from the Start token holder; gone with the last owner. It sits in the first die's
+    //slot, absolutely placed on its left and centred on it (Game.scss), so the dice never move. Rebuilt only when the owners
+    //change. Its tooltip, one line per owner, covers the whole indicator
+    applyPendingOwnersPOWER9() {
+        const ownerIDs = this.pendingOwnersPOWER9.map(pendingOwner => pendingOwner.player_id);
+        const shownIndicator = document.getElementById(DiceHandler.OWNERS_INDICATOR_ID_POWER9);
+        if ((shownIndicator?.getAttribute('data-player-ids') ?? '') === ownerIDs.join(','))
+            return;
+        if (shownIndicator)
+            this.removeWithTooltips(shownIndicator);
+        const firstDieSlot = this.diceContainer.querySelector('.die-slot');
+        if (ownerIDs.length === 0 || !firstDieSlot)
+            return;
+        const indicator = document.createElement('div');
+        indicator.id = DiceHandler.OWNERS_INDICATOR_ID_POWER9;
+        indicator.className = 'power9-owners-indicator';
+        indicator.setAttribute('data-player-ids', ownerIDs.join(','));
+        indicator.insertAdjacentHTML('beforeend', '<div class="power9-owners-arrow" data-delta="1" aria-hidden="true"><span class="die-arrow-triangle"></span></div>');
+        indicator.appendChild(this.createAvatarRow(ownerIDs, 'power9-owners-avatars'));
+        indicator.insertAdjacentHTML('beforeend', '<div class="power9-owners-arrow" data-delta="-1" aria-hidden="true"><span class="die-arrow-triangle"></span></div>');
+        firstDieSlot.appendChild(indicator);
+        //on setup TooltipHandler doesn't exist yet: its constructor adds this (updatePendingOwnersTooltipPOWER9)
+        this.game.tooltipHandler?.updatePendingOwnersTooltipPOWER9(this.pendingOwnersPOWER9);
     }
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,
     //reserved (closed padlock, solid ring) from then. null: none (a die rolling in gets its padlock once it has landed). The
@@ -784,6 +828,7 @@ class DiceHandler {
     getDieSlot(color) { return this.diceContainer.querySelector(`.die-slot[data-color="${color}"]`); }
     getDiceContainer() { return this.diceContainer; }
     getDiceData() { return this.diceData; }
+    getPendingOwnersPOWER9() { return this.pendingOwnersPOWER9; }
 }
 DiceHandler.PIPS_PER_DIE = 9; //3x3 layout, Game.scss shows the right pips for each data-value
 DiceHandler.CHANGE_ANIM_CLASS = 'die-changed';
@@ -793,7 +838,8 @@ DiceHandler.PREVIEWED_CLASS_POWER9 = 'previewed-die-power9'; //the die shows the
 DiceHandler.RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
 DiceHandler.ADDITION_PENDING_CLASS_POWER11 = 'die-addition-pending-power11'; //the golden die a revealed card 11 may add: blank, its face faded (fainter than a pending card 2's)
 DiceHandler.ADDER_AVATARS_CLASS_POWER11 = 'die-adder-avatars-power11'; //under that golden die, on the card 2 padlock's line: the avatars of the owners who may add it
-DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11 = '_32'; //BGA's small avatar, the player boards' own
+DiceHandler.AVATAR_ROW_SIZE_SUFFIX = '_32'; //BGA's small avatar, the player boards' own: the avatar rows' (createAvatarRow)
+DiceHandler.OWNERS_INDICATOR_ID_POWER9 = 'power9-owners-indicator'; //left of the dice: the revealed card 9s' owners between an up and a down arrow
 //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
 //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
 //lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). Both are 576 x
@@ -1575,6 +1621,22 @@ class TooltipHandler {
             this.updateDieTooltip(dieData);
             this.addDieAdderAvatarTooltipsPOWER11(dieData);
         }
+        this.updatePendingOwnersTooltipPOWER9(this.game.diceHandler.getPendingOwnersPOWER9());
+    }
+    //card 9: the owners indicator left of the dice (DiceHandler.applyPendingOwnersPOWER9), one line per owner whose card 9
+    //hasn't resolved yet, on the die tooltips' look. DiceHandler calls this whenever it rebuilds the indicator
+    updatePendingOwnersTooltipPOWER9(pendingOwners) {
+        const indicatorID = 'power9-owners-indicator';
+        if (!document.getElementById(indicatorID) || pendingOwners.length === 0)
+            return;
+        const ownerLines = pendingOwners.map(pendingOwner => {
+            const isMine = pendingOwner.player_id === this.game.getMyPlayerID();
+            const ownerText = isMine ? _('${you} may turn a die by 1 with ${card_icon} after the next roll') : _('${player_name} may turn a die by 1 with ${card_icon} after the next roll');
+            return ownerText
+                .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(pendingOwner.player_id, { class: 'playername tooltip-playername' }))
+                .replace('${card_icon}', this.game.getInlineCardIconHTML(pendingOwner.card_color, 9));
+        });
+        this.game.bga.gameui.addTooltipHtml(indicatorID, this.getDieTooltipHTML(ownerLines.join('<br>'), 'power9-owners-tooltip'), TooltipHandler.TOOLTIP_DELAY);
     }
     //card 11: each avatar under the golden die that may be added (DiceHandler.applyAdderAvatarsPOWER11) shows the golden
     //die's own tooltip (getAdditionTooltipHTMLPOWER11), so hovering the die or any avatar reads the same. DiceHandler calls
@@ -1583,7 +1645,7 @@ class TooltipHandler {
         const additionTooltipHTML = this.getAdditionTooltipHTMLPOWER11(dieData);
         if (!additionTooltipHTML)
             return;
-        document.querySelectorAll('.die-adder-avatar-power11[id]').forEach((avatar) => {
+        document.querySelectorAll('.die-adder-avatars-power11 .die-avatar-row-avatar[id]').forEach((avatar) => {
             this.game.bga.gameui.addTooltipHtml(avatar.id, additionTooltipHTML, TooltipHandler.TOOLTIP_DELAY);
         });
     }
@@ -4136,7 +4198,7 @@ class Game {
             <div id="played-columns-container"></div>
         `);
         this.myPlayerID = this.bga.players.getCurrentPlayerId();
-        this.diceHandler = new DiceHandler(this, gamedatas.dice);
+        this.diceHandler = new DiceHandler(this, gamedatas.dice, gamedatas.pendingOwnersPOWER9 ?? []);
         this.endGameScoringHandler = new EndGameScoringHandler(this);
         // Setting up player boards and played columns
         for (let player_id in gamedatas.players) {
@@ -4789,6 +4851,10 @@ class Game {
     }
     async notif_dieModified_POWER9(args) {
         this.diceHandler.updateDice(args.dice);
+    }
+    //the card 9 owners shown left of the dice: no animation, so nothing to await
+    async notif_pendingOwnersUpdated_POWER9(args) {
+        this.diceHandler.updatePendingOwnersPOWER9(args.owners ?? []);
     }
     //[BGA] the only player still in took their card 9 change back: the die goes back and its log row goes away
     async notif_dieChangeUndone_POWER9(args) {

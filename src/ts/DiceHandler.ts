@@ -20,7 +20,8 @@ export class DiceHandler{
     private static readonly RESERVATION_PENDING_CLASS_POWER2 = 'die-reservation-pending-power2'; //a revealed card 2 will reserve this die: its padlock, open
     private static readonly ADDITION_PENDING_CLASS_POWER11 = 'die-addition-pending-power11'; //the golden die a revealed card 11 may add: blank, its face faded (fainter than a pending card 2's)
     private static readonly ADDER_AVATARS_CLASS_POWER11 = 'die-adder-avatars-power11'; //under that golden die, on the card 2 padlock's line: the avatars of the owners who may add it
-    private static readonly ADDER_AVATAR_SIZE_SUFFIX_POWER11 = '_32'; //BGA's small avatar, the player boards' own
+    private static readonly AVATAR_ROW_SIZE_SUFFIX = '_32'; //BGA's small avatar, the player boards' own: the avatar rows' (createAvatarRow)
+    private static readonly OWNERS_INDICATOR_ID_POWER9 = 'power9-owners-indicator'; //left of the dice: the revealed card 9s' owners between an up and a down arrow
     //card 2 padlock badge on the dice area's dice (Game.scss shows it per reservation): both icons are always there, so a
     //pending reservation becoming reserved can crossfade from one to the other. Inline SVGs of Font Awesome 6's lock and
     //lock-open (the card 2 log row's fa-lock glyph; BGA's fa6 font has no lock-open, which drew nothing). Both are 576 x
@@ -59,7 +60,7 @@ export class DiceHandler{
     private diceContainer: HTMLDivElement;
     private previewedColorPOWER9: DieColor | null = null;
 
-    constructor(private game: Game, private diceData: RivieraDie[]) {
+    constructor(private game: Game, private diceData: RivieraDie[], private pendingOwnersPOWER9: PendingOwnerPOWER9[]) {
         this.diceContainer = document.querySelector('#dice-container');
 
         //each die sits in a slot; during card 9 the slot also gets the die's arrow hit containers (showModifyArrowsPOWER9),
@@ -77,6 +78,8 @@ export class DiceHandler{
             this.diceContainer.appendChild(dieSlot);
             this.applyAdderAvatarsPOWER11(aDie, dieData); //in its slot now (createDieDiv ran before)
         }
+
+        this.applyPendingOwnersPOWER9();
 
         this.diceContainer.addEventListener('click', (event: Event) => { this.diceContainerClicked(event); });
     }
@@ -218,29 +221,77 @@ export class DiceHandler{
         if((shownAvatars?.getAttribute('data-player-ids') ?? '') === adderIDs.join(','))
             return;
 
-        if(shownAvatars){ //the pointer may be on one: its tooltip goes before it does
-            shownAvatars.querySelectorAll('[id]').forEach(avatar => this.game.bga.gameui.removeTooltip(avatar.id));
-            shownAvatars.remove();
-        }
+        if(shownAvatars)
+            this.removeWithTooltips(shownAvatars);
         if(adderIDs.length === 0)
             return;
 
-        const adderAvatars = document.createElement('div');
-        adderAvatars.className = DiceHandler.ADDER_AVATARS_CLASS_POWER11;
-        adderAvatars.setAttribute('data-player-ids', adderIDs.join(','));
-        adderAvatars.style.setProperty('--adder-count', adderIDs.length.toString()); //Game.scss fits the row within the die's width
-        for(let adderID of adderIDs){
-            const avatar = document.createElement('span');
-            avatar.id = 'die-adder-avatar-power11-' + adderID;
-            avatar.className = 'die-adder-avatar-power11';
-            avatar.style.setProperty('--adder-color', '#' + (this.game.getPlayerColor(adderID) ?? '000000'));
-            this.game.fillPlayerAvatar(avatar, adderID, 'die-adder-avatar-image-power11', 'die-adder-avatar-initial-power11', DiceHandler.ADDER_AVATAR_SIZE_SUFFIX_POWER11);
-            adderAvatars.appendChild(avatar);
-        }
-        dieSlot.appendChild(adderAvatars);
+        dieSlot.appendChild(this.createAvatarRow(adderIDs, DiceHandler.ADDER_AVATARS_CLASS_POWER11, 'die-adder-avatar-power11-'));
 
         //on setup TooltipHandler doesn't exist yet: its constructor adds these (addDieAdderAvatarTooltipsPOWER11)
         this.game.tooltipHandler?.addDieAdderAvatarTooltipsPOWER11(dieData);
+    }
+
+    //a row of player avatars in the dice area (.die-avatar-row in Game.scss): BGA's small avatar ringed in the player's color,
+    //one the card 2 padlock's size, more side by side, centred as a group, overlapping just enough to stay within a die's
+    //width and shrinking past $die-avatar-row-max-overlap. The one look of card 11's adders under the golden die and card 9's
+    //owners indicator; className places it. avatarIDPrefix: each avatar gets an id (prefix + player id), for its own tooltip
+    private createAvatarRow(playerIDs: number[], className: string, avatarIDPrefix: string | null = null): HTMLDivElement {
+        const avatarRow = document.createElement('div');
+        avatarRow.className = 'die-avatar-row ' + className;
+        avatarRow.setAttribute('data-player-ids', playerIDs.join(','));
+        avatarRow.style.setProperty('--avatar-count', playerIDs.length.toString()); //Game.scss fits the row within the die's width
+        for(let playerID of playerIDs){
+            const avatar = document.createElement('span');
+            if(avatarIDPrefix !== null)
+                avatar.id = avatarIDPrefix + playerID;
+            avatar.className = 'die-avatar-row-avatar';
+            avatar.style.setProperty('--avatar-color', '#' + (this.game.getPlayerColor(playerID) ?? '000000'));
+            this.game.fillPlayerAvatar(avatar, playerID, 'die-avatar-row-image', 'die-avatar-row-initial', DiceHandler.AVATAR_ROW_SIZE_SUFFIX);
+            avatarRow.appendChild(avatar);
+        }
+        return avatarRow;
+    }
+
+    //the pointer may be on the element or one of its children: their tooltips go before they do (no mouseleave comes once they are gone)
+    private removeWithTooltips(element: Element): void {
+        [element, ...Array.from(element.querySelectorAll('[id]'))].forEach(tooltipNode => { if(tooltipNode.id) this.game.bga.gameui.removeTooltip(tooltipNode.id); });
+        element.remove();
+    }
+
+    public updatePendingOwnersPOWER9(pendingOwners: PendingOwnerPOWER9[]): void {
+        this.pendingOwnersPOWER9 = pendingOwners;
+        this.applyPendingOwnersPOWER9();
+    }
+
+    //card 9: while a revealed card 9 hasn't resolved (from the reveal until its owner turns a die or skips after the next
+    //roll), its owners' avatars show left of the dice, between an up and a down arrow (the card 9 arrows' triangles, as
+    //decoration: nothing to click), clockwise from the Start token holder; gone with the last owner. It sits in the first die's
+    //slot, absolutely placed on its left and centred on it (Game.scss), so the dice never move. Rebuilt only when the owners
+    //change. Its tooltip, one line per owner, covers the whole indicator
+    private applyPendingOwnersPOWER9(): void {
+        const ownerIDs = this.pendingOwnersPOWER9.map(pendingOwner => pendingOwner.player_id);
+        const shownIndicator = document.getElementById(DiceHandler.OWNERS_INDICATOR_ID_POWER9);
+        if((shownIndicator?.getAttribute('data-player-ids') ?? '') === ownerIDs.join(','))
+            return;
+
+        if(shownIndicator)
+            this.removeWithTooltips(shownIndicator);
+        const firstDieSlot = this.diceContainer.querySelector('.die-slot');
+        if(ownerIDs.length === 0 || !firstDieSlot)
+            return;
+
+        const indicator = document.createElement('div');
+        indicator.id = DiceHandler.OWNERS_INDICATOR_ID_POWER9;
+        indicator.className = 'power9-owners-indicator';
+        indicator.setAttribute('data-player-ids', ownerIDs.join(','));
+        indicator.insertAdjacentHTML('beforeend', '<div class="power9-owners-arrow" data-delta="1" aria-hidden="true"><span class="die-arrow-triangle"></span></div>');
+        indicator.appendChild(this.createAvatarRow(ownerIDs, 'power9-owners-avatars'));
+        indicator.insertAdjacentHTML('beforeend', '<div class="power9-owners-arrow" data-delta="-1" aria-hidden="true"><span class="die-arrow-triangle"></span></div>');
+        firstDieSlot.appendChild(indicator);
+
+        //on setup TooltipHandler doesn't exist yet: its constructor adds this (updatePendingOwnersTooltipPOWER9)
+        this.game.tooltipHandler?.updatePendingOwnersTooltipPOWER9(this.pendingOwnersPOWER9);
     }
 
     //card 2: pending (open padlock in the dice area, dashed ring in log rows) from the reveal until the roll it is for,
@@ -552,4 +603,5 @@ export class DiceHandler{
     private getDieSlot(color: DieColor): HTMLDivElement { return this.diceContainer.querySelector(`.die-slot[data-color="${color}"]`); }
     public getDiceContainer(): HTMLDivElement{ return this.diceContainer; }
     public getDiceData(): RivieraDie[]{ return this.diceData; }
+    public getPendingOwnersPOWER9(): PendingOwnerPOWER9[]{ return this.pendingOwnersPOWER9; }
 }

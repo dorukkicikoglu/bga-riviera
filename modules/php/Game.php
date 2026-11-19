@@ -156,6 +156,7 @@ class Game extends \Bga\GameFramework\Table
         $result['cardsInMyHand'] = $cardsOnTable['myHand'];
         $result['cardsPlayed'] = $cardsOnTable['played'];
         $result['dice'] = $this->tableManager->getDice();
+        $result['pendingOwnersPOWER9'] = $this->tableManager->getPendingOwnersPOWER9();
         $result['startPlayerId'] = (int) $this->bga->globals->get('startPlayerId');
         $result['roundNumber'] = (int) $this->bga->globals->get('roundNumber');
         $result['cardColors'] = CARD_COLORS;

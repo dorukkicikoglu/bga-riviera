@@ -988,6 +988,44 @@ body .sliding-clone {
 #dice-container .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2 {
   display: block;
 }
+#dice-container .die-avatar-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  --avatar-row-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--avatar-count) - 1) * 0.65)));
+}
+#dice-container .die-avatar-row .die-avatar-row-avatar {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--avatar-row-avatar-size);
+  height: var(--avatar-row-avatar-size);
+  border: 1.5px solid var(--avatar-color, #1b1b1b);
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-color, #1b1b1b);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+#dice-container .die-avatar-row .die-avatar-row-avatar + .die-avatar-row-avatar {
+  margin-left: min(0px, (var(--die-size) - var(--avatar-count) * var(--avatar-row-avatar-size)) / (var(--avatar-count) - 1));
+}
+#dice-container .die-avatar-row .die-avatar-row-avatar.die-avatar-row-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: calc(var(--avatar-row-avatar-size) * 0.5);
+  font-weight: bold;
+  text-shadow: 0px 0px 2px #000000;
+}
+#dice-container .die-avatar-row .die-avatar-row-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 #dice-container .die-adder-avatars-power11 {
   position: absolute;
   z-index: 1;
@@ -995,42 +1033,37 @@ body .sliding-clone {
   height: var(--lock-badge-size);
   left: calc(50% - var(--die-size) / 2);
   bottom: calc(-1 * var(--lock-badge-below));
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-  --adder-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--adder-count) - 1) * 0.65)));
 }
-#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11 {
+#dice-container .power9-owners-indicator {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + var(--die-size) * 0.3);
+  translate: 0px -50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--die-size) * 0.11);
+  cursor: default;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+#dice-container .power9-owners-indicator .power9-owners-arrow {
   position: relative;
-  flex: 0 0 auto;
-  box-sizing: border-box;
-  width: var(--adder-avatar-size);
-  height: var(--adder-avatar-size);
-  border: 1.5px solid var(--adder-color, #1b1b1b);
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--adder-color, #1b1b1b);
-  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6);
-  pointer-events: auto;
+  width: var(--die-arrow-width);
+  height: var(--die-arrow-height);
+  pointer-events: none;
 }
-#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11 + .die-adder-avatar-power11 {
-  margin-left: min(0px, (var(--die-size) - var(--adder-count) * var(--adder-avatar-size)) / (var(--adder-count) - 1));
+#dice-container .power9-owners-indicator .power9-owners-arrow .die-arrow-triangle {
+  top: 0px;
 }
-#dice-container .die-adder-avatars-power11 .die-adder-avatar-power11.die-adder-avatar-initial-power11 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: calc(var(--adder-avatar-size) * 0.5);
-  font-weight: bold;
-  text-shadow: 0px 0px 2px #000000;
-}
-#dice-container .die-adder-avatars-power11 .die-adder-avatar-image-power11 {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+#dice-container .power9-owners-indicator .power9-owners-avatars {
+  width: max-content;
+  height: var(--lock-badge-size);
 }
 #dice-container .a-die.die-reservation-pending-power2 .die-lock-badge-power2 {
   display: block;
@@ -1043,6 +1076,25 @@ body .sliding-clone {
 }
 #dice-container .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2 {
   display: none;
+}
+#dice-container .die-arrow-triangle {
+  position: absolute;
+  left: 50%;
+  width: var(--die-arrow-width);
+  height: var(--die-arrow-height);
+  margin-left: calc(var(--die-arrow-width) / -2);
+  background: #ffe8a3;
+  filter: drop-shadow(0 0 1.5px #07151a);
+  transition: transform 0.15s ease, background 0.15s ease;
+  pointer-events: none;
+}
+#dice-container [data-delta="1"] > .die-arrow-triangle {
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  transform-origin: 50% 100%;
+}
+#dice-container [data-delta="-1"] > .die-arrow-triangle {
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+  transform-origin: 50% 0%;
 }
 #dice-container .die-arrow {
   position: absolute;
@@ -1071,8 +1123,6 @@ body .sliding-clone {
 }
 #dice-container .die-arrow[data-delta="1"] .die-arrow-triangle {
   top: 0px;
-  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-  transform-origin: 50% 100%;
 }
 #dice-container .die-arrow[data-delta="-1"] {
   top: 50%;
@@ -1080,19 +1130,6 @@ body .sliding-clone {
 }
 #dice-container .die-arrow[data-delta="-1"] .die-arrow-triangle {
   bottom: 0px;
-  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
-  transform-origin: 50% 0%;
-}
-#dice-container .die-arrow .die-arrow-triangle {
-  position: absolute;
-  left: 50%;
-  width: var(--die-arrow-width);
-  height: var(--die-arrow-height);
-  margin-left: calc(var(--die-arrow-width) / -2);
-  background: #ffe8a3;
-  filter: drop-shadow(0 0 1.5px #07151a);
-  transition: transform 0.15s ease, background 0.15s ease;
-  pointer-events: none;
 }
 #dice-container .die-arrow:hover .die-arrow-triangle {
   background: #ffd700;
@@ -2982,7 +3019,7 @@ body .sliding-clone.player-spotlight-card {
   width: fit-content;
   max-width: min(340px, 100%);
 }
-.tooltip-wrapper.single-power-reference.die-tooltip.die-reservation-tooltip-power2, .tooltip-wrapper.single-power-reference.die-tooltip.die-addition-tooltip-power11 {
+.tooltip-wrapper.single-power-reference.die-tooltip.die-reservation-tooltip-power2, .tooltip-wrapper.single-power-reference.die-tooltip.die-addition-tooltip-power11, .tooltip-wrapper.single-power-reference.die-tooltip.power9-owners-tooltip {
   width: max-content;
   max-width: 100%;
 }

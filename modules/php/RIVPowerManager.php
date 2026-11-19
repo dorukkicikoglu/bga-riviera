@@ -51,11 +51,21 @@ class RIVPowerManager{
         //shows the golden die that may be added, faded (pending_in_use_by_POWER11)
         if(in_array(2, $lastCardValueByPlayer, true) || in_array(11, $lastCardValueByPlayer, true))
             $this->notifyDiceUpdated();
+
+        //a pending card 9 shows its owner left of the dice (getPendingOwnersPOWER9())
+        if(in_array(9, $lastCardValueByPlayer, true))
+            $this->notifyPendingOwnersPOWER9();
     }
 
     //no log row: the dice area only follows the dice data
     private function notifyDiceUpdated(): void{
         $this->game->bga->notify->all('diceUpdated', '', ['dice' => $this->game->tableManager->getDice()]);
+    }
+
+    //no log row: the dice area's card 9 owners indicator only follows this list. Sent whenever it changes: a 9 revealed,
+    //used, skipped or lost (owner stopped, every die already turned), or a die change undone
+    function notifyPendingOwnersPOWER9(): void{
+        $this->game->bga->notify->all('pendingOwnersUpdated_POWER9', '', ['owners' => $this->game->tableManager->getPendingOwnersPOWER9()]);
     }
 
     function clearPendingPowers(): void{
@@ -72,6 +82,11 @@ class RIVPowerManager{
 
         if($lostPowerCount > 0) //their dice lose the pending card 2 look, and the golden die they may have added goes
             $this->notifyDiceUpdated();
+
+        //their card 9 is lost too (its marker is cleared at the roll, goToNextPOWER9Owner()): they leave the indicator now
+        $lostPOWER9Count = (int) $this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM `player` WHERE `pending_POWER9` = 'yes' AND `round_status` <> 'in'");
+        if($lostPOWER9Count > 0)
+            $this->notifyPendingOwnersPOWER9();
     }
 
     /**
@@ -251,6 +266,9 @@ class RIVPowerManager{
 
     function clearPendingPower(int $playerID, int $cardValue): void{
         $this->game->DbQuery("UPDATE `player` SET `pending_POWER$cardValue` = 'no' WHERE `player_id` = $playerID");
+
+        if($cardValue === 9) //used, skipped, or every die already turned: the owner leaves the dice area's indicator
+            $this->notifyPendingOwnersPOWER9();
     }
 
     /**

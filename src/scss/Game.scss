@@ -356,7 +356,13 @@ $more-button-badge-inset: 3.5px;
 @mixin die-bottom-badge-place($width: var(--lock-badge-size)){ position: absolute; z-index: 1; width: $width; height: var(--lock-badge-size); left: calc(50% - #{$width} / 2); bottom: calc(-1 * var(--lock-badge-below)); }
 
 $golden-die-addition-pending-face-opacity: 0.5; //the golden die a card 11 may add: fainter than a pending card 2 (0.7), so it reads as "possible, not added yet"
-$die-adder-avatar-max-overlap: 0.35; //share of an avatar the next one may cover before the avatars shrink instead (3 or more under the golden die)
+$die-avatar-row-max-overlap: 0.35; //share of an avatar the next one may cover before the avatars shrink instead (3 or more in a row)
+//the card 9 owners indicator's gaps, shares of --die-size (the dice area's die). Its height is then 2 arrows (0.274 each),
+//the avatars (0.54) and 2 gaps, about 1.31 die sizes: 0.15 of a die over and under the die, well inside the space
+//#dice-container reserves above (the card 9 arrows' band) and below (the padlock's), so it is never clipped and never
+//reaches the status bar
+$power9-owners-indicator-die-gap-ratio: 0.3; //between its widest part and the first die
+$power9-owners-indicator-arrow-gap-ratio: 0.11; //between each arrow and the avatars
 
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
@@ -407,18 +413,34 @@ $die-adder-avatar-max-overlap: 0.35; //share of an avatar the next one may cover
     }
     .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2{ display: block; }
 
-    //card 11: under the golden die that may be added, the avatars of the owners who may add it (DiceHandler.applyAdderAvatarsPOWER11,
-    //in the die's slot), on the padlock's line. One avatar is the padlock's size; more sit side by side, centred as a group,
-    //overlapping (later ones on top) just enough to keep the row within the die's width, and shrinking once that would cover
-    //more than $die-adder-avatar-max-overlap of each. --adder-count is set inline. Each avatar takes the pointer for its tooltip
-    .die-adder-avatars-power11{ @include die-bottom-badge-place(var(--die-size)); display: flex; justify-content: center; align-items: center; pointer-events: none;
-        --adder-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--adder-count) - 1) * #{1 - $die-adder-avatar-max-overlap})));
+    //a row of player avatars (DiceHandler.createAvatarRow): one avatar is the padlock's size; more sit side by side, centred as a
+    //group, overlapping (later ones on top) just enough to keep the row within the die's width, and shrinking once that would
+    //cover more than $die-avatar-row-max-overlap of each. --avatar-count and each --avatar-color are set inline. Each avatar
+    //takes the pointer (its own tooltip, or the tooltip of the element around it). Placed by its other class
+    .die-avatar-row{ display: flex; justify-content: center; align-items: center; pointer-events: none;
+        --avatar-row-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--avatar-count) - 1) * #{1 - $die-avatar-row-max-overlap})));
 
-        .die-adder-avatar-power11{ position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--adder-avatar-size); height: var(--adder-avatar-size); border: 1.5px solid var(--adder-color, #1b1b1b); border-radius: 50%; overflow: hidden; background: var(--adder-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); pointer-events: auto;
-            & + .die-adder-avatar-power11{ margin-left: min(0px, calc((var(--die-size) - var(--adder-count) * var(--adder-avatar-size)) / (var(--adder-count) - 1))); }
-            &.die-adder-avatar-initial-power11{ display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: calc(var(--adder-avatar-size) * 0.5); font-weight: bold; text-shadow: 0px 0px 2px #000000; }
+        .die-avatar-row-avatar{ position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--avatar-row-avatar-size); height: var(--avatar-row-avatar-size); border: 1.5px solid var(--avatar-color, #1b1b1b); border-radius: 50%; overflow: hidden; background: var(--avatar-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); pointer-events: auto;
+            & + .die-avatar-row-avatar{ margin-left: min(0px, calc((var(--die-size) - var(--avatar-count) * var(--avatar-row-avatar-size)) / (var(--avatar-count) - 1))); }
+            &.die-avatar-row-initial{ display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: calc(var(--avatar-row-avatar-size) * 0.5); font-weight: bold; text-shadow: 0px 0px 2px #000000; }
         }
-        .die-adder-avatar-image-power11{ display: block; width: 100%; height: 100%; object-fit: cover; }
+        .die-avatar-row-image{ display: block; width: 100%; height: 100%; object-fit: cover; }
+    }
+    //card 11: under the golden die that may be added, the avatars of the owners who may add it (DiceHandler.applyAdderAvatarsPOWER11,
+    //in the die's slot), on the padlock's line, each with the golden die's tooltip
+    .die-adder-avatars-power11{ @include die-bottom-badge-place(var(--die-size)); }
+
+    //card 9: while a revealed card 9 hasn't resolved, its owners' avatars left of the dice (DiceHandler.applyPendingOwnersPOWER9),
+    //between an up and a down arrow (the die arrows' own triangles, as decoration). In the first die's slot, absolutely placed:
+    //$power9-owners-indicator-die-gap-ratio of a die left of the die and centred on it, so the dice never move. As wide as its avatar row (at most
+    //a die's width, like the golden die's adders), the arrows $power9-owners-indicator-arrow-gap-ratio of a die from it. One tooltip for the whole of it
+    .power9-owners-indicator{ position: absolute; top: 50%; right: calc(100% + var(--die-size) * #{$power9-owners-indicator-die-gap-ratio}); translate: 0px -50%; z-index: 1;
+        display: flex; flex-direction: column; align-items: center; gap: calc(var(--die-size) * #{$power9-owners-indicator-arrow-gap-ratio}); cursor: default; @include non-selectable();
+
+        .power9-owners-arrow{ position: relative; width: var(--die-arrow-width); height: var(--die-arrow-height); pointer-events: none;
+            .die-arrow-triangle{ top: 0px; }
+        }
+        .power9-owners-avatars{ width: max-content; height: var(--lock-badge-size); }
     }
     .a-die.die-reservation-pending-power2 .die-lock-badge-power2{ display: block;
         .die-lock-open-icon{ opacity: 0.75; }
@@ -427,6 +449,12 @@ $die-adder-avatar-max-overlap: 0.35; //share of an avatar the next one may cover
     //card 9: the down arrow sits where the badge is, so a die showing its arrows (the active owner only, ModifyDie) hides it
     //until they go
     .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2{ display: none; }
+
+    //the card 9 triangle, up (+1) or down (-1) by its parent's data-delta: on the die arrows below and, as decoration, on the
+    //card 9 owners indicator (.power9-owners-arrow). Its parent places it vertically
+    .die-arrow-triangle{ position: absolute; left: 50%; width: var(--die-arrow-width); height: var(--die-arrow-height); margin-left: calc(var(--die-arrow-width) / -2); background: #ffe8a3; filter: drop-shadow(0 0 1.5px #07151a); transition: transform 0.15s ease, background 0.15s ease; pointer-events: none; }
+    [data-delta="1"] > .die-arrow-triangle{ clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transform-origin: 50% 100%; }
+    [data-delta="-1"] > .die-arrow-triangle{ clip-path: polygon(0% 0%, 100% 0%, 50% 100%); transform-origin: 50% 0%; }
 
     //card 9, active owner only (DiceHandler.showModifyArrowsPOWER9): two transparent hit containers on top of each die that
     //can be turned. The up one (+1) runs from its triangle's tip down to the die's middle line, the down one (-1) from that
@@ -437,12 +465,11 @@ $die-adder-avatar-max-overlap: 0.35; //share of an avatar the next one may cover
         &:focus{ outline: none; }
         &:focus-visible{ outline: 2px solid #ffd700; outline-offset: 2px; }
         &[data-delta="1"]{ top: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap))); bottom: 50%;
-            .die-arrow-triangle{ top: 0px; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transform-origin: 50% 100%; }
+            .die-arrow-triangle{ top: 0px; }
         }
         &[data-delta="-1"]{ top: 50%; bottom: calc(-1 * (var(--die-arrow-height) + var(--die-arrow-gap-below)));
-            .die-arrow-triangle{ bottom: 0px; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); transform-origin: 50% 0%; }
+            .die-arrow-triangle{ bottom: 0px; }
         }
-        .die-arrow-triangle{ position: absolute; left: 50%; width: var(--die-arrow-width); height: var(--die-arrow-height); margin-left: calc(var(--die-arrow-width) / -2); background: #ffe8a3; filter: drop-shadow(0 0 1.5px #07151a); transition: transform 0.15s ease, background 0.15s ease; pointer-events: none; }
         &:hover .die-arrow-triangle{ background: #ffd700; transform: scale(1.25); }
         //chosen, waiting for Confirm
         &.selected-die-arrow-power9 .die-arrow-triangle{ background: #ffd700; transform: scale(1.35); filter: drop-shadow(0 0 1.5px #07151a) drop-shadow(0 0 4px #ffd700); }
@@ -1341,7 +1368,7 @@ $power-reference-text: #051121;
 //dice tooltips (TooltipHandler.updateDieTooltip): the single power look, as wide as their text up to the single power width.
 //A card 2 reservation is one line, as long as the screen has the room for it
 .tooltip-wrapper.single-power-reference.die-tooltip{ width: fit-content; max-width: min(340px, 100%);
-    &.die-reservation-tooltip-power2, &.die-addition-tooltip-power11{ width: max-content; max-width: 100%; }
+    &.die-reservation-tooltip-power2, &.die-addition-tooltip-power11, &.power9-owners-tooltip{ width: max-content; max-width: 100%; }
 }
 //the status bar's card icon and power icon tooltips (Game.getStatusCardWithPowerHTML): the plain tooltip background and arrow
 //behind the power row, which keeps its play-area look: the highlight's translucent white laid over the reference's teal

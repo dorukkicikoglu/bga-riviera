@@ -136,7 +136,7 @@ export class Game {
         `);
 
         this.myPlayerID = this.bga.players.getCurrentPlayerId();
-        this.diceHandler = new DiceHandler(this, gamedatas.dice);
+        this.diceHandler = new DiceHandler(this, gamedatas.dice, gamedatas.pendingOwnersPOWER9 ?? []);
         this.endGameScoringHandler = new EndGameScoringHandler(this);
 
         // Setting up player boards and played columns
@@ -891,6 +891,11 @@ export class Game {
 
     public async notif_dieModified_POWER9(args: DieModifiedPOWER9Args) {
         this.diceHandler.updateDice(args.dice);
+    }
+
+    //the card 9 owners shown left of the dice: no animation, so nothing to await
+    public async notif_pendingOwnersUpdated_POWER9(args: PendingOwnersUpdatedPOWER9Args) {
+        this.diceHandler.updatePendingOwnersPOWER9(args.owners ?? []);
     }
 
     //[BGA] the only player still in took their card 9 change back: the die goes back and its log row goes away

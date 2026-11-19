@@ -212,6 +212,7 @@ class PlayCard extends GameState
             'move_id' => $moveID,
             'dice' => $this->game->tableManager->getDice(),
         ]);
+        $this->game->powerManager->notifyPendingOwnersPOWER9(); //the owner is back in the dice area's indicator
 
         $this->game->gamestate->changeActivePlayer($currentPlayerId);
         return ModifyDie::class;

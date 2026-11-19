@@ -39,7 +39,25 @@ export class TooltipHandler{
             this.updateDieTooltip(dieData);
             this.addDieAdderAvatarTooltipsPOWER11(dieData);
         }
+        this.updatePendingOwnersTooltipPOWER9(this.game.diceHandler.getPendingOwnersPOWER9());
 	}
+
+    //card 9: the owners indicator left of the dice (DiceHandler.applyPendingOwnersPOWER9), one line per owner whose card 9
+    //hasn't resolved yet, on the die tooltips' look. DiceHandler calls this whenever it rebuilds the indicator
+    public updatePendingOwnersTooltipPOWER9(pendingOwners: PendingOwnerPOWER9[]){
+        const indicatorID = 'power9-owners-indicator';
+        if(!document.getElementById(indicatorID) || pendingOwners.length === 0)
+            return;
+
+        const ownerLines = pendingOwners.map(pendingOwner => {
+            const isMine = pendingOwner.player_id === this.game.getMyPlayerID();
+            const ownerText = isMine ? _('${you} may turn a die by 1 with ${card_icon} after the next roll') : _('${player_name} may turn a die by 1 with ${card_icon} after the next roll');
+            return ownerText
+                .replace(isMine ? '${you}' : '${player_name}', this.game.divColoredPlayer(pendingOwner.player_id, {class: 'playername tooltip-playername'}))
+                .replace('${card_icon}', this.game.getInlineCardIconHTML(pendingOwner.card_color, 9));
+        });
+        this.game.bga.gameui.addTooltipHtml(indicatorID, this.getDieTooltipHTML(ownerLines.join('<br>'), 'power9-owners-tooltip'), TooltipHandler.TOOLTIP_DELAY);
+    }
 
     //card 11: each avatar under the golden die that may be added (DiceHandler.applyAdderAvatarsPOWER11) shows the golden
     //die's own tooltip (getAdditionTooltipHTMLPOWER11), so hovering the die or any avatar reads the same. DiceHandler calls
@@ -49,7 +67,7 @@ export class TooltipHandler{
         if(!additionTooltipHTML)
             return;
 
-        document.querySelectorAll('.die-adder-avatar-power11[id]').forEach((avatar: HTMLElement) => {
+        document.querySelectorAll('.die-adder-avatars-power11 .die-avatar-row-avatar[id]').forEach((avatar: HTMLElement) => {
             this.game.bga.gameui.addTooltipHtml(avatar.id, additionTooltipHTML, TooltipHandler.TOOLTIP_DELAY);
         });
     }
