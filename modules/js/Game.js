@@ -2876,13 +2876,21 @@ class LogMutationObserver {
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'power-skipped-log');
     }
-    //the game ends: everyone at the top score wins (a Grand Slam, or equal scores, share the win)
-    createLogGameEnd(winner_ids, winningScore) {
+    //the game ends: everyone at the top score wins (equal scores share the win). grandSlamStars (not null after a simultaneous
+    //Grand Slam): the winners' stars, which decided it (one winner) or which they share the win on (several)
+    createLogGameEnd(winner_ids, winningScore, grandSlamStars = null) {
         const iWin = winner_ids.includes(this.game.getMyPlayerID());
         const otherWinnersHTML = winner_ids.filter(player_id => player_id !== this.game.getMyPlayerID()).map(player_id => this.game.divColoredPlayer(player_id, { class: 'playername' }));
+        const isGrandSlamTie = grandSlamStars !== null && grandSlamStars !== undefined;
         //one string per case, since other languages conjugate "you", one other player and several players differently
         let gameEndText;
-        if (iWin)
+        if (isGrandSlamTie) {
+            if (iWin)
+                gameEndText = (otherWinnersHTML.length === 0) ? _('Simultaneous Grand Slam: ${you} win with more stars (${stars} ★)') : _('Simultaneous Grand Slam: ${you} and ${players} share the win with ${stars} ★ each');
+            else
+                gameEndText = (otherWinnersHTML.length === 1) ? _('Simultaneous Grand Slam: ${player_name} wins with more stars (${stars} ★)') : _('Simultaneous Grand Slam: ${players} share the win with ${stars} ★ each');
+        }
+        else if (iWin)
             gameEndText = (otherWinnersHTML.length === 0) ? _('${you} win with ${stars} ★') : _('${you} and ${players} win with ${stars} ★');
         else
             gameEndText = (otherWinnersHTML.length === 1) ? _('${player_name} wins with ${stars} ★') : _('${players} win with ${stars} ★');
@@ -2890,7 +2898,7 @@ class LogMutationObserver {
             .replace('${you}', this.game.divYou({ class: 'playername' }))
             .replace('${player_name}', otherWinnersHTML[0] ?? '')
             .replace('${players}', otherWinnersHTML.join(', '))
-            .replace('${stars}', `<b>${winningScore}</b>`);
+            .replace('${stars}', `<b>${isGrandSlamTie ? grandSlamStars : winningScore}</b>`);
         let logHTML = `
             <div class="game-end-row">
                 <i class="fa6 fa-trophy"></i>&nbsp;${gameEndHTML}
@@ -4282,7 +4290,7 @@ class Game {
                         else if (key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if (key == 'GAME_END_LOG_STR')
-                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
+                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score'], args['grand_slam_stars'] ?? null).log_html;
                     }
                 }
             }

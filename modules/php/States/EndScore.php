@@ -35,19 +35,26 @@ class EndScore extends \Bga\GameFramework\States\GameState
     /**
      * The game ends (40 points after a round, or a Grand Slam): everyone gets the end-game scoring table and one
      * log row naming the winner(s). Scores are already final, and statistics are kept up to date during the game.
-     * [BGA] After a Grand Slam, no winner row: its own row already says it, and the Grand Slam score is only there to rank.
+     * [BGA] After a single Grand Slam, no winner row: its own row already says it, and the Grand Slam score is only there to
+     * rank. After a simultaneous Grand Slam, the row says whether stars decided it or the winners share it (grand_slam_stars).
      */
     public function onEnteringState() {
         $endGameScoring = $this->game->getEndGameScoring();
         $isGrandSlam = !empty($this->game->tableManager->getGrandSlamPlayerIDs());
+        $grandSlamStars = $endGameScoring['grand_slam_stars'];
+        $hasLogRow = !$isGrandSlam || $grandSlamStars !== null;
 
         $winnerNames = array_map(fn(int $playerID) => $this->game->getPlayerNameById($playerID), $endGameScoring['winner_ids']);
-        $this->bga->notify->all('displayEndGameScoring', $isGrandSlam ? '' : '${GAME_END_LOG_STR}', [
-            'preserve' => ['winner_ids', 'winning_score'],
+        $logFallback = ($grandSlamStars === null)
+            ? implode(', ', $winnerNames).' win with '.$endGameScoring['winning_score'].' stars'
+            : implode(', ', $winnerNames).' win the Grand Slam with '.$grandSlamStars.' stars';
+        $this->bga->notify->all('displayEndGameScoring', $hasLogRow ? '${GAME_END_LOG_STR}' : '', [
+            'preserve' => ['winner_ids', 'winning_score', 'grand_slam_stars'],
             'winner_ids' => $endGameScoring['winner_ids'],
             'winning_score' => $endGameScoring['winning_score'],
+            'grand_slam_stars' => $grandSlamStars,
             'endGameScoring' => $endGameScoring,
-            'GAME_END_LOG_STR' => implode(', ', $winnerNames).' win with '.$endGameScoring['winning_score'].' stars',
+            'GAME_END_LOG_STR' => $logFallback,
         ]);
 
         return ST_END_GAME;

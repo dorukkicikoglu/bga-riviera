@@ -52,6 +52,7 @@ interface RoundScoreEntry {
 interface EndGameScoreData {
     winner_ids: number[];
     winning_score: number;
+    grand_slam_stars: number | null;
     rounds: Record<number, Record<number, RoundScoreEntry>>; //round_number => player_id => entry
     scores: Record<number, number>;
 }
@@ -306,5 +307,6 @@ interface ScoreChangedArgs {
 interface DisplayEndGameScoringArgs {
     winner_ids: number[];
     winning_score: number;
+    grand_slam_stars: number | null; //the winners' stars after a simultaneous Grand Slam, else null
     endGameScoring: EndGameScoreData;
 }

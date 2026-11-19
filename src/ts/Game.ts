@@ -230,7 +230,7 @@ export class Game {
                         else if(key == 'POWER_SKIPPED_LOG_STR')
                             log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
                         else if(key == 'GAME_END_LOG_STR')
-                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score']).log_html;
+                            log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score'], args['grand_slam_stars'] ?? null).log_html;
                     }
                 }
             }

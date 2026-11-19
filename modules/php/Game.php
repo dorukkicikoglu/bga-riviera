@@ -279,11 +279,13 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * [BGA] Grand Slam: these players emptied their hand and win at once. Their score becomes
-     * max(GRAND_SLAM_MIN_SCORE, highest other score + 1) so BGA ranks them first; several of them share the win.
+     * max(GRAND_SLAM_MIN_SCORE, highest other score + 1) so BGA ranks them first. Several of them on the same reveal:
+     * the one with the most stars wins (BGA's tiebreak, getGrandSlamStars() in their score aux), equal stars share the win.
      */
     public function applyGrandSlam(array $playerIDs): void {
         $playerIDs = array_map('intval', $playerIDs);
         $scores = $this->bga->playerScore->getAll();
+        $columnStars = $this->tableManager->getStarsInColumnByPlayer();
         $otherScores = array_diff_key($scores, array_flip($playerIDs));
         $highestOtherScore = empty($otherScores) ? 0 : max($otherScores);
         $grandSlamScore = max(GRAND_SLAM_MIN_SCORE, $highestOtherScore + 1);
@@ -303,6 +305,10 @@ class Game extends \Bga\GameFramework\Table
 
         foreach($playerIDs as $playerID){
             $this->bga->playerScore->set($playerID, $grandSlamScore, null); //null: no framework notif, grandSlam updates the counter
+            //only between Grand Slam players on the same reveal: every other score aux stays 0, so a 40-point end's ties still share
+            //the win, and everyone else is below the Grand Slam score anyway
+            if(count($playerIDs) > 1)
+                $this->bga->playerScoreAux->set($playerID, $this->getGrandSlamStars($playerID, $scores, $columnStars), null);
             $this->bga->playerStats->set('grandSlam', true, $playerID);
             //only set on a Grand Slam (never initialised, like lastChanceRound). Every other player, co-winners included,
             //from $scores, read before any Grand Slam score was set
@@ -326,20 +332,36 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Everything the end-game scoring table needs. Everyone at the top score wins (Grand Slam players and tied
-     * scores share the win). The Total row shows each player's BGA score itself, so it always matches BGA's ranking.
+     * [BGA] A Grand Slam player's stars, the tiebreak between Grand Slam players on the same reveal: their score before
+     * the Grand Slam plus the stars in their column (every card they played this round, none banked yet).
+     * $scores and $columnStars are read before any Grand Slam score is set.
+     */
+    private function getGrandSlamStars(int $playerID, array $scores, array $columnStars): int {
+        return (int) ($scores[$playerID] ?? 0) + (int) ($columnStars[$playerID] ?? 0);
+    }
+
+    /**
+     * Everything the end-game scoring table needs. Everyone at the top score wins, like BGA's ranking: equal scores share
+     * the win, except Grand Slam players on the same reveal, ranked by their score aux (their stars, 0 for everyone else),
+     * who share it only on equal stars. The Total row shows each player's BGA score itself, so it always matches BGA's ranking.
+     * grand_slam_stars: the winners' stars after a simultaneous Grand Slam (decided by stars or shared), else null.
      */
     public function getEndGameScoring(): array {
         $scores = [];
         foreach($this->bga->playerScore->getAll() as $playerID => $score)
             $scores[(int) $playerID] = (int) $score;
+        $scoreAuxes = $this->bga->playerScoreAux->getAll();
 
         $winningScore = max($scores);
-        $winnerIDs = array_keys(array_filter($scores, fn(int $score) => $score === $winningScore));
+        $topScoreIDs = array_keys(array_filter($scores, fn(int $score) => $score === $winningScore));
+        $winningAux = max(array_map(fn(int $playerID) => (int) ($scoreAuxes[$playerID] ?? 0), $topScoreIDs));
+        $winnerIDs = array_values(array_filter($topScoreIDs, fn(int $playerID) => (int) ($scoreAuxes[$playerID] ?? 0) === $winningAux));
+        $isSimultaneousGrandSlam = count($this->tableManager->getGrandSlamPlayerIDs()) > 1;
 
         return [
             'winner_ids' => $winnerIDs,
             'winning_score' => $winningScore,
+            'grand_slam_stars' => $isSimultaneousGrandSlam ? $winningAux : null,
             'rounds' => $this->tableManager->getRoundScores(),
             'scores' => $scores,
         ];
@@ -426,9 +448,12 @@ class Game extends \Bga\GameFramework\Table
     // Grand Slam (the grandSlamAnimation overlay): $winners players still in (me first, then clockwise) are left with one card in
     // hand, a 3 to 6 with no power, each of its own color, and that color's die shows its value (not reserved), so it is their
     // only card and playable: once they play it, the reveal makes them all win at once. The other players keep their hands
-    // and choose as usual
+    // and choose as usual.
+    // $starsLead (simultaneous Grand Slam's tiebreak) at 0 or more: the winners' columns are emptied and their scores set so each
+    // one's stars (score + column, the last card included) are 20, plus $starsLead for me (0: equal stars, they share the win;
+    // 1 or more: I win on stars). -1 leaves scores and columns as they are
     #[Debug(reload: true)]
-    public function debug_grandSlam(int $winners = 1) {
+    public function debug_grandSlam(int $winners = 1, int $starsLead = -1) {
         $currentPlayerID = (int) $this->getCurrentPlayerId();
         $inRoundIDs = array_map('intval', $this->getObjectListFromDB("SELECT `player_id` FROM `player` WHERE `round_status` = 'in'", true));
         $orderedIDs = array_values(array_filter($this->tableManager->getPlayerIDsInTurnOrderFrom($currentPlayerID), fn(int $playerID) => in_array($playerID, $inRoundIDs, true)));
@@ -444,6 +469,11 @@ class Game extends \Bga\GameFramework\Table
             self::DbQuery("UPDATE `cards` SET `card_location` = 'discard', `chain_position_POWER1` = NULL WHERE `card_location` = 'hand' AND `card_location_arg` = $playerID AND `card_id` <> $cardID");
             self::DbQuery("UPDATE `cards` SET `card_location` = 'hand', `card_location_arg` = $playerID, `location_in_column` = NULL, `chain_position_POWER1` = NULL WHERE `card_id` = $cardID");
             self::DbQuery("UPDATE `dice` SET `die_value` = ".(int) $cardDB['value'].", `reserved_by_POWER2` = NULL WHERE `die_color` = '$color'");
+
+            if($starsLead >= 0){
+                self::DbQuery("UPDATE `cards` SET `card_location` = 'discard', `location_in_column` = NULL WHERE `card_location` = 'played' AND `card_location_arg` = $playerID");
+                $this->bga->playerScore->set($playerID, 20 - STARS_BY_VALUE[(int) $cardDB['value']] + ($index === 0 ? $starsLead : 0), null); //null: no notif, the page reloads
+            }
         }
 
         self::DbQuery("UPDATE `player` SET `play_choice` = NULL, `play_choice_card_id` = NULL");
