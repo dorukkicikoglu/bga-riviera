@@ -82,9 +82,9 @@ body::before {
   bottom: 0px;
   z-index: -1;
   pointer-events: none;
-  background-image: url(img/bg_riviera.webp);
-  background-position: calc(var(--bg-drift-offset-x, 0) * 15vw) calc(var(--bg-drift-offset-y, 0) * 8.4353214562vw);
-  background-size: 15vw 8.4353214562vw;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp);
+  background-position: 0 0, calc(var(--bg-drift-offset-x, 0) * 15vw) calc(var(--bg-drift-offset-y, 0) * 8.4353214562vw);
+  background-size: 100% 100%, 15vw 8.4353214562vw;
   background-repeat: repeat;
   will-change: transform;
   animation: background-drift var(--bg-drift-leg-duration) ease-in-out var(--bg-drift-delay, 0s) infinite alternate;
@@ -92,10 +92,6 @@ body::before {
 
 body.desktop_version {
   background: #ffffff;
-}
-body.desktop_version::before {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp);
-  background-size: 100% 100%, 15vw 8.4353214562vw;
 }
 
 @keyframes background-drift {

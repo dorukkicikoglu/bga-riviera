@@ -93,7 +93,7 @@ $dice-area-die-scale: 1.5; //the dice in #dice-container are this much bigger th
 //there-and-back cycle it starts at (--bg-drift-delay, a negative delay) and the pattern's offset inside the layer
 //(--bg-drift-offset-x / -y, a share of a tile, 0 to 1). The offset needs no more overhang: the pattern repeats over the whole
 //layer, so shifting it never opens a gap; only the transform moves the layer's edges.
-//body only keeps the fallback color, shown while the image loads: the tile's base teal (white on desktop, as before)
+//body only keeps the fallback color, shown while the image loads: the tile's base teal (white on desktop, as before). Both lay a 5% white layer over the tile, so it reads a little lighter
 $bg-tile-width: 15vw;
 $bg-tile-height: math.div($bg-tile-width * 726, 1291); //the image's aspect ratio
 $bg-drift-leg-duration: 20s; //one way, bottom right or top left
@@ -107,12 +107,10 @@ html{ --bg-drift-leg-duration: #{$bg-drift-leg-duration}; } //read by Background
 //position: fixed elements are unaffected
 body{ background: #032a2e; isolation: isolate;
     &::before{ content: ""; position: fixed; top: -$bg-drift-distance; left: -$bg-drift-distance; right: 0px; bottom: 0px; z-index: -1; pointer-events: none;
-        background-image: url(img/bg_riviera.webp); background-position: calc(var(--bg-drift-offset-x, 0) * #{$bg-tile-width}) calc(var(--bg-drift-offset-y, 0) * #{$bg-tile-height}); background-size: $bg-tile-width $bg-tile-height; background-repeat: repeat; will-change: transform; animation: background-drift var(--bg-drift-leg-duration) ease-in-out var(--bg-drift-delay, 0s) infinite alternate; }
+        background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp); background-position: 0 0, calc(var(--bg-drift-offset-x, 0) * #{$bg-tile-width}) calc(var(--bg-drift-offset-y, 0) * #{$bg-tile-height}); background-size: 100% 100%, $bg-tile-width $bg-tile-height; background-repeat: repeat; will-change: transform; animation: background-drift var(--bg-drift-leg-duration) ease-in-out var(--bg-drift-delay, 0s) infinite alternate; }
 }
-//desktop: the same tile a little lighter, under a 5% white layer (mobile keeps the plain tile)
-body.desktop_version{ background: #ffffff;
-    &::before{ background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), url(img/bg_riviera.webp); background-size: 100% 100%, $bg-tile-width $bg-tile-height; }
-}
+//desktop: a white fallback color while the image loads (mobile keeps the tile's base teal)
+body.desktop_version{ background: #ffffff; }
 @keyframes background-drift{
     from{ transform: translate(0, 0); }
     to{ transform: translate($bg-drift-distance, $bg-drift-distance); }
