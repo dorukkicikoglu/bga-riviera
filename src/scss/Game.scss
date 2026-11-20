@@ -363,6 +363,14 @@ $die-avatar-row-max-overlap: 0.35; //share of an avatar the next one may cover b
 //reaches the status bar
 $power9-owners-indicator-die-gap-ratio: 0.3; //between its widest part and the first die
 $power9-owners-indicator-arrow-gap-ratio: 0.11; //between each arrow and the avatars
+//the indicator's arrows are status, not controls: the card 9 arrows' triangle in a dull gray, faded, with none of the die
+//arrows' glow, shadow, hover or transition, so they don't read as the clickable +1 / -1 arrows on the dice
+$power9-owners-arrow-color: #8a8f94;
+$power9-owners-arrow-opacity: 0.5;
+//mobile with 6 dice showing (5 colors and the golden die) leaves about 102px left of the dice in BGA's 740px layout: 2 or
+//more owners' row (a die wide) plus the gap is 1.3 die sizes, 107px, past the game area's edge. The avatar row is then this
+//share of a die wide instead (more overlap, smaller past the max overlap): 1.15 die sizes, 95px
+$power9-owners-tight-row-width-ratio: 0.85;
 
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
@@ -414,14 +422,15 @@ $power9-owners-indicator-arrow-gap-ratio: 0.11; //between each arrow and the ava
     .a-die:not([data-reserved-by-power2=""]) .die-lock-badge-power2{ display: block; }
 
     //a row of player avatars (DiceHandler.createAvatarRow): one avatar is the padlock's size; more sit side by side, centred as a
-    //group, overlapping (later ones on top) just enough to keep the row within the die's width, and shrinking once that would
-    //cover more than $die-avatar-row-max-overlap of each. --avatar-count and each --avatar-color are set inline. Each avatar
-    //takes the pointer (its own tooltip, or the tooltip of the element around it). Placed by its other class
-    .die-avatar-row{ display: flex; justify-content: center; align-items: center; pointer-events: none;
-        --avatar-row-avatar-size: min(var(--lock-badge-size), calc(var(--die-size) / (1 + (var(--avatar-count) - 1) * #{1 - $die-avatar-row-max-overlap})));
+    //group, overlapping (later ones on top) just enough to keep the row within --avatar-row-width (a die's width unless its
+    //place says otherwise), and shrinking once that would cover more than $die-avatar-row-max-overlap of each. --avatar-count
+    //and each --avatar-color are set inline. Each avatar takes the pointer (its own tooltip, or the tooltip of the element
+    //around it). Placed by its other class
+    .die-avatar-row{ display: flex; justify-content: center; align-items: center; pointer-events: none; --avatar-row-width: var(--die-size);
+        --avatar-row-avatar-size: min(var(--lock-badge-size), calc(var(--avatar-row-width) / (1 + (var(--avatar-count) - 1) * #{1 - $die-avatar-row-max-overlap})));
 
         .die-avatar-row-avatar{ position: relative; flex: 0 0 auto; box-sizing: border-box; width: var(--avatar-row-avatar-size); height: var(--avatar-row-avatar-size); border: 1.5px solid var(--avatar-color, #1b1b1b); border-radius: 50%; overflow: hidden; background: var(--avatar-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); pointer-events: auto;
-            & + .die-avatar-row-avatar{ margin-left: min(0px, calc((var(--die-size) - var(--avatar-count) * var(--avatar-row-avatar-size)) / (var(--avatar-count) - 1))); }
+            & + .die-avatar-row-avatar{ margin-left: min(0px, calc((var(--avatar-row-width) - var(--avatar-count) * var(--avatar-row-avatar-size)) / (var(--avatar-count) - 1))); }
             &.die-avatar-row-initial{ display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: calc(var(--avatar-row-avatar-size) * 0.5); font-weight: bold; text-shadow: 0px 0px 2px #000000; }
         }
         .die-avatar-row-image{ display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -437,10 +446,17 @@ $power9-owners-indicator-arrow-gap-ratio: 0.11; //between each arrow and the ava
     .power9-owners-indicator{ position: absolute; top: 50%; right: calc(100% + var(--die-size) * #{$power9-owners-indicator-die-gap-ratio}); translate: 0px -50%; z-index: 1;
         display: flex; flex-direction: column; align-items: center; gap: calc(var(--die-size) * #{$power9-owners-indicator-arrow-gap-ratio}); cursor: default; @include non-selectable();
 
+        //the same triangle (shape and size) as the die arrows, gray and faded ($power9-owners-arrow-*): no glow or shadow, no
+        //transition, and never a hover or pressed look (they are no .die-arrow, which alone has those)
         .power9-owners-arrow{ position: relative; width: var(--die-arrow-width); height: var(--die-arrow-height); pointer-events: none;
-            .die-arrow-triangle{ top: 0px; }
+            .die-arrow-triangle{ top: 0px; background: $power9-owners-arrow-color; opacity: $power9-owners-arrow-opacity; filter: none; transition: none; }
         }
         .power9-owners-avatars{ width: max-content; height: var(--lock-badge-size); }
+    }
+    //the tight case ($power9-owners-tight-row-width-ratio): 6 die slots (5 colors and the golden die, always in the DOM at 5 to 6
+    //players) with the golden die showing (a value, or blank while a card 11 may add it or has added it)
+    .mobile_version &:has(> .die-slot ~ .die-slot ~ .die-slot ~ .die-slot ~ .die-slot ~ .die-slot):has(> .die-slot > .a-die[data-color="gold"]:not([data-value=""])) .power9-owners-avatars{
+        --avatar-row-width: calc(var(--die-size) * #{$power9-owners-tight-row-width-ratio});
     }
     .a-die.die-reservation-pending-power2 .die-lock-badge-power2{ display: block;
         .die-lock-open-icon{ opacity: 0.75; }
