@@ -37,6 +37,8 @@ export class PlayCard {
     private hasNoPlayableCard: boolean = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
     private canUseLastChance: boolean = false;
     private canUndoDieChange: boolean = false;
+    private cardIDToSelectAfterUndo: number | null = null; //another playable card clicked while waiting: the Undo is in flight, and this card is selected once I choose again
+    private switchedCardID: number | null = null; //that card, while it stays selected: it waits for Confirm even with "One-click card play"
 
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
     }
@@ -53,6 +55,8 @@ export class PlayCard {
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
         this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
+        this.cardIDToSelectAfterUndo = null;
+        this.switchedCardID = null;
         this.setPendingChoice(privateArgs?.pendingPlayChoice ?? null); //restores the set-aside cards after F5
 
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
@@ -67,6 +71,8 @@ export class PlayCard {
         this.game.handHandler?.setChosenCardsUndoable(false); //the choices are locked in
         this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
+        this.cardIDToSelectAfterUndo = null; //never carried into a later turn
+        this.switchedCardID = null;
     }
 
     /**
@@ -113,6 +119,7 @@ export class PlayCard {
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
                 this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), {id: 'confirm-selected-card-button'});
+                this.selectCardClickedBeforeUndo();
                 this.selectionChanged();
             } else {
                 //only the current player ever sees this: others see "Others must choose a card", since who has no playable card is hidden until the reveal
@@ -165,10 +172,46 @@ export class PlayCard {
 
     //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
     public chosenCardClicked(): void {
-        if(this.game.isReplay() || !this.pendingChoice)
+        if(this.game.isReplay() || !this.pendingChoice || this.cardIDToSelectAfterUndo !== null)
             return;
 
         this.game.undoHandler.undo('actUndoPlayCard');
+    }
+
+    //HandHandler, through Game.otherCardClickedWhileUndoable: a card that isn't set aside, while waiting for the others.
+    //A card I could play as my first card takes my choice back (the Undo button's own action) and is selected, not
+    //confirmed, once I choose again; any other card does nothing. Further clicks wait until the Undo has gone through
+    public otherCardClickedWhileWaiting(cardID: number): void {
+        if(this.game.isReplay() || !this.pendingChoice || this.cardIDToSelectAfterUndo !== null)
+            return;
+
+        if(!this.getFirstCardPlayableIDs().includes(cardID))
+            return;
+
+        const undoRequest = this.game.undoHandler.undo('actUndoPlayCard');
+        if(!undoRequest)
+            return;
+
+        this.cardIDToSelectAfterUndo = cardID;
+        undoRequest.catch(() => { this.cardIDToSelectAfterUndo = null; }); //refused (the others locked the choices in first): clicks work again
+    }
+
+    //the cards I could play as my first card, the list Undo sends back as playableCardIDs (the server's getPlayableCardIDs()
+    //is the keys of the same getPlayableCardDice()). While waiting, playableCardIDs itself is empty or a chain's remainder
+    private getFirstCardPlayableIDs(): number[] {
+        return Object.keys(this.playableCardDice).map(cardID => parseInt(cardID));
+    }
+
+    //I am choosing a first card again after the Undo: the card clicked while waiting is selected, through the same checks
+    //as a click (selectable, and canSelectCard in Expert mode). Applied once, whatever happens
+    private selectCardClickedBeforeUndo(): void {
+        const cardID = this.cardIDToSelectAfterUndo;
+        if(cardID === null)
+            return;
+
+        this.cardIDToSelectAfterUndo = null;
+        if(this.canSelectCard(cardID) && this.game.handHandler.selectCardByID(cardID))
+            this.switchedCardID = cardID;
     }
 
     //called through Game.handSelectionChanged when a card is selected or unselected
@@ -177,12 +220,16 @@ export class PlayCard {
             return;
 
         const selectedCard = this.game.handHandler?.getSelectedCardData();
-        const oneClickPlay = this.game.prefHandler?.isOneClickPlay() ?? false;
-        this.confirmButton.style.display = (selectedCard && !oneClickPlay) ? null : 'none';
+        if(selectedCard?.card_id !== this.switchedCardID)
+            this.switchedCardID = null; //a click moved or cleared the selection: back to the usual behaviour
+
+        //"One-click card play" preference: the click that selected the card plays it. Not the card selected after an Undo:
+        //that click was made while waiting, so it keeps the Confirm button
+        const playsOnClick = (this.game.prefHandler?.isOneClickPlay() ?? false) && this.switchedCardID === null;
+        this.confirmButton.style.display = (selectedCard && !playsOnClick) ? null : 'none';
         this.updateConfirmButtonLook(selectedCard);
 
-        //"One-click card play" preference: the click that selected the card plays it
-        if(selectedCard && oneClickPlay){
+        if(selectedCard && playsOnClick){
             this.confirmClicked(this.confirmActionName);
             return;
         }

@@ -648,6 +648,12 @@ export class Game {
             this.playCard.chosenCardClicked();
     }
 
+    //a hand card that isn't set aside was clicked while the set-aside ones can still be taken back (HandHandler only marks them in PlayCard)
+    public otherCardClickedWhileUndoable(cardID: number): void {
+        if(this.getGameStateName() === 'PlayCard')
+            this.playCard.otherCardClickedWhileWaiting(cardID);
+    }
+
     //card 10, seen by everyone but the two players involved: N card backs fly each way between their boards, all at once.
     //Both start points are measured before any back is added to a board, so one direction never starts from the other's back
     private async animateCardBacksSwap(firstPlayerID: number, secondPlayerID: number, count: number): Promise<void> {

@@ -26,11 +26,12 @@ export class UndoHandler{
         });
     }
 
-    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card)
-    public undo(actionName: string): void {
+    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card, or another playable card).
+    //Returns the request's promise, or undefined when nothing was sent
+    public undo(actionName: string): Promise<any> | undefined {
         if(!this.game.bga.actions.checkPossibleActions(actionName))
-            return;
+            return undefined;
 
-        this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
+        return this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
     }
 }

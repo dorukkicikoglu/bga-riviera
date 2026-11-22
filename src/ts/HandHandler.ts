@@ -147,6 +147,12 @@ export class HandHandler{
             return;
         }
 
+        //another card while a choice can still be undone: PlayCard may take the choice back and select this card instead
+        if(clickedCard && this.cardsContainer.querySelector('.a-card.' + HandHandler.UNDOABLE_CHOSEN_CARD_CLASS)){
+            this.game.otherCardClickedWhileUndoable(parseInt(clickedCard.getAttribute('data-card-id')));
+            return;
+        }
+
         if(!this.game.bga.players.isCurrentPlayerActive())
             return;
 
@@ -184,6 +190,18 @@ export class HandHandler{
         }
 
         this.game.handSelectionChanged();
+    }
+
+    //selects a selectable card without a click (PlayCard: the card clicked before an Undo went through), replacing any
+    //selection. Doesn't call Game.handSelectionChanged: the caller updates the status bar. False if the card isn't selectable
+    public selectCardByID(cardID: number): boolean{
+        const cardDiv = this.cardsContainer.querySelector<HTMLDivElement>('.a-card.' + HandHandler.SELECTABLE_CARD_CLASS + '[data-card-id="' + cardID + '"]');
+        if(!cardDiv)
+            return false;
+
+        this.clearSelection();
+        this.selectCard(cardDiv);
+        return true;
     }
 
     private selectCard(cardDiv: HTMLDivElement): void{

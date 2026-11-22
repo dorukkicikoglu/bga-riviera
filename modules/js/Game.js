@@ -27,6 +27,8 @@ class PlayCard {
         this.hasNoPlayableCard = false; //from the server, fixed for the whole state (the dice and the hand don't change in it)
         this.canUseLastChance = false;
         this.canUndoDieChange = false;
+        this.cardIDToSelectAfterUndo = null; //another playable card clicked while waiting: the Undo is in flight, and this card is selected once I choose again
+        this.switchedCardID = null; //that card, while it stays selected: it waits for Confirm even with "One-click card play"
     }
     /**
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
@@ -40,6 +42,8 @@ class PlayCard {
         this.chainCardIDs = privateArgs?.chainCardIDs_POWER1 ?? [];
         this.chainOpen = privateArgs?.chainOpen_POWER1 ?? false;
         this.canUndoDieChange = privateArgs?.canUndoDieChange_POWER9 ?? false;
+        this.cardIDToSelectAfterUndo = null;
+        this.switchedCardID = null;
         this.setPendingChoice(privateArgs?.pendingPlayChoice ?? null); //restores the set-aside cards after F5
         this.onPlayerActivationChange(args, isCurrentPlayerActive);
     }
@@ -52,6 +56,8 @@ class PlayCard {
         this.game.handHandler?.setChosenCardsUndoable(false); //the choices are locked in
         this.game.diceHandler.setComboHighlight([]);
         this.confirmButton = null;
+        this.cardIDToSelectAfterUndo = null; //never carried into a later turn
+        this.switchedCardID = null;
     }
     /**
      * This method is called each time the current player becomes active or inactive in a MULTIPLE_ACTIVE_PLAYER state. You can use this method to perform some user interface changes at this moment.
@@ -91,6 +97,7 @@ class PlayCard {
                 //hidden until a card is selected, like Fugu's swap button
                 this.confirmActionName = 'actPlayCard';
                 this.confirmButton = this.bga.statusBar.addActionButton(_('Confirm'), () => this.confirmClicked(this.confirmActionName), { id: 'confirm-selected-card-button' });
+                this.selectCardClickedBeforeUndo();
                 this.selectionChanged();
             }
             else {
@@ -139,20 +146,52 @@ class PlayCard {
     }
     //HandHandler, through Game.undoableChosenCardClicked: only marked while the Undo button is there
     chosenCardClicked() {
-        if (this.game.isReplay() || !this.pendingChoice)
+        if (this.game.isReplay() || !this.pendingChoice || this.cardIDToSelectAfterUndo !== null)
             return;
         this.game.undoHandler.undo('actUndoPlayCard');
+    }
+    //HandHandler, through Game.otherCardClickedWhileUndoable: a card that isn't set aside, while waiting for the others.
+    //A card I could play as my first card takes my choice back (the Undo button's own action) and is selected, not
+    //confirmed, once I choose again; any other card does nothing. Further clicks wait until the Undo has gone through
+    otherCardClickedWhileWaiting(cardID) {
+        if (this.game.isReplay() || !this.pendingChoice || this.cardIDToSelectAfterUndo !== null)
+            return;
+        if (!this.getFirstCardPlayableIDs().includes(cardID))
+            return;
+        const undoRequest = this.game.undoHandler.undo('actUndoPlayCard');
+        if (!undoRequest)
+            return;
+        this.cardIDToSelectAfterUndo = cardID;
+        undoRequest.catch(() => { this.cardIDToSelectAfterUndo = null; }); //refused (the others locked the choices in first): clicks work again
+    }
+    //the cards I could play as my first card, the list Undo sends back as playableCardIDs (the server's getPlayableCardIDs()
+    //is the keys of the same getPlayableCardDice()). While waiting, playableCardIDs itself is empty or a chain's remainder
+    getFirstCardPlayableIDs() {
+        return Object.keys(this.playableCardDice).map(cardID => parseInt(cardID));
+    }
+    //I am choosing a first card again after the Undo: the card clicked while waiting is selected, through the same checks
+    //as a click (selectable, and canSelectCard in Expert mode). Applied once, whatever happens
+    selectCardClickedBeforeUndo() {
+        const cardID = this.cardIDToSelectAfterUndo;
+        if (cardID === null)
+            return;
+        this.cardIDToSelectAfterUndo = null;
+        if (this.canSelectCard(cardID) && this.game.handHandler.selectCardByID(cardID))
+            this.switchedCardID = cardID;
     }
     //called through Game.handSelectionChanged when a card is selected or unselected
     selectionChanged() {
         if (!this.confirmButton)
             return;
         const selectedCard = this.game.handHandler?.getSelectedCardData();
-        const oneClickPlay = this.game.prefHandler?.isOneClickPlay() ?? false;
-        this.confirmButton.style.display = (selectedCard && !oneClickPlay) ? null : 'none';
+        if (selectedCard?.card_id !== this.switchedCardID)
+            this.switchedCardID = null; //a click moved or cleared the selection: back to the usual behaviour
+        //"One-click card play" preference: the click that selected the card plays it. Not the card selected after an Undo:
+        //that click was made while waiting, so it keeps the Confirm button
+        const playsOnClick = (this.game.prefHandler?.isOneClickPlay() ?? false) && this.switchedCardID === null;
+        this.confirmButton.style.display = (selectedCard && !playsOnClick) ? null : 'none';
         this.updateConfirmButtonLook(selectedCard);
-        //"One-click card play" preference: the click that selected the card plays it
-        if (selectedCard && oneClickPlay) {
+        if (selectedCard && playsOnClick) {
             this.confirmClicked(this.confirmActionName);
             return;
         }
@@ -2080,6 +2119,11 @@ class HandHandler {
             this.game.undoableChosenCardClicked();
             return;
         }
+        //another card while a choice can still be undone: PlayCard may take the choice back and select this card instead
+        if (clickedCard && this.cardsContainer.querySelector('.a-card.' + HandHandler.UNDOABLE_CHOSEN_CARD_CLASS)) {
+            this.game.otherCardClickedWhileUndoable(parseInt(clickedCard.getAttribute('data-card-id')));
+            return;
+        }
         if (!this.game.bga.players.isCurrentPlayerActive())
             return;
         if (!HandHandler.SELECTION_STATES.includes(this.game.getGameStateName()))
@@ -2112,6 +2156,16 @@ class HandHandler {
             this.selectCard(cardDiv);
         }
         this.game.handSelectionChanged();
+    }
+    //selects a selectable card without a click (PlayCard: the card clicked before an Undo went through), replacing any
+    //selection. Doesn't call Game.handSelectionChanged: the caller updates the status bar. False if the card isn't selectable
+    selectCardByID(cardID) {
+        const cardDiv = this.cardsContainer.querySelector('.a-card.' + HandHandler.SELECTABLE_CARD_CLASS + '[data-card-id="' + cardID + '"]');
+        if (!cardDiv)
+            return false;
+        this.clearSelection();
+        this.selectCard(cardDiv);
+        return true;
     }
     selectCard(cardDiv) {
         this.selectionCounter++;
@@ -2969,11 +3023,12 @@ class UndoHandler {
             color: 'alert',
         });
     }
-    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card)
+    //the Undo button, and anything that does the same (PlayCard: clicking a set-aside card, or another playable card).
+    //Returns the request's promise, or undefined when nothing was sent
     undo(actionName) {
         if (!this.game.bga.actions.checkPossibleActions(actionName))
-            return;
-        this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
+            return undefined;
+        return this.game.bga.actions.performAction(actionName, {}, { checkAction: false });
     }
 }
 
@@ -4656,6 +4711,11 @@ class Game {
     undoableChosenCardClicked() {
         if (this.getGameStateName() === 'PlayCard')
             this.playCard.chosenCardClicked();
+    }
+    //a hand card that isn't set aside was clicked while the set-aside ones can still be taken back (HandHandler only marks them in PlayCard)
+    otherCardClickedWhileUndoable(cardID) {
+        if (this.getGameStateName() === 'PlayCard')
+            this.playCard.otherCardClickedWhileWaiting(cardID);
     }
     //card 10, seen by everyone but the two players involved: N card backs fly each way between their boards, all at once.
     //Both start points are measured before any back is added to a board, so one direction never starts from the other's back
