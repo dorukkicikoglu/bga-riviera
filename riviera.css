@@ -1079,7 +1079,10 @@ body .sliding-clone {
   opacity: 0;
 }
 #dice-container .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2 {
-  display: none;
+  --lock-badge-size: calc(var(--die-size) * 0.3);
+  left: calc(96% - var(--lock-badge-size) / 2);
+  top: calc(4% - var(--lock-badge-size) / 2);
+  bottom: auto;
 }
 #dice-container .die-arrow-triangle {
   position: absolute;

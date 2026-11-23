@@ -369,6 +369,13 @@ $power9-owners-arrow-opacity: 0.5;
 //more owners' row (a die wide) plus the gap is 1.3 die sizes, 107px, past the game area's edge. The avatar row is then this
 //share of a die wide instead (more overlap, smaller past the max overlap): 1.15 die sizes, 95px
 $power9-owners-tight-row-width-ratio: 0.85;
+//card 9, the active owner's dice with arrows: the card 2 padlock badge moves to the top-right corner (the down arrow covers
+//its usual place). Its size is a share of --die-size and its center a share of the die, the corner just inside: the
+//top-right pip (centered at 78% / 22%, 20% wide) stays clear (center 25.5% of a die away, radii 15% + 10%), and it reaches
+//11% of a die past the right edge, inside the 8px gap at the dice area's sizes
+$power9-lock-badge-size-ratio: 0.3;
+$power9-lock-badge-center-x: 96%;
+$power9-lock-badge-center-y: 4%;
 
 #dice-container{ --die-size: calc(#{$die-size} * #{$dice-area-die-scale}); }
 .mobile_version #dice-container{ --die-size: calc(#{$mobile-die-size} * #{$dice-area-die-scale}); }
@@ -460,9 +467,14 @@ $power9-owners-tight-row-width-ratio: 0.85;
         .die-lock-open-icon{ opacity: 0.75; }
         .die-lock-closed-icon{ opacity: 0; }
     }
-    //card 9: the down arrow sits where the badge is, so a die showing its arrows (the active owner only, ModifyDie) hides it
-    //until they go
-    .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2{ display: none; }
+    //card 9: the down arrow sits where the badge is, so on a die showing its arrows (the active owner only, ModifyDie) the
+    //badge moves to the die's top-right corner, smaller ($power9-lock-badge-*), until they go: the padlock still says why
+    //the die is faded. Same open / closed look; only its place and size change (--lock-badge-size also sizes the icon).
+    //It sits clear of the up arrow (the middle 44% of the die's width) and of the top-right pip. A die turned this roll
+    //(its ± badge in the same corner) has no arrows, so the two never meet
+    .die-slot.modifiable-die-power9 .a-die .die-lock-badge-power2{ --lock-badge-size: calc(var(--die-size) * #{$power9-lock-badge-size-ratio});
+        left: calc(#{$power9-lock-badge-center-x} - var(--lock-badge-size) / 2); top: calc(#{$power9-lock-badge-center-y} - var(--lock-badge-size) / 2); bottom: auto;
+    }
 
     //the card 9 triangle, up (+1) or down (-1) by its parent's data-delta: on the die arrows below and, as decoration, on the
     //card 9 owners indicator (.power9-owners-arrow). Its parent places it vertically
