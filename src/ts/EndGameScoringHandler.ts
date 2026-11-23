@@ -23,7 +23,7 @@ export class EndGameScoringHandler{
     private fastForwardButton: HTMLDivElement;
     private bodyClickHandler = null;
     private winner_ids: number[];
-    private delayAfterFadeIns = 10000;
+    private delayAfterFadeIns = 5000;
 
 	constructor(private game: Game) { }
 

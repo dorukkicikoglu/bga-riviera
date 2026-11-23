@@ -3052,7 +3052,7 @@ class EndGameScoringHandler {
     constructor(game) {
         this.game = game;
         this.bodyClickHandler = null;
-        this.delayAfterFadeIns = 10000;
+        this.delayAfterFadeIns = 5000;
     }
     async displayEndGameScore(endGameScoring) {
         this.endGameScoring = endGameScoring;
