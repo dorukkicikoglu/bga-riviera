@@ -1405,6 +1405,19 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
   box-shadow: 0 0 14px 4px #e9c45a;
   border-color: #e0b228;
 }
+#played-columns-container .a-played-column.game-over-column:not(.grand-slam-column) .played-column-stars {
+  display: none;
+}
+#played-columns-container .a-played-column .played-column-trophy {
+  display: block;
+  font-size: 0.82em;
+  line-height: 1;
+  color: #f2c94c;
+}
+#played-columns-container .a-played-column.grand-slam-column .played-column-stars {
+  background-color: #2e2a1f;
+  border-color: #e0b228;
+}
 #played-columns-container .a-played-column.swap-target-column-power10 {
   outline: 2px dashed var(--column-owner-color);
   outline-offset: 4px;

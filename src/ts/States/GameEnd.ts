@@ -12,8 +12,8 @@
 import { Game } from "../Game";
 
 /**
- * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold) and an
- * empty hand is hidden.
+ * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold), the
+ * column stars pills are hidden (a Grand Slam's trophy stays) and an empty hand is hidden.
  */
 export class GameEnd {
     constructor(private game: Game, private bga: Bga<RivieraPlayer, RivieraGamedatas>) {
@@ -23,8 +23,7 @@ export class GameEnd {
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args: any, isCurrentPlayerActive: boolean) {
-        this.game.updateEndGameScoreHighlights();
-        this.game.handHandler?.updateGameOverVisibility();
+        this.game.updateGameOverLook();
     }
 
     /**

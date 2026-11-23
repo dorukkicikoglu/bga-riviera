@@ -33,6 +33,7 @@ export class PlayerHandler{
     private columnPointsChip: HTMLSpanElement; //"+N" right after BGA's score counter: the column stars not banked yet (updateScoreDisplays)
     private clippedScoreAncestors: { element: HTMLElement; overflow: string; }[] = []; //overflow made visible while the score scales
     private playedColumn: PlayedColumnHandler;
+    private grandSlam: boolean = false; //[BGA] this player made a Grand Slam (setGrandSlam): a trophy on the column badge, no "+N" chip
 
 	constructor(private game: Game, private playerID: number, private playerName: string, private playerColor: string, private playerNo: number, private handCount: number, private roundStatus: RoundStatus, private lastChanceUsed: boolean, private playedCardsData: PlayedCard[], private score: number) {
         this.createPlayerBoardContainer();
@@ -229,15 +230,18 @@ export class PlayerHandler{
 
     //[BGA] the one place that shows the unbanked column stars: the "+N" chip on this board (hidden at 0) and the column header's
     //badge ("★7", PlayedColumnHandler.updateStarsBadge), from the same number, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
-    //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows
+    //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows.
+    //Once the game is over (Game.updateGameOverLook) the chip is hidden for everyone and the badge for everyone but a Grand
+    //Slam player, whose badge is a trophy (and whose chip goes as soon as the Grand Slam is scored)
     public updateScoreDisplays(): void {
         if(!this.playedColumn)
             return;
 
+        const isGameOver = this.game.isGameOver();
         const unbankedStars = this.getUnbankedStars();
         this.columnPointsChip.textContent = '+' + unbankedStars;
-        this.columnPointsChip.hidden = unbankedStars === 0;
-        this.playedColumn.updateStarsBadge(unbankedStars);
+        this.columnPointsChip.hidden = unbankedStars === 0 || isGameOver || this.grandSlam;
+        this.playedColumn.updateStarsBadge(unbankedStars, isGameOver);
     }
 
     //card 10: while choosing whom to swap with, hovering a target's column or its status bar button lights up this board
@@ -325,9 +329,14 @@ export class PlayerHandler{
         this.clippedScoreAncestors = [];
     }
 
+    //live (notif_grandSlam) or on load (gamedatas.grandSlamPlayerIds): the column glows gold and its badge becomes a trophy
     public setGrandSlam(): void {
+        this.grandSlam = true;
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
+        this.updateScoreDisplays();
+        this.game.tooltipHandler?.updateColumnStarsTooltip(this.playerID); //on load the TooltipHandler doesn't exist yet: its constructor adds it
     }
+    public isGrandSlam(): boolean { return this.grandSlam; }
 
     //data-round-status shows one stamp at most. In: nothing. Stopped: the hand area greys out under the STOPPED stamp.
     //Crashed: the CRASHED stamp (the hand count is already 0). The next round's 'in' clears both

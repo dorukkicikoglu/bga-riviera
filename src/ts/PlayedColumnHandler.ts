@@ -153,9 +153,13 @@ export class PlayedColumnHandler{
     //[BGA] the header's badge, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the column
     //stars not banked yet ("★7"). A stopped column's stars are already in the score (banked at the Stop reveal) and can't
     //change: the badge shows the bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the
-    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number
-    public updateStarsBadge(unbankedStars: number): void{
-        if(this.isBanked())
+    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number. Once the game is over the
+    //badge is hidden (game-over-column, Game.scss), except a Grand Slam player's, which shows a trophy (grand-slam-column)
+    public updateStarsBadge(unbankedStars: number, isGameOver: boolean): void{
+        this.columnContainer.classList.toggle('game-over-column', isGameOver);
+        if(this.owner.isGrandSlam())
+            this.starsText.innerHTML = '<i class="fa fa-trophy played-column-trophy" aria-hidden="true"></i>';
+        else if(this.isBanked())
             this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if(this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';

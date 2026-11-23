@@ -40,8 +40,7 @@ export class EndGameScoringHandler{
         this.winner_ids = endGameScoring.winner_ids;
 
         this.scoreContainer = document.createElement('div');
-        this.game.updateEndGameScoreHighlights(); //the game is over (isDisplayed): every score back to BGA's default look
-        this.game.handHandler?.updateGameOverVisibility(); //and an empty hand is hidden for good
+        this.game.updateGameOverLook(); //the game is over (isDisplayed): scores back to BGA's default look, column stars pills and an empty hand hidden
         this.scoreContainer.classList.add('end-game-score-container');
         this.scoreContainer.style.opacity = '0';
         this.scoreContainer.innerHTML = `

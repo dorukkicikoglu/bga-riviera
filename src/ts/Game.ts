@@ -158,7 +158,7 @@ export class Game {
             this.handHandler = new HandHandler(this, gamedatas.cardsInMyHand);
         }
 
-        //a Grand Slam ends the game, so this only matters after F5 at the end
+        //a Grand Slam ends the game, so this only matters after F5 at the end (or a replay from a move after it)
         for(let player_id of gamedatas.grandSlamPlayerIds ?? [])
             this.players[player_id]?.setGrandSlam();
 
@@ -579,6 +579,14 @@ export class Game {
     public updateEndGameScoreHighlights(): void {
         for(let player_id in this.players)
             this.players[player_id].updateEndGameScoreHighlight();
+    }
+    //the game is over (GameEnd, or the end-game table in EndScore, live, on load and in replays alike): the scores back to
+    //BGA's default look, the column stars pills hidden (a Grand Slam's trophy stays) and an empty hand hidden for good
+    public updateGameOverLook(): void {
+        this.updateEndGameScoreHighlights();
+        for(let player_id in this.players)
+            this.players[player_id].updateScoreDisplays();
+        this.handHandler?.updateGameOverVisibility();
     }
     public getPlayerName(playerID: number): string { return this.gamedatas.players[playerID]?.name ?? ''; }
 

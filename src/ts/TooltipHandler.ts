@@ -240,14 +240,16 @@ export class TooltipHandler{
     }
 
     //the column badge: the stars at stake while in, the banked amount once stopped, nothing to bank once crashed
-    //(PlayedColumnHandler.setRoundStatus)
+    //(PlayedColumnHandler.setRoundStatus), the trophy after a Grand Slam (PlayerHandler.setGrandSlam)
     public updateColumnStarsTooltip(player_id: number){
         const playedColumn = this.game.players[player_id]?.getPlayedColumn();
         if(!playedColumn)
             return;
 
         let tooltipText = _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
-        if(playedColumn.isBanked())
+        if(this.game.players[player_id].isGrandSlam())
+            tooltipText = _('Grand Slam!');
+        else if(playedColumn.isBanked())
             tooltipText = _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`);
         else if(playedColumn.isCrashed())
             tooltipText = _('Crashed: no stars this round');

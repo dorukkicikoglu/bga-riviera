@@ -1137,8 +1137,8 @@ class SwapCards {
 }
 
 /**
- * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold) and an
- * empty hand is hidden.
+ * BGA's final state: the game is over, so the 40+ scores lose their end-game highlight (intro, loop, red, bold), the
+ * column stars pills are hidden (a Grand Slam's trophy stays) and an empty hand is hidden.
  */
 class GameEnd {
     constructor(game, bga) {
@@ -1149,8 +1149,7 @@ class GameEnd {
      * This method is called each time we are entering the game state. You can use this method to perform some user interface changes at this moment.
      */
     onEnteringState(args, isCurrentPlayerActive) {
-        this.game.updateEndGameScoreHighlights();
-        this.game.handHandler?.updateGameOverVisibility();
+        this.game.updateGameOverLook();
     }
     /**
      * This method is called each time we are leaving the game state. You can use this method to perform some user interface changes at this moment.
@@ -1286,9 +1285,13 @@ class PlayedColumnHandler {
     //[BGA] the header's badge, only from PlayerHandler.updateScoreDisplays (which also fills the board's "+N" chip): the column
     //stars not banked yet ("★7"). A stopped column's stars are already in the score (banked at the Stop reveal) and can't
     //change: the badge shows the bank icon with no number, so it doesn't read as stars still to come. Its tooltip gives the
-    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number
-    updateStarsBadge(unbankedStars) {
-        if (this.isBanked())
+    //amount. A crashed column's badge shows a bomb (the crash log row's icon), also with no number. Once the game is over the
+    //badge is hidden (game-over-column, Game.scss), except a Grand Slam player's, which shows a trophy (grand-slam-column)
+    updateStarsBadge(unbankedStars, isGameOver) {
+        this.columnContainer.classList.toggle('game-over-column', isGameOver);
+        if (this.owner.isGrandSlam())
+            this.starsText.innerHTML = '<i class="fa fa-trophy played-column-trophy" aria-hidden="true"></i>';
+        else if (this.isBanked())
             this.starsText.innerHTML = this.game.getBankIconHtml('played-column-bank-icon');
         else if (this.isCrashed())
             this.starsText.innerHTML = '<i class="fa6 fa-bomb played-column-bomb" aria-hidden="true"></i>';
@@ -1350,6 +1353,7 @@ class PlayerHandler {
         this.score = score;
         this.scoreElement = null; //BGA's score counter span, through getScoreElement()
         this.clippedScoreAncestors = []; //overflow made visible while the score scales
+        this.grandSlam = false; //[BGA] this player made a Grand Slam (setGrandSlam): a trophy on the column badge, no "+N" chip
         this.createPlayerBoardContainer();
         this.setHandCount(this.handCount);
         this.setLastChanceUsed(this.lastChanceUsed);
@@ -1517,14 +1521,17 @@ class PlayerHandler {
     }
     //[BGA] the one place that shows the unbanked column stars: the "+N" chip on this board (hidden at 0) and the column header's
     //badge ("★7", PlayedColumnHandler.updateStarsBadge), from the same number, so they never disagree. Called by setScore, setRoundStatus and every change of the column's cards. The column's
-    //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows
+    //own constructor calls it before this.playedColumn is set: nothing to do then, setRoundStatus in our constructor follows.
+    //Once the game is over (Game.updateGameOverLook) the chip is hidden for everyone and the badge for everyone but a Grand
+    //Slam player, whose badge is a trophy (and whose chip goes as soon as the Grand Slam is scored)
     updateScoreDisplays() {
         if (!this.playedColumn)
             return;
+        const isGameOver = this.game.isGameOver();
         const unbankedStars = this.getUnbankedStars();
         this.columnPointsChip.textContent = '+' + unbankedStars;
-        this.columnPointsChip.hidden = unbankedStars === 0;
-        this.playedColumn.updateStarsBadge(unbankedStars);
+        this.columnPointsChip.hidden = unbankedStars === 0 || isGameOver || this.grandSlam;
+        this.playedColumn.updateStarsBadge(unbankedStars, isGameOver);
     }
     //card 10: while choosing whom to swap with, hovering a target's column or its status bar button lights up this board
     setSwapTargetHighlightPOWER10(highlighted) {
@@ -1602,9 +1609,14 @@ class PlayerHandler {
         this.clippedScoreAncestors.forEach(({ element, overflow }) => element.style.overflow = overflow);
         this.clippedScoreAncestors = [];
     }
+    //live (notif_grandSlam) or on load (gamedatas.grandSlamPlayerIds): the column glows gold and its badge becomes a trophy
     setGrandSlam() {
+        this.grandSlam = true;
         this.playedColumn.getColumnContainer().classList.add('grand-slam-column');
+        this.updateScoreDisplays();
+        this.game.tooltipHandler?.updateColumnStarsTooltip(this.playerID); //on load the TooltipHandler doesn't exist yet: its constructor adds it
     }
+    isGrandSlam() { return this.grandSlam; }
     //data-round-status shows one stamp at most. In: nothing. Stopped: the hand area greys out under the STOPPED stamp.
     //Crashed: the CRASHED stamp (the hand count is already 0). The next round's 'in' clears both
     setRoundStatus(roundStatus) {
@@ -1833,13 +1845,15 @@ class TooltipHandler {
         }
     }
     //the column badge: the stars at stake while in, the banked amount once stopped, nothing to bank once crashed
-    //(PlayedColumnHandler.setRoundStatus)
+    //(PlayedColumnHandler.setRoundStatus), the trophy after a Grand Slam (PlayerHandler.setGrandSlam)
     updateColumnStarsTooltip(player_id) {
         const playedColumn = this.game.players[player_id]?.getPlayedColumn();
         if (!playedColumn)
             return;
         let tooltipText = _('Stars of the cards played this round. A player who stops banks them; a crash loses them.');
-        if (playedColumn.isBanked())
+        if (this.game.players[player_id].isGrandSlam())
+            tooltipText = _('Grand Slam!');
+        else if (playedColumn.isBanked())
             tooltipText = _('Banked ${points} ★').replace('${points}', `${playedColumn.getStarsTotal()}`);
         else if (playedColumn.isCrashed())
             tooltipText = _('Crashed: no stars this round');
@@ -3049,8 +3063,7 @@ class EndGameScoringHandler {
         document.body.classList.add('displaying-end-game-score');
         this.winner_ids = endGameScoring.winner_ids;
         this.scoreContainer = document.createElement('div');
-        this.game.updateEndGameScoreHighlights(); //the game is over (isDisplayed): every score back to BGA's default look
-        this.game.handHandler?.updateGameOverVisibility(); //and an empty hand is hidden for good
+        this.game.updateGameOverLook(); //the game is over (isDisplayed): scores back to BGA's default look, column stars pills and an empty hand hidden
         this.scoreContainer.classList.add('end-game-score-container');
         this.scoreContainer.style.opacity = '0';
         this.scoreContainer.innerHTML = `
@@ -4279,7 +4292,7 @@ class Game {
             this.myself.getPlayedColumn().setMyColumn(true);
             this.handHandler = new HandHandler(this, gamedatas.cardsInMyHand);
         }
-        //a Grand Slam ends the game, so this only matters after F5 at the end
+        //a Grand Slam ends the game, so this only matters after F5 at the end (or a replay from a move after it)
         for (let player_id of gamedatas.grandSlamPlayerIds ?? [])
             this.players[player_id]?.setGrandSlam();
         this.startTokenHandler = new StartTokenHandler(this, gamedatas.startPlayerId);
@@ -4652,6 +4665,14 @@ class Game {
     updateEndGameScoreHighlights() {
         for (let player_id in this.players)
             this.players[player_id].updateEndGameScoreHighlight();
+    }
+    //the game is over (GameEnd, or the end-game table in EndScore, live, on load and in replays alike): the scores back to
+    //BGA's default look, the column stars pills hidden (a Grand Slam's trophy stays) and an empty hand hidden for good
+    updateGameOverLook() {
+        this.updateEndGameScoreHighlights();
+        for (let player_id in this.players)
+            this.players[player_id].updateScoreDisplays();
+        this.handHandler?.updateGameOverVisibility();
     }
     getPlayerName(playerID) { return this.gamedatas.players[playerID]?.name ?? ''; }
     //fills container with the player's avatar from their BGA player board (#avatar_<id>, there on setup for players, spectators

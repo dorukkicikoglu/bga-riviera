@@ -621,6 +621,12 @@ body:not(.lockedInterface) #my-hand-container .cards-container .a-card.chosen-ca
         &[data-is-myself="true"]{ border-width: 2px; box-shadow: 0 0 8px var(--column-owner-color); }
         &[data-round-status="crashed"]{ opacity: 0.45; transition: opacity 0.4s ease; }
         &.grand-slam-column{ box-shadow: 0 0 14px 4px #e9c45a; border-color: #e0b228; }
+
+        //[BGA] the game is over (PlayedColumnHandler.updateStarsBadge): the column stars pill means nothing any more, except a Grand
+        //Slam player's, which becomes a gold trophy (as tall as the bomb) on a dark pill rimmed in the column's gold, same shape and padding
+        &.game-over-column:not(.grand-slam-column) .played-column-stars{ display: none; }
+        .played-column-trophy{ display: block; font-size: 0.82em; line-height: 1; color: #f2c94c; }
+        &.grand-slam-column .played-column-stars{ background-color: #2e2a1f; border-color: #e0b228; }
     }
 
     //[BGA] card 10, the owner choosing whom to swap with (PlayedColumnHandler.setSwapTargetPOWER10): every target's column is a
