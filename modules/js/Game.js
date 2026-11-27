@@ -2927,20 +2927,14 @@ class LogMutationObserver {
         return this.addLogClassTag(logHTML, 'cards-redrawn-power10-log');
     }
     //icons only: "name [ban] [card]", the card as the circular card icon (the server's POWER_SKIPPED_LOG_STR is the plain-text
-    //fallback). A card 10 skipped on its own keeps its reason after it
-    createLogPowerSkipped(player_id, value, card, reason) {
+    //fallback). No reason is shown, even for a card 10 skipped on its own (old rows may still carry a `reason` arg: ignored)
+    createLogPowerSkipped(player_id, value, card) {
         const cardHTML = card ? this.getCardIconsHTML([card]) : `<b>${value}</b>`;
-        let reasonHTML = '';
-        if (reason === 'nothing_to_draw')
-            reasonHTML = _('(no card left to draw)');
-        else if (reason === 'not_enough_cards')
-            reasonHTML = _('(fewer than 2 cards in hand)');
         let logHTML = `
             <div class="power-skipped-row">
                 ${this.game.divColoredPlayer(player_id, { class: 'playername' })}
                 <i class="fa6 fa-ban power-skipped-ban" aria-hidden="true"></i>
                 ${cardHTML}
-                ${reasonHTML}
             </div>` + ' &nbsp;';
         return this.addLogClassTag(logHTML, 'power-skipped-log');
     }
@@ -4356,7 +4350,7 @@ class Game {
                         else if (key == 'CARDS_REDRAWN_POWER10_LOG_STR')
                             log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['_private']?.['discarded'] ?? null, args['_private']?.['drawn'] ?? null, args['count']).log_html;
                         else if (key == 'POWER_SKIPPED_LOG_STR')
-                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
+                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null).log_html;
                         else if (key == 'GAME_END_LOG_STR')
                             log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score'], args['grand_slam_stars'] ?? null).log_html;
                     }

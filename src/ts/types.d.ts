@@ -238,7 +238,6 @@ interface PowerSkippedArgs {
     player_id: number;
     value: number;
     card: RivieraCard | null;
-    reason: '' | 'nothing_to_draw' | 'not_enough_cards';
 }
 
 interface CardsRevealedArgs {

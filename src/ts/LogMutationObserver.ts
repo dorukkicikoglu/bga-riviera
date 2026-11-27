@@ -332,22 +332,15 @@ export class LogMutationObserver{
     }
 
     //icons only: "name [ban] [card]", the card as the circular card icon (the server's POWER_SKIPPED_LOG_STR is the plain-text
-    //fallback). A card 10 skipped on its own keeps its reason after it
-    public createLogPowerSkipped(player_id: number, value: number, card: RivieraCard | null, reason: string): LogRowData {
+    //fallback). No reason is shown, even for a card 10 skipped on its own (old rows may still carry a `reason` arg: ignored)
+    public createLogPowerSkipped(player_id: number, value: number, card: RivieraCard | null): LogRowData {
         const cardHTML = card ? this.getCardIconsHTML([card]) : `<b>${value}</b>`;
-
-        let reasonHTML = '';
-        if(reason === 'nothing_to_draw')
-            reasonHTML = _('(no card left to draw)');
-        else if(reason === 'not_enough_cards')
-            reasonHTML = _('(fewer than 2 cards in hand)');
 
         let logHTML = `
             <div class="power-skipped-row">
                 ${this.game.divColoredPlayer(player_id, {class: 'playername'})}
                 <i class="fa6 fa-ban power-skipped-ban" aria-hidden="true"></i>
                 ${cardHTML}
-                ${reasonHTML}
             </div>` + ' &nbsp;';
 
         return this.addLogClassTag(logHTML, 'power-skipped-log');

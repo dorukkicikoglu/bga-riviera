@@ -228,7 +228,7 @@ export class Game {
                         else if(key == 'CARDS_REDRAWN_POWER10_LOG_STR')
                             log = this.logMutationObserver.createLogCardsRedrawnPOWER10(args['player_id'], args['_private']?.['discarded'] ?? null, args['_private']?.['drawn'] ?? null, args['count']).log_html;
                         else if(key == 'POWER_SKIPPED_LOG_STR')
-                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null, args['reason'] ?? '').log_html;
+                            log = this.logMutationObserver.createLogPowerSkipped(args['player_id'], args['value'], args['card'] ?? null).log_html;
                         else if(key == 'GAME_END_LOG_STR')
                             log = this.logMutationObserver.createLogGameEnd(args['winner_ids'], args['winning_score'], args['grand_slam_stars'] ?? null).log_html;
                     }

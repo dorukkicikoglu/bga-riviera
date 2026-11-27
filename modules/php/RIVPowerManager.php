@@ -160,12 +160,12 @@ class RIVPowerManager{
 
             $handCount = $this->game->tableManager->getHandCounts()[$playerID] ?? 0;
             if($handCount < CARDS_SWAPPED_BY_POWER10){ //[BGA] the power needs 2 cards of your own
-                $this->skipPower($playerID, 10, 'not_enough_cards');
+                $this->skipPower($playerID, 10);
                 continue;
             }
 
             if(empty($this->getSwapTargetsPOWER10($playerID)) && $this->game->tableManager->getDrawableCountPOWER10() === 0){
-                $this->skipPower($playerID, 10, 'nothing_to_draw');
+                $this->skipPower($playerID, 10);
                 continue;
             }
 
@@ -272,18 +272,18 @@ class RIVPowerManager{
     }
 
     /**
-     * The owner chose not to use the power (or, for card 10, there is nothing to draw): one public log row.
+     * The owner chose not to use the power (or, for card 10, can't: fewer than 2 cards in hand or nothing to draw): one
+     * public log row, "name [ban] [card]", with no reason.
      */
-    function skipPower(int $playerID, int $cardValue, string $reason = ''): void{
+    function skipPower(int $playerID, int $cardValue): void{
         $this->clearPendingPower($playerID, $cardValue);
 
         $powerSkippedLogStr = $this->game->getPlayerNameById($playerID).' does not use their '.$cardValue;
         $this->game->bga->notify->all('powerSkipped', '${POWER_SKIPPED_LOG_STR}', [
-            'preserve' => ['player_id', 'value', 'card', 'reason'],
+            'preserve' => ['player_id', 'value', 'card'],
             'player_id' => $playerID,
             'value' => $cardValue,
             'card' => $this->game->tableManager->getLastPlayedCard($playerID),
-            'reason' => $reason,
             'POWER_SKIPPED_LOG_STR' => $powerSkippedLogStr,
         ]);
 

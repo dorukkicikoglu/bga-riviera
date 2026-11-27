@@ -159,7 +159,7 @@ Card 10 (`debug_POWER10()`, the prompt comes right after the reveal; fallback: `
 - [ ] Targets: only opponents still in the round with at least 2 cards get a "Swap with" button. An opponent who crashed on this reveal or stopped in an earlier turn gets none.
 - [ ] I can swap and then choose Stop: the swap stands and I bank my column.
 - [ ] An opponent down to 1 card gets no button, and if every opponent still in the round is down to 1 card (or none is still in) I get the discard-and-draw fallback instead (no debug helper trims a single hand: play the opponent's hand down).
-- [ ] With fewer than 2 cards in my own hand, my 10 is skipped with a "(fewer than 2 cards in hand)" row: `debug_trimHands(2)`, then `debug_POWER10()` (the 10 replaces one of my 2 cards), then play the 10 so 1 card is left.
+- [ ] With fewer than 2 cards in my own hand, my 10 is skipped with a "name [ban] [10]" row and no reason under it: `debug_trimHands(2)`, then `debug_POWER10()` (the 10 replaces one of my 2 cards), then play the 10 so 1 card is left.
 - [ ] Redraw fallback (`debug_POWER10(true)`): with nobody else in the round I discard and draw; a lime log row shows my cards to me and backs to others.
 - [ ] `debug_setDrawPile(1, 0)` first: only 1 card is replaced, after the confirmation.
 - [ ] `debug_setDrawPile(0, 3)` first: the discard pile is reshuffled in, and the cards just discarded never come back.
@@ -395,7 +395,7 @@ Owners and targets:
 - [ ] A player who stopped in an earlier turn is never a target: B stopped last turn, A plays a 10, only C is offered.
 - [ ] `debug_POWER10(true)` (everyone else stopped): I get the discard and draw fallback ("You may choose 2 cards to discard [10][power]"), then Stop or More.
 - [ ] A target with fewer than 2 cards is not offered; with no target at all, the fallback.
-- [ ] Owner with fewer than 2 cards: "does not use their 10 (fewer than 2 cards in hand)" row, then straight to Stop or More.
+- [ ] Owner with fewer than 2 cards: "name [ban] [10]" row with no reason, then straight to Stop or More.
 
 Ends and edge cases:
 - [ ] Grand Slam on the same reveal as someone's 10: the game ends, no swap prompt.
@@ -478,7 +478,7 @@ Rows:
 - [ ] Card 9: the row reads "name [9]: [old die] → [new die]", the 9 the circular card icon in its color (hover: card 9's power tooltip), the dice in their color, no "turn" or "to".
 - [ ] Card 9 undo still removes that row (live and after F5).
 - [ ] Skip a card 9, 10 or 11: the row reads "name [ban] [card]", no "does not use": a grey ban sign 70% as tall as the card icon and centred on it, then the circular card icon with nothing on it, evenly spaced and centred on one line. Hovering the card still shows its power tooltip. Same after F5 and in a replay.
-- [ ] Card 10 skipped on its own (`debug_setDrawPile(0, 0)`, or fewer than 2 cards in hand): the reason "(no card left to draw)" / "(fewer than 2 cards in hand)" still follows the card.
+- [ ] Card 10 skipped on its own (`debug_setDrawPile(0, 0)`, or fewer than 2 cards in hand): the row shows no reason after the card.
 
 
 Stop/More row with banking (no separate banking row any more):
