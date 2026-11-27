@@ -411,9 +411,12 @@ $power9-lock-badge-center-y: 4%;
     //own width (23% to 77%) and never reaches the gap or the next die. It clears the bottom-left and bottom-right pips
     //(centered at 22% and 78%, 20% wide, on faces 2 to 6) by about 5% of the die; the bottom-middle pip is never shown. A
     //child of the die, so the die's box-shadow glows (combo highlight, card 9 preview) paint under it and never on it, and
-    //the face's fade (--die-face-opacity) leaves it alone. Absolutely placed and pointer-events none: no layout shift, no
-    //blocked clicks. It inherits the die's visibility, so it hides with a die waiting for its rolling copy
-    .die-lock-badge-power2{ display: none; @include die-bottom-badge-place; box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff); pointer-events: none;
+    //the face's fade (--die-face-opacity) leaves it alone. Absolutely placed: no layout shift. It takes the pointer, so hovering
+    //or tapping any of it (the part below the die too) brings up the die's tooltip; it inherits pointer-events (never set here),
+    //so the die copies that ignore the pointer ignore it too. Clicks bubble to the die, which has no handler, and the card 9
+    //arrows (z-index 2) stay over it in the top-right corner. It inherits the die's visibility, so it hides with a die waiting
+    //for its rolling copy
+    .die-lock-badge-power2{ display: none; @include die-bottom-badge-place; box-sizing: border-box; border: 1.5px solid #1b1b1b; border-radius: 50%; background: var(--lock-color, #1b1b1b); box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.6); color: var(--lock-icon-color, #ffffff);
         //both viewBoxes are 576 x 512 at the same scale: the closed one's is centered on the lock's body, the open one's
         //starts 64 units further right (so its shackle isn't clipped), so it moves right by 64/576 of its width and the
         //two bodies overlap exactly. The open padlock is then centered on its body, its shackle reaching out to the right
